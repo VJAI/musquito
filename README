@@ -1,0 +1,3 @@
+# buzzer
+
+A tiny library that uses Web Audio API to play sounds

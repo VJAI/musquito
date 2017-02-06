@@ -2,5 +2,10 @@
   "name": "buzzer",
   "version": "0.1.0",
   "description": "A tiny library that uses Web Audio API to play sounds",
-  "license": "MIT"
+  "license": "MIT",
+  "keywords": ["audio", "sound", "audio engine", "player", "web audio api", "javascript"],
+  "scripts": {
+    "start": "",
+    "build": ""
+  }
 }
