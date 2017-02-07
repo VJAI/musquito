@@ -24,10 +24,12 @@
     }
 
     function muteBuzzer() {
-      if (buzzer.isMuted) {
+      if (buzzer.isMuted()) {
         buzzer.unmute();
+        buzzerMuteBtn.innerHTML = 'Mute';
       } else {
         buzzer.mute();
+        buzzerMuteBtn.innerHTML = 'Un-Mute';
       }
     }
 
@@ -53,50 +55,35 @@
         .replace('#id#', buzz.id)
         .replace('#sound#', src);
       buzzesList.appendChild(buzzLi);
-
-      var self = this;
+      
       buzzLi.querySelector('.buzz-play').addEventListener('click', function () {
-        playBuzz.call(self, buzz);
+        buzz.play();
       }, false);
 
       buzzLi.querySelector('.buzz-pause').addEventListener('click', function () {
-        pauseBuzz.call(self, buzz);
+        buzz.pause();
       }, false);
 
       buzzLi.querySelector('.buzz-mute').addEventListener('click', function () {
-        muteBuzz.call(self, buzz);
+        if (buzz.isMuted()) {
+          buzz.unmute();
+          this.innerHTML = 'Mute';
+        } else {
+          buzz.mute();
+          this.innerHTML = 'Un-Mute';
+        }
       }, false);
 
       buzzLi.querySelector('.buzz-stop').addEventListener('click', function () {
-        stopBuzz.call(self, buzz);
+        buzz.stop();
       }, false);
 
       buzzLi.querySelector('.buzz-volume').addEventListener('change', function () {
-        changeVolumeBuzz.call(self, buzz, this.value);
+        buzz.volume(this.value);
       }, false);
 
       event.preventDefault();
       return false;
-    }
-
-    function playBuzz(buzz) {
-      buzz.play();
-    }
-
-    function pauseBuzz(buzz) {
-      buzz.pause();
-    }
-
-    function muteBuzz(buzz) {
-      buzz.mute();
-    }
-
-    function stopBuzz(buzz) {
-      buzz.stop();
-    }
-
-    function changeVolumeBuzz(buzz, volume) {
-      buzz.volume(volume);
     }
   }
 
