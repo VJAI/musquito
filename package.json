@@ -3,9 +3,20 @@
   "version": "0.1.0",
   "description": "A tiny library that uses Web Audio API to play sounds",
   "license": "MIT",
-  "keywords": ["audio", "sound", "audio engine", "player", "web audio api", "javascript"],
+  "keywords": [
+    "audio",
+    "sound",
+    "audio engine",
+    "player",
+    "web audio api",
+    "javascript"
+  ],
   "scripts": {
-    "start": "",
-    "build": ""
+    "start": "http-server -p 8080 -o",
+    "build": "uglifyjs buzzer.js -o buzzer.min.js -c -m "
+  },
+  "devDependencies": {
+    "http-server": "^0.9.0",
+    "uglify-js": "^2.7.5"
   }
 }
