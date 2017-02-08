@@ -111,8 +111,8 @@
     this.muted = false;
     this.endTimer = null;
     this.bufferSource = null;
-    this.startPosition = 0;
-    this.currentPosition = 0;
+    this.staredAt = 0;
+    this.pausedAt = 0;
     this.context = buzzer.context();
     this.gain = this.context.createGain();
     this.gain.connect(buzzer.gain);
@@ -164,31 +164,19 @@
     }
 
     var play = function () {
-      if (this.endTimer) {
-        clearTimeout(this.endTimer);
-      }
-
       this.bufferSource = this.context.createBufferSource();
       this.bufferSource.buffer = this.buffer;
       this.bufferSource.connect(this.gain);
-
-      this.endTimer = setTimeout(playEnd, this.duration * 1000);
+      this.bufferSource.start(0, this.pausedAt);
+      this.startedAt = this.context.currentTime - this.pausedAt;
+      this.pausedAt = 0;
       this.state = BuzzState.Playing;
-
-      this.startPosition = this.context.currentTime;
-      var positionToStart = this.currentPosition > 0 ? this.startPosition - this.currentPosition : 0;
-
-      if(positionToStart > 0) {
-        this.bufferSource.start(0, positionToStart);
-      } else {
-        this.bufferSource.start(0);
-      }
     };
 
-    var playEnd = function () {
+    /*var playEnd = function () {
       this.state = BuzzState.Stopped;
       end && end();
-    };
+    };*/
 
     var onError = function (e) {
       log(e, 'error');
@@ -208,8 +196,11 @@
       return;
     }
 
+    this.bufferSource.disconnect();
     this.bufferSource.stop(0);
-    this.currentPosition = 0;
+    this.bufferSource = null;
+    this.pausedAt = 0;
+    this.startedAt = 0;
     this.state = BuzzState.Stopped;
   };
 
@@ -219,8 +210,11 @@
       return;
     }
 
+    this.bufferSource.disconnect();
     this.bufferSource.stop(0);
-    this.currentPosition = this.context.currentTime;
+    this.bufferSource = null;
+    this.startedAt = 0;
+    this.pausedAt = this.context.currentTime - this.startedAt;
     this.state = BuzzState.Paused;
   };
 
@@ -261,6 +255,10 @@
 
   Buzz.prototype.getState = function () {
     return this.state;
+  };
+
+  Buzz.prototype.getDuration = function () {
+    return this.duration;
   };
 
   window.buzzer = buzzer;
