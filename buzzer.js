@@ -1,4 +1,4 @@
-(function (ctxClass) {
+(function () {
 
   'use strict';
 
@@ -31,6 +31,7 @@
       return;
     }
 
+    var ctxClass = AudioContext || webkitAudioContext;
     this.ctx = context || new ctxClass();
     this.gain = this.ctx.createGain();
     this.gain.gain.value = this.vol;
@@ -261,7 +262,26 @@
     return this.duration;
   };
 
-  window.buzzer = buzzer;
-  window.Buzz = Buzz;
+  // Supporting different platforms
+  // AMD support
+  if (typeof define === 'function' && define.amd) {
+    define([], function() {
+      return {
+        buzzer: buzzer,
+        Buzz: Buzz
+      };
+    });
+  }
 
-})(window.AudioContext || window.webkitAudioContext);
+  // CommonJS support
+  if (typeof exports !== 'undefined') {
+    exports.buzzer = buzzer;
+    exports.Buzz = Buzz;
+  }
+
+  // Define globally
+  if(typeof window !== 'undefined') {
+    window.buzzer = buzzer;
+    window.Buzz = Buzz;
+  }
+})();
