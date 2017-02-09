@@ -1,3 +1,14 @@
+/**
+ * buzzerjs v1.0.0
+ *
+ * A light-weight audio engine for HTML5 games and interactive websites
+ *
+ * License: MIT
+ *
+ * Copyright Vijaya Anand 2017. All rights reserved.
+ *
+ * http://www.prideparrot.com
+ */
 (function () {
 
   'use strict';
@@ -9,6 +20,10 @@
     } : emptyFn;
   })();
 
+  /**
+   * Enumeration to represent the different states of the audio engine.
+   * @type {{Constructed: number, Ready: number, Done: number}}
+   */
   var BuzzerState = {
     Constructed: 0,
     Ready: 1,
@@ -16,16 +31,21 @@
   };
 
   /**
-   * Buzzer
+   * Buzzer - the global audio engine
    * @constructor
    */
   function Buzzer() {
     this.ctx = null;
     this.muted = false;
     this.vol = 1.0;
+    this.gain = null;
     this.state = BuzzerState.Constructed;
   }
 
+  /**
+   * Instantiate audio context and other important objects.
+   * @param {AudioContext} context
+   */
   Buzzer.prototype.setup = function (context) {
     if (this.state === BuzzerState.Ready) {
       return;
@@ -39,56 +59,76 @@
     this.state = BuzzerState.Ready;
   };
 
+  /**
+   * Set/get the volume for the audio engine that controls global volume for all sounds.
+   * @param {number} vol
+   * @returns {number}
+   */
   Buzzer.prototype.volume = function (vol) {
     var volume = parseFloat(vol);
 
     if (isNaN(volume) || volume < 0 || volume > 1.0) {
-      return;
+      return this.vol;
     }
 
-    this.setup();
-
     this.vol = volume;
-    this.gain.value = this.vol;
-    return this.gain.value;
+    this.gain && (this.gain.value = this.vol);
+    return this.vol;
   };
 
+  /**
+   * Mute the engine.
+   */
   Buzzer.prototype.mute = function () {
     if (this.muted) {
       return;
     }
 
-    this.setup();
-
-    this.gain.gain.value = 0;
+    this.gain && (this.gain.value = 0);
     this.muted = true;
   };
 
+  /**
+   * Unmute the engine.
+   */
   Buzzer.prototype.unmute = function () {
     if (!this.muted) {
       return;
     }
 
-    this.setup();
-
-    this.gain.gain.value = this.vol;
+    this.gain && (this.gain.gain.value = this.vol);
     this.muted = false;
   };
 
+  /**
+   * TODO
+   */
   Buzzer.prototype.tearDown = function () {
     this.state = BuzzerState.Done;
   };
 
+  /**
+   * Returns the created audio context.
+   * @returns {AudioContext|null}
+   */
   Buzzer.prototype.context = function () {
     return this.ctx;
   };
 
+  /**
+   * Returns whether the engine is currently muted or not.
+   * @returns {boolean}
+   */
   Buzzer.prototype.isMuted = function () {
     return this.muted;
   };
 
   var buzzer = new Buzzer(), cache = {};
 
+  /**
+   * Enumeration that represents the different states of a sound.
+   * @type {{Constructed: number, Playing: number, Paused: number, Stopped: number}}
+   */
   var BuzzState = {
     Constructed: 0,
     Playing: 1,
@@ -97,16 +137,24 @@
   };
 
   /**
-   * Buzz
-   * @param args
+   * Buzz - represents a single sound.
+   * @param {object} args
+   * @param {string|string[]} args.src
+   * @param {number} args.volume
+   * @param {number} args.loop
+   * @param {boolean} args.preload
+   * @param {boolean} args.autoplay
    * @constructor
    */
   function Buzz(args) {
-    buzzer.setup();
+    buzzer.setup(null);
 
     this.id = Math.round(Date.now() * Math.random());
     this.src = args.src;
     this.vol = args.volume || 1.0;
+    this.loop = args.loop || false;
+    this.preload = args.preload || false;
+    this.autoplay = args.autoplay || false;
     this.buffer = null;
     this.duration = 0;
     this.muted = false;
@@ -123,15 +171,23 @@
     this.state = BuzzState.Constructed;
   }
 
+  /**
+   *
+   * @param {function} success
+   * @param {function} error
+   * @returns {object} Buzz
+   */
   Buzz.prototype.load = function (success, error) {
     if (this.loaded) {
-      return success.call(this, this.buffer);
+      success.call(this, this.buffer);
+      return;
     }
 
     if (cache.hasOwnProperty(this.src)) {
       this.buffer = cache[this.src];
       this.loaded = true;
-      return success.call(this, this.buffer);
+      success.call(this, this.buffer);
+      return;
     }
 
     var xhr = new XMLHttpRequest();
@@ -157,6 +213,8 @@
     xhr.addEventListener('load', onLoad);
     xhr.addEventListener('error', onError);
     xhr.send();
+
+    return this;
   };
 
   Buzz.prototype.play = function (end, error) {

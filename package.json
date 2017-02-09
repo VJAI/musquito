@@ -1,7 +1,7 @@
 {
   "name": "buzzer",
   "version": "0.1.0",
-  "description": "A tiny library that uses Web Audio API to play sounds",
+  "description": "A light-weight audio engine for HTML5 games and interactive websites",
   "license": "MIT",
   "keywords": [
     "audio",
