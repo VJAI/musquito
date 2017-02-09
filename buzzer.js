@@ -1,12 +1,8 @@
 /**
  * buzzerjs v1.0.0
- *
  * A light-weight audio engine for HTML5 games and interactive websites
- *
  * License: MIT
- *
  * Copyright Vijaya Anand 2017. All rights reserved.
- *
  * http://www.prideparrot.com
  */
 (function () {
@@ -35,92 +31,99 @@
    * @constructor
    */
   function Buzzer() {
-    this.ctx = null;
-    this.muted = false;
-    this.vol = 1.0;
-    this.gain = null;
-    this.state = BuzzerState.Constructed;
+    this._context = null;
+    this._muted = false;
+    this._volume = 1.0;
+    this._gain = null;
+    this._state = BuzzerState.Constructed;
   }
 
-  /**
-   * Instantiate audio context and other important objects.
-   * @param {AudioContext} context
-   */
-  Buzzer.prototype.setup = function (context) {
-    if (this.state === BuzzerState.Ready) {
-      return;
+  Buzzer.prototype = {
+
+    /**
+     * Instantiate audio context and other important objects.
+     * @param {AudioContext} context
+     */
+    setup: function (context) {
+      if (this._state === BuzzerState.Ready) {
+        return;
+      }
+
+      var ctxClass = AudioContext || webkitAudioContext;
+      this._context = context || new ctxClass();
+      this._gain = this.ctx.createGain();
+      this._gain.gain.value = this._volume;
+      this._gain.connect(this.ctx.destination);
+      this._state = BuzzerState.Ready;
+    },
+
+    /**
+     * Set/get the volume for the audio engine that controls global volume for all sounds.
+     * @param {number} vol
+     * @returns {number}
+     */
+    volume: function (vol) {
+      var volume = parseFloat(vol);
+
+      if (isNaN(volume) || volume < 0 || volume > 1.0) {
+        return this._volume;
+      }
+
+      this._volume = volume;
+      this._gain && (this._gain.value = this._volume);
+      return this._volume;
+    },
+
+    /**
+     * Mute the engine.
+     */
+    mute: function () {
+      if (this._muted) {
+        return;
+      }
+
+      this._gain && (this._gain.value = 0);
+      this._muted = true;
+    },
+
+    /**
+     * Unmute the engine.
+     */
+    unmute: function () {
+      if (!this._muted) {
+        return;
+      }
+
+      this._gain && (this._gain.gain.value = this._volume);
+      this._muted = false;
+    },
+
+    /**
+     * TODO
+     */
+    tearDown: function () {
+      this._state = BuzzerState.Done;
+    },
+
+    /**
+     * Returns the created audio context.
+     * @returns {AudioContext|null}
+     */
+    context: function () {
+      return this._context;
+    },
+
+    /**
+     * Returns whether the engine is currently muted or not.
+     * @returns {boolean}
+     */
+    muted: function () {
+      return this._muted;
+    },
+
+    state: function () {
+      return this._state;
     }
-
-    var ctxClass = AudioContext || webkitAudioContext;
-    this.ctx = context || new ctxClass();
-    this.gain = this.ctx.createGain();
-    this.gain.gain.value = this.vol;
-    this.gain.connect(this.ctx.destination);
-    this.state = BuzzerState.Ready;
-  };
-
-  /**
-   * Set/get the volume for the audio engine that controls global volume for all sounds.
-   * @param {number} vol
-   * @returns {number}
-   */
-  Buzzer.prototype.volume = function (vol) {
-    var volume = parseFloat(vol);
-
-    if (isNaN(volume) || volume < 0 || volume > 1.0) {
-      return this.vol;
-    }
-
-    this.vol = volume;
-    this.gain && (this.gain.value = this.vol);
-    return this.vol;
-  };
-
-  /**
-   * Mute the engine.
-   */
-  Buzzer.prototype.mute = function () {
-    if (this.muted) {
-      return;
-    }
-
-    this.gain && (this.gain.value = 0);
-    this.muted = true;
-  };
-
-  /**
-   * Unmute the engine.
-   */
-  Buzzer.prototype.unmute = function () {
-    if (!this.muted) {
-      return;
-    }
-
-    this.gain && (this.gain.gain.value = this.vol);
-    this.muted = false;
-  };
-
-  /**
-   * TODO
-   */
-  Buzzer.prototype.tearDown = function () {
-    this.state = BuzzerState.Done;
-  };
-
-  /**
-   * Returns the created audio context.
-   * @returns {AudioContext|null}
-   */
-  Buzzer.prototype.context = function () {
-    return this.ctx;
-  };
-
-  /**
-   * Returns whether the engine is currently muted or not.
-   * @returns {boolean}
-   */
-  Buzzer.prototype.isMuted = function () {
-    return this.muted;
   };
 
   var buzzer = new Buzzer(), cache = {};
@@ -160,199 +163,222 @@
   function Buzz(args) {
     buzzer.setup(null);
 
-    this.id = Math.round(Date.now() * Math.random());
-    this.src = args.src;
-    this.vol = args.volume || 1.0;
-    this.loop = args.loop || false;
-    this.preload = args.preload || false;
-    this.autoplay = args.autoplay || false;
+    this._id = Math.round(Date.now() * Math.random());
+    this._src = args.src;
+    this._volume = args.volume || 1.0;
+    this._loop = args.loop || false;
+    this._preload = args.preload || false;
+    this._autoplay = args.autoplay || false;
 
-    this.buffer = null;
-    this.bufferSource = null;
+    this._buffer = null;
+    this._bufferSource = null;
 
-    this.duration = 0;
-    this.muted = false;
-    this.startedAt = 0;
-    this.pausedAt = 0;
+    this._subscribers = {
+      'onload': [],
+      'onloadend': [],
+      'onerror': [],
+      'onplay': [],
+      'onplayend': [],
+      'onstop': [],
+      'onpause': [],
+      'onmute': []
+    };
 
-    this.context = buzzer.context();
-    this.gain = this.context.createGain();
-    this.gain.connect(buzzer.gain);
-    this.gain.gain.value = this.vol;
+    this._duration = 0;
+    this._muted = false;
+    this._startedAt = 0;
+    this._pausedAt = 0;
 
-    this.loadStatus = AudioLoadState.NotLoaded;
-    this.state = BuzzState.Constructed;
+    this._context = buzzer.context();
+    this._gain = this.context.createGain();
+    this._gain.connect(buzzer.gain);
+    this._gain.gain.value = this._volume;
 
-    if(this.autoplay) {
+    this._loadStatus = AudioLoadState.NotLoaded;
+    this._state = BuzzState.Constructed;
+
+    if (this._autoplay) {
       this.play();
       return;
     }
 
-    if(this.preload) {
+    if (this._preload) {
       this.load();
     }
   }
 
-  /**
-   * Downloads the sound from the url, decode it into audio buffer and store it locally.
-   * @param {function} success Callback that'll be called on success.
-   * @param {function} error Callback that'll be called on failure.
-   * @returns {object} Buzz
-   */
-  Buzz.prototype.load = function (success, error) {
-    if(this.loadStatus === AudioLoadState.Loading) {
+  Buzz.prototype = {
+
+    /**
+     * Downloads the sound from the url, decode it into audio buffer and store it locally.
+     * @returns {object} Buzz
+     */
+    load: function () {
+      if ([AudioLoadState.Loading, AudioLoadState.Loaded].indexOf(this._loadStatus) > -1) {
+        return this;
+      }
+
+      if (cache.hasOwnProperty(this._src)) {
+        this._buffer = cache[this._src];
+        this._loadStatus = AudioLoadState.Loaded;
+        return this;
+      }
+
+      this._loadStatus = AudioLoadState.Loading;
+
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', this._src, true);
+      xhr.responseType = 'arraybuffer';
+
+      var onLoad = function () {
+        this._context.decodeAudioData(xhr.response, function (buffer) {
+          cache[this._src] = buffer;
+          this._buffer = buffer;
+          this._duration = buffer.duration;
+          this._loadStatus = AudioLoadState.Loaded;
+          this._fire();
+        }.bind(this), onError);
+      };
+
+      var onError = function () {
+        this.loadStatus = AudioLoadState.Error;
+      };
+
+      xhr.addEventListener('load', onLoad.bind(this));
+      xhr.addEventListener('error', onError.bind(this));
+      xhr.send();
+
       return this;
+    },
+
+    play: function (end, error) {
+      if (this._state === BuzzState.Playing) {
+        return;
+      }
+
+      var play = function () {
+        this._bufferSource = this.context.createBufferSource();
+        this._bufferSource.buffer = this._buffer;
+        this._bufferSource.connect(this._gain);
+        this._bufferSource.start(0, this._pausedAt);
+        this._startedAt = this._context.currentTime - this._pausedAt;
+        this._pausedAt = 0;
+        this._state = BuzzState.Playing;
+      };
+
+      /*var playEnd = function () {
+       this.state = BuzzState.Stopped;
+       end && end();
+       };*/
+
+      var onError = function (e) {
+        log(e, 'error');
+        error && error();
+      };
+
+      if (!this._loadStatus === AudioLoadState.Loaded) {
+        return this.load(play, onError);
+      }
+
+      play.call(this);
+    },
+
+    stop: function () {
+      // We can stop the sound either if it "playing" or in "paused" state.
+      if (this._state !== BuzzState.Playing && this._state !== BuzzState.Paused) {
+        return;
+      }
+
+      this._bufferSource.disconnect();
+      this._bufferSource.stop(0);
+      this._bufferSource = null;
+      this._pausedAt = 0;
+      this._startedAt = 0;
+      this._state = BuzzState.Stopped;
+    },
+
+    pause: function () {
+      // We can pause the sound only if it is "playing".
+      if (this._state !== BuzzState.Playing) {
+        return;
+      }
+
+      this._bufferSource.disconnect();
+      this._bufferSource.stop(0);
+      this._bufferSource = null;
+      this._startedAt = 0;
+      this._pausedAt = this._context.currentTime - this._startedAt;
+      this._state = BuzzState.Paused;
+    },
+
+    mute: function () {
+      if (this._muted) {
+        return;
+      }
+
+      this._gain.gain.value = 0;
+      this._muted = true;
+    },
+
+    unmute: function () {
+      if (!this._muted) {
+        return;
+      }
+
+      this._gain.gain.value = this._volume;
+      this._muted = false;
+    },
+
+    volume: function (vol) {
+      var volume = parseFloat(vol);
+
+      if (isNaN(volume) || volume < 0 || volume > 1.0) {
+        return this._volume;
+      }
+
+      this._volume = volume;
+      this._gain.gain.value = this._volume;
+
+      return this._gain.gain.value;
+    },
+
+    muted: function () {
+      return this._muted;
+    },
+
+    state: function () {
+      return this._state;
+    },
+
+    duration: function () {
+      return this._duration;
+    },
+
+    on: function (event, fn) {
+      if (!this._subscribers.hasOwnProperty(event)) return;
+      if (typeof fn !== 'function') return;
+
+      this._subscribers[event].push({fn: fn, once: false});
+    },
+
+    off: function (event, fn) {
+      if (!this._subscribers.hasOwnProperty(event)) return;
+      // TODO:
+    },
+
+    once: function (event, fn) {
+
+    },
+
+    _fire: function () {
+
     }
-
-    if (this.loadStatus === AudioLoadState.Loaded) {
-      success.call(this, this.buffer);
-      return this;
-    }
-
-    if (cache.hasOwnProperty(this.src)) {
-      this.buffer = cache[this.src];
-      this.loadStatus = AudioLoadState.Loaded;
-      success.call(this, this.buffer);
-      return this;
-    }
-
-    this.loadStatus = AudioLoadState.Loading;
-
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', this.src, true);
-    xhr.responseType = 'arraybuffer';
-
-    var onLoad = function () {
-      this.context.decodeAudioData(xhr.response, function (buffer) {
-        cache[this.src] = buffer;
-        this.buffer = buffer;
-        this.duration = buffer.duration;
-        this.loaded = true;
-        log(this.src + ' is loaded!');
-        success.call(this, this.buffer);
-      }.bind(this), onError);
-    };
-
-    var onError = function (err) {
-      this.loadStatus = AudioLoadState.Error;
-      log(err, 'error');
-      error && error();
-    };
-
-    xhr.addEventListener('load', onLoad.bind(this));
-    xhr.addEventListener('error', onError.bind(this));
-    xhr.send();
-
-    return this;
-  };
-
-  Buzz.prototype.play = function (end, error) {
-    if(this.state === BuzzState.Playing) {
-      return;
-    }
-
-    var play = function () {
-      this.bufferSource = this.context.createBufferSource();
-      this.bufferSource.buffer = this.buffer;
-      this.bufferSource.connect(this.gain);
-      this.bufferSource.start(0, this.pausedAt);
-      this.startedAt = this.context.currentTime - this.pausedAt;
-      this.pausedAt = 0;
-      this.state = BuzzState.Playing;
-    };
-
-    /*var playEnd = function () {
-      this.state = BuzzState.Stopped;
-      end && end();
-    };*/
-
-    var onError = function (e) {
-      log(e, 'error');
-      error && error();
-    };
-
-    if (!this.loaded) {
-      return this.load(play, onError);
-    }
-
-    play.call(this);
-  };
-
-  Buzz.prototype.stop = function () {
-    // We can stop the sound either if it "playing" or in "paused" state.
-    if(this.state !== BuzzState.Playing && this.state !== BuzzState.Paused) {
-      return;
-    }
-
-    this.bufferSource.disconnect();
-    this.bufferSource.stop(0);
-    this.bufferSource = null;
-    this.pausedAt = 0;
-    this.startedAt = 0;
-    this.state = BuzzState.Stopped;
-  };
-
-  Buzz.prototype.pause = function () {
-    // We can pause the sound only if it is "playing".
-    if(this.state !== BuzzState.Playing) {
-      return;
-    }
-
-    this.bufferSource.disconnect();
-    this.bufferSource.stop(0);
-    this.bufferSource = null;
-    this.startedAt = 0;
-    this.pausedAt = this.context.currentTime - this.startedAt;
-    this.state = BuzzState.Paused;
-  };
-
-  Buzz.prototype.mute = function () {
-    if (this.muted) {
-      return;
-    }
-
-    this.gain.gain.value = 0;
-    this.muted = true;
-  };
-
-  Buzz.prototype.unmute = function () {
-    if (!this.muted) {
-      return;
-    }
-
-    this.gain.gain.value = this.vol;
-    this.muted = false;
-  };
-
-  Buzz.prototype.volume = function (vol) {
-    var volume = parseFloat(vol);
-
-    if (isNaN(volume) || volume < 0 || volume > 1.0) {
-      return;
-    }
-
-    this.vol = volume;
-    this.gain.gain.value = this.vol;
-
-    return this.gain.gain.value;
-  };
-
-  Buzz.prototype.isMuted = function () {
-    return this.muted;
-  };
-
-  Buzz.prototype.getState = function () {
-    return this.state;
-  };
-
-  Buzz.prototype.getDuration = function () {
-    return this.duration;
   };
 
   // Supporting different platforms
   // AMD support
   if (typeof define === 'function' && define.amd) {
-    define([], function() {
+    define([], function () {
       return {
         buzzer: buzzer,
         Buzz: Buzz
@@ -367,7 +393,7 @@
   }
 
   // Define globally
-  if(typeof window !== 'undefined') {
+  if (typeof window !== 'undefined') {
     window.buzzer = buzzer;
     window.Buzz = Buzz;
   }
