@@ -137,13 +137,24 @@
   };
 
   /**
+   * Enumeration that represents the states of loading the audio.
+   * @type {{NotLoaded: number, Loading: number, Loaded: number, Error: number}}
+   */
+  var AudioLoadState = {
+    NotLoaded: 0,
+    Loading: 1,
+    Loaded: 2,
+    Error: 3
+  };
+
+  /**
    * Buzz - represents a single sound.
    * @param {object} args
-   * @param {string|string[]} args.src
-   * @param {number} args.volume
-   * @param {number} args.loop
-   * @param {boolean} args.preload
-   * @param {boolean} args.autoplay
+   * @param {string} args.src The source of the audio file.
+   * @param {number} args.volume The initial volume of the sound.
+   * @param {number} args.loop Whether the sound should play repeatedly.
+   * @param {boolean} args.preload Load the sound initially itself.
+   * @param {boolean} args.autoplay Play automatically once the object is created.
    * @constructor
    */
   function Buzz(args) {
@@ -155,40 +166,57 @@
     this.loop = args.loop || false;
     this.preload = args.preload || false;
     this.autoplay = args.autoplay || false;
+
     this.buffer = null;
+    this.bufferSource = null;
+
     this.duration = 0;
     this.muted = false;
-    this.endTimer = null;
-    this.bufferSource = null;
-    this.staredAt = 0;
+    this.startedAt = 0;
     this.pausedAt = 0;
+
     this.context = buzzer.context();
     this.gain = this.context.createGain();
     this.gain.connect(buzzer.gain);
-
     this.gain.gain.value = this.vol;
-    this.loaded = false;
+
+    this.loadStatus = AudioLoadState.NotLoaded;
     this.state = BuzzState.Constructed;
+
+    if(this.autoplay) {
+      this.play();
+      return;
+    }
+
+    if(this.preload) {
+      this.load();
+    }
   }
 
   /**
-   *
-   * @param {function} success
-   * @param {function} error
+   * Downloads the sound from the url, decode it into audio buffer and store it locally.
+   * @param {function} success Callback that'll be called on success.
+   * @param {function} error Callback that'll be called on failure.
    * @returns {object} Buzz
    */
   Buzz.prototype.load = function (success, error) {
-    if (this.loaded) {
+    if(this.loadStatus === AudioLoadState.Loading) {
+      return this;
+    }
+
+    if (this.loadStatus === AudioLoadState.Loaded) {
       success.call(this, this.buffer);
-      return;
+      return this;
     }
 
     if (cache.hasOwnProperty(this.src)) {
       this.buffer = cache[this.src];
-      this.loaded = true;
+      this.loadStatus = AudioLoadState.Loaded;
       success.call(this, this.buffer);
-      return;
+      return this;
     }
+
+    this.loadStatus = AudioLoadState.Loading;
 
     var xhr = new XMLHttpRequest();
     xhr.open('GET', this.src, true);
@@ -203,15 +231,16 @@
         log(this.src + ' is loaded!');
         success.call(this, this.buffer);
       }.bind(this), onError);
-    }.bind(this);
+    };
 
     var onError = function (err) {
+      this.loadStatus = AudioLoadState.Error;
       log(err, 'error');
       error && error();
     };
 
-    xhr.addEventListener('load', onLoad);
-    xhr.addEventListener('error', onError);
+    xhr.addEventListener('load', onLoad.bind(this));
+    xhr.addEventListener('error', onError.bind(this));
     xhr.send();
 
     return this;
