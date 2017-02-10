@@ -23,7 +23,8 @@
   var BuzzerState = {
     Constructed: 0,
     Ready: 1,
-    Done: 2
+    Done: 2,
+    NA: 3
   };
 
   /**
@@ -32,29 +33,70 @@
    */
   function Buzzer() {
     this._context = null;
+    this._codecs = {};
     this._muted = false;
     this._volume = 1.0;
     this._gain = null;
-    this._state = BuzzerState.Constructed;
+    this._contextType = AudioContext || webkitAudioContext;
+    this._state = typeof this._contextType !== 'undefined' ? BuzzerState.Constructed : BuzzerState.NA;
   }
 
   Buzzer.prototype = {
 
     /**
      * Instantiate audio context and other important objects.
+     * Returns true if the setup is success.
      * @param {AudioContext} context
+     * @returns {boolean}
      */
     setup: function (context) {
-      if (this._state === BuzzerState.Ready) {
-        return;
+      if(this._state === BuzzerState.NA) {
+        log('Audio engine is not available because the current platform not supports Web Audio.', 'error');
+        return false;
       }
 
-      var ctxClass = AudioContext || webkitAudioContext;
-      this._context = context || new ctxClass();
+      if (this._state === BuzzerState.Ready) {
+        return true;
+      }
+
+      this._context = context || new this._contextType();
+      this.codecs();
       this._gain = this._context.createGain();
       this._gain.gain.value = this._volume;
       this._gain.connect(this._context.destination);
       this._state = BuzzerState.Ready;
+      return true;
+    },
+
+    /**
+     * Figure out the supported codecs and return the result as an object.
+     * @returns {object}
+     */
+    codecs: function () {
+      if(Object.keys(this._codecs).length === 0 && typeof Audio !== 'undefined') {
+        var audioTest = new Audio();
+
+        this._codecs = {
+          mp3: !!audioTest.canPlayType('audio/mp3;').replace(/^no$/, ''),
+          mpeg: !!audioTest.canPlayType('audio/mpeg;').replace(/^no$/, ''),
+          opus: !!audioTest.canPlayType('audio/ogg; codecs="opus"').replace(/^no$/, ''),
+          ogg: !!audioTest.canPlayType('audio/ogg; codecs="vorbis"').replace(/^no$/, ''),
+          oga: !!audioTest.canPlayType('audio/ogg; codecs="vorbis"').replace(/^no$/, ''),
+          wav: !!audioTest.canPlayType('audio/wav; codecs="1"').replace(/^no$/, ''),
+          aac: !!audioTest.canPlayType('audio/aac;').replace(/^no$/, ''),
+          caf: !!audioTest.canPlayType('audio/x-caf;').replace(/^no$/, ''),
+          m4a: !!(audioTest.canPlayType('audio/x-m4a;') || audioTest.canPlayType('audio/m4a;') || audioTest.canPlayType('audio/aac;')).replace(/^no$/, ''),
+          mp4: !!(audioTest.canPlayType('audio/x-mp4;') || audioTest.canPlayType('audio/mp4;') || audioTest.canPlayType('audio/aac;')).replace(/^no$/, ''),
+          weba: !!audioTest.canPlayType('audio/webm; codecs="vorbis"').replace(/^no$/, ''),
+          webm: !!audioTest.canPlayType('audio/webm; codecs="vorbis"').replace(/^no$/, ''),
+          dolby: !!audioTest.canPlayType('audio/mp4; codecs="ec-3"').replace(/^no$/, ''),
+          flac: !!(audioTest.canPlayType('audio/x-flac;') || audioTest.canPlayType('audio/flac;')).replace(/^no$/, '')
+        };
+
+        audioTest = null;
+      }
+
+      return this._codecs;
     },
 
     /**
@@ -129,8 +171,20 @@
       return this._muted;
     },
 
+    /**
+     * Returns the state of the engine.
+     * @returns {number}
+     */
     state: function () {
       return this._state;
+    },
+
+    /**
+     * Returns whether the engine is available or not.
+     * @returns {boolean}
+     */
+    available: function () {
+      return this._state !== BuzzerState.NA;
     }
   };
 
@@ -144,7 +198,8 @@
     Constructed: 0,
     Playing: 1,
     Paused: 2,
-    Stopped: 3
+    Stopped: 3,
+    NA: 4
   };
 
   /**
@@ -159,7 +214,8 @@
   };
 
   var ErrorType = {
-    LoadError: 1
+    AudioUnAvailable: 1,
+    LoadError: 2
   };
 
   /**
@@ -170,23 +226,22 @@
    * @param {number} args.loop Whether the sound should play repeatedly.
    * @param {boolean} args.preload Load the sound initially itself.
    * @param {boolean} args.autoplay Play automatically once the object is created.
+   * @param {function} args.onload
+   * @param {function} args.onerror
+   * @param {function} args.onplaystart
+   * @param {function} args.onend
+   * @param {function} args.onstop
+   * @param {function} args.onpause
+   * @param {function} args.onmute
    * @constructor
    */
   function Buzz(args) {
-    buzzer.setup(null);
-
     this._id = Math.round(Date.now() * Math.random());
     this._src = args.src;
     this._volume = args.volume || 1.0;
     this._loop = args.loop || false;
     this._preload = args.preload || false;
     this._autoplay = args.autoplay || false;
-
-    this._buffer = null;
-    this._bufferSource = null;
-
-    this._endTimer = null;
-
     this._subscribers = {
       'load': [],
       'error': [],
@@ -197,26 +252,40 @@
       'mute': []
     };
 
+    for(var event in this._subscribers) {
+      if(this._subscribers.hasOwnProperty(event) && typeof args['on' + event] === 'function') {
+        this.on(event, args['on' + event]);
+      }
+    }
+
+    this._buffer = null;
+    this._bufferSource = null;
+    this._endTimer = null;
     this._duration = 0;
     this._muted = false;
     this._startedAt = 0;
     this._pausedAt = 0;
 
-    this._context = buzzer.context();
-    this._gain = this._context.createGain();
-    this._gain.connect(buzzer.gain());
-    this._gain.gain.value = this._volume;
+    if(buzzer.setup(null)) {
+      this._context = buzzer.context();
+      this._gain = this._context.createGain();
+      this._gain.connect(buzzer.gain());
+      this._gain.gain.value = this._volume;
 
-    this._loadStatus = AudioLoadState.NotLoaded;
-    this._state = BuzzState.Constructed;
+      this._loadStatus = AudioLoadState.NotLoaded;
+      this._state = BuzzState.Constructed;
 
-    if (this._autoplay) {
-      this.play();
-      return;
-    }
+      if (this._autoplay) {
+        this.play();
+        return;
+      }
 
-    if (this._preload) {
-      this.load();
+      if (this._preload) {
+        this.load();
+      }
+    } else {
+      this._state = BuzzState.NA;
+      this._fire('error', { type: ErrorType.AudioUnAvailable, error: 'Web Audio API is unavailable' });
     }
   }
 
@@ -228,6 +297,10 @@
      * @returns {Buzz}
      */
     load: function () {
+      if(!this._check()) {
+        return this;
+      }
+
       // If the loading is in progress or already the audio file is loaded return.
       if (this._loadStatus === AudioLoadState.Loading || this._loadStatus === AudioLoadState.Loaded) {
         return this;
@@ -276,6 +349,10 @@
      * @returns {Buzz}
      */
     play: function () {
+      if(!this._check()) {
+        return this;
+      }
+
       if (this._state === BuzzState.Playing) {
         return this;
       }
@@ -323,6 +400,10 @@
      * @returns {Buzz}
      */
     stop: function () {
+      if(!this._check()) {
+        return this;
+      }
+
       // We can stop the sound either if it "playing" or in "paused" state.
       if (this._state !== BuzzState.Playing && this._state !== BuzzState.Paused) {
         return this;
@@ -345,6 +426,10 @@
      * @returns {Buzz}
      */
     pause: function () {
+      if(!this._check()) {
+        return this;
+      }
+
       // We can pause the sound only if it is "playing".
       if (this._state !== BuzzState.Playing) {
         return this;
@@ -369,10 +454,10 @@
      */
     mute: function () {
       if (this._muted) {
-        return;
+        return this;
       }
 
-      this._gain.gain.value = 0;
+      this._gain && (this._gain.gain.value = 0);
       this._muted = true;
 
       return this;
@@ -387,7 +472,7 @@
         return;
       }
 
-      this._gain.gain.value = this._volume;
+      this._gain && (this._gain.gain.value = this._volume);
       this._muted = false;
 
       return this;
@@ -410,7 +495,7 @@
       }
 
       this._volume = volume;
-      this._gain.gain.value = this._volume;
+      this._gain && (this._gain.gain.value = this._volume);
 
       return this;
     },
@@ -511,6 +596,15 @@
       }
 
       return this;
+    },
+
+    _check: function () {
+      if(this._state === BuzzState.NA) {
+        log('Web Audio API is unavailable', 'error');
+        return false;
+      }
+
+      return true;
     }
   };
 
