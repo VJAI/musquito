@@ -222,6 +222,7 @@
    * Buzz - represents a single sound.
    * @param {object} args
    * @param {string} args.src The source of the audio file.
+   * @param {string[]} args.formats The available formats for the file.
    * @param {number} args.volume The initial volume of the sound.
    * @param {number} args.loop Whether the sound should play repeatedly.
    * @param {boolean} args.preload Load the sound initially itself.
@@ -238,6 +239,7 @@
   function Buzz(args) {
     this._id = Math.round(Date.now() * Math.random());
     this._src = args.src;
+    this._formats = args.formats;
     this._volume = args.volume || 1.0;
     this._loop = args.loop || false;
     this._preload = args.preload || false;
@@ -498,6 +500,14 @@
       this._gain && (this._gain.gain.value = this._volume);
 
       return this;
+    },
+
+    fadeOut: function () {
+      throw new Error('Not Implemented');
+    },
+
+    fadeIn: function () {
+      throw new Error('Not Implemented');
     },
 
     /**
