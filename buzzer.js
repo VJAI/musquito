@@ -51,9 +51,9 @@
 
       var ctxClass = AudioContext || webkitAudioContext;
       this._context = context || new ctxClass();
-      this._gain = this.ctx.createGain();
+      this._gain = this._context.createGain();
       this._gain.gain.value = this._volume;
-      this._gain.connect(this.ctx.destination);
+      this._gain.connect(this._context.destination);
       this._state = BuzzerState.Ready;
     },
 
@@ -114,6 +114,14 @@
     },
 
     /**
+     * Returns the master gain node.
+     * @returns {*|null}
+     */
+    gain: function () {
+      return this._gain;
+    },
+
+    /**
      * Returns whether the engine is currently muted or not.
      * @returns {boolean}
      */
@@ -150,6 +158,10 @@
     Error: 3
   };
 
+  var ErrorType = {
+    LoadError: 1
+  };
+
   /**
    * Buzz - represents a single sound.
    * @param {object} args
@@ -174,14 +186,13 @@
     this._bufferSource = null;
 
     this._subscribers = {
-      'onload': [],
-      'onloadend': [],
-      'onerror': [],
-      'onplay': [],
-      'onplayend': [],
-      'onstop': [],
-      'onpause': [],
-      'onmute': []
+      'load': [],
+      'error': [],
+      'playstart': [],
+      'end': [],
+      'stop': [],
+      'pause': [],
+      'mute': []
     };
 
     this._duration = 0;
@@ -190,8 +201,8 @@
     this._pausedAt = 0;
 
     this._context = buzzer.context();
-    this._gain = this.context.createGain();
-    this._gain.connect(buzzer.gain);
+    this._gain = this._context.createGain();
+    this._gain.connect(buzzer.gain());
     this._gain.gain.value = this._volume;
 
     this._loadStatus = AudioLoadState.NotLoaded;
@@ -211,16 +222,24 @@
 
     /**
      * Downloads the sound from the url, decode it into audio buffer and store it locally.
-     * @returns {object} Buzz
+     * Fires 'load' event on successful load and 'error' event on failure.
+     * @returns {Buzz}
      */
     load: function () {
-      if ([AudioLoadState.Loading, AudioLoadState.Loaded].indexOf(this._loadStatus) > -1) {
+      // If the loading is in progress or already the audio file is loaded return.
+      if (this._loadStatus === AudioLoadState.Loading || this._loadStatus === AudioLoadState.Loaded) {
         return this;
       }
 
-      if (cache.hasOwnProperty(this._src)) {
-        this._buffer = cache[this._src];
+      var loadBuffer = function (buffer) {
+        this._buffer = buffer;
+        this._duration = buffer.duration;
         this._loadStatus = AudioLoadState.Loaded;
+        this._fire('load', buffer);
+      }.bind(this);
+
+      if (cache.hasOwnProperty(this._src)) {
+        loadBuffer(cache[this._src]);
         return this;
       }
 
@@ -233,15 +252,13 @@
       var onLoad = function () {
         this._context.decodeAudioData(xhr.response, function (buffer) {
           cache[this._src] = buffer;
-          this._buffer = buffer;
-          this._duration = buffer.duration;
-          this._loadStatus = AudioLoadState.Loaded;
-          this._fire();
+          loadBuffer(buffer);
         }.bind(this), onError);
       };
 
-      var onError = function () {
-        this.loadStatus = AudioLoadState.Error;
+      var onError = function (err) {
+        this._loadStatus = AudioLoadState.Error;
+        this._fire('error', {type: ErrorType.LoadError, error: err});
       };
 
       xhr.addEventListener('load', onLoad.bind(this));
@@ -251,38 +268,48 @@
       return this;
     },
 
-    play: function (end, error) {
+    /**
+     * Plays the sound.
+     * Fires 'playstart' event before playing and 'end' event after the sound is played.
+     * @returns {Buzz}
+     */
+    play: function () {
       if (this._state === BuzzState.Playing) {
-        return;
+        return this;
       }
 
       var play = function () {
-        this._bufferSource = this.context.createBufferSource();
+        this._bufferSource = this._context.createBufferSource();
         this._bufferSource.buffer = this._buffer;
         this._bufferSource.connect(this._gain);
+        this._fire('playstart');
         this._bufferSource.start(0, this._pausedAt);
         this._startedAt = this._context.currentTime - this._pausedAt;
         this._pausedAt = 0;
         this._state = BuzzState.Playing;
+        return this;
       };
 
-      /*var playEnd = function () {
-       this.state = BuzzState.Stopped;
-       end && end();
-       };*/
-
-      var onError = function (e) {
-        log(e, 'error');
-        error && error();
+      // TODO: use this method
+      var onEnd = function () {
+        this._state = BuzzState.Stopped;
+        this._fire('end');
       };
 
-      if (!this._loadStatus === AudioLoadState.Loaded) {
-        return this.load(play, onError);
+      if(this._loadStatus === AudioLoadState.Loaded) {
+        return play.call(this)
+      } else {
+        this.on('load', play.bind(this), true);
+        this.load();
       }
 
-      play.call(this);
+      return this;
     },
 
+    /**
+     * Stops the sound that is playing or in paused state.
+     * @returns {Buzz}
+     */
     stop: function () {
       // We can stop the sound either if it "playing" or in "paused" state.
       if (this._state !== BuzzState.Playing && this._state !== BuzzState.Paused) {
@@ -295,8 +322,14 @@
       this._pausedAt = 0;
       this._startedAt = 0;
       this._state = BuzzState.Stopped;
+
+      return this;
     },
 
+    /**
+     * Pause the playing sound.
+     * @returns {Buzz}
+     */
     pause: function () {
       // We can pause the sound only if it is "playing".
       if (this._state !== BuzzState.Playing) {
@@ -309,8 +342,14 @@
       this._startedAt = 0;
       this._pausedAt = this._context.currentTime - this._startedAt;
       this._state = BuzzState.Paused;
+
+      return this;
     },
 
+    /**
+     * Mute the sound.
+     * @returns {Buzz}
+     */
     mute: function () {
       if (this._muted) {
         return;
@@ -318,8 +357,14 @@
 
       this._gain.gain.value = 0;
       this._muted = true;
+
+      return this;
     },
 
+    /**
+     * Unmute the sound.
+     * @returns {Buzz}
+     */
     unmute: function () {
       if (!this._muted) {
         return;
@@ -327,51 +372,128 @@
 
       this._gain.gain.value = this._volume;
       this._muted = false;
+
+      return this;
     },
 
+    /**
+     * Set/get the volume.
+     * @param vol
+     * @returns {Buzz|number}
+     */
     volume: function (vol) {
+      if(typeof vol === 'undefined') {
+        return this._volume;
+      }
+
       var volume = parseFloat(vol);
 
       if (isNaN(volume) || volume < 0 || volume > 1.0) {
-        return this._volume;
+        return this;
       }
 
       this._volume = volume;
       this._gain.gain.value = this._volume;
 
-      return this._gain.gain.value;
+      return this;
     },
 
+    /**
+     * Returns whether sound is muted or not.
+     * @returns {boolean}
+     */
     muted: function () {
       return this._muted;
     },
 
+    /**
+     * Returns the state of the sound.
+     * @returns {number}
+     */
     state: function () {
       return this._state;
     },
 
+    /**
+     * Returns the duration of the sound.
+     * @returns {number}
+     */
     duration: function () {
       return this._duration;
     },
 
-    on: function (event, fn) {
+    /**
+     * Method to subscribe to an event.
+     * @param event
+     * @param fn
+     * @param once
+     * @returns {Buzz}
+     */
+    on: function (event, fn, once) {
       if (!this._subscribers.hasOwnProperty(event)) return;
       if (typeof fn !== 'function') return;
 
-      this._subscribers[event].push({fn: fn, once: false});
+      this._subscribers[event].push({fn: fn, once: once});
+
+      return this;
     },
 
+    /**
+     * Method to un-subscribe from an event.
+     * @param event
+     * @param fn
+     * @returns {Buzz}
+     */
     off: function (event, fn) {
       if (!this._subscribers.hasOwnProperty(event)) return;
-      // TODO:
+      if (typeof fn !== 'function') return;
+
+      var eventSubscribers = this._subscribers[event];
+
+      for(var i = 0; i < eventSubscribers.length; i++) {
+        var eventSubscriber = eventSubscribers[i];
+        if(eventSubscriber.fn === fn) {
+          eventSubscribers.splice(i, 1);
+          break;
+        }
+      }
+
+      return this;
     },
 
+    /**
+     * Method to subscribe to an event only once.
+     * @param event
+     * @param fn
+     * @returns {*|Buzz}
+     */
     once: function (event, fn) {
-
+      return this.on(event, fn, true);
     },
 
-    _fire: function () {
+    /**
+     * Fires an event passing the sound and other optional arguments.
+     * @param event
+     * @param args
+     * @returns {Buzz}
+     * @private
+     */
+    _fire: function (event, args) {
+      var eventSubscribers = this._subscribers[event];
 
+      for(var i = 0; i < eventSubscribers.length; i++) {
+        var eventSubscriber = eventSubscribers[i];
+
+        setTimeout(function(subscriber) {
+          subscriber.fn(this, args);
+
+          if(subscriber.once) {
+            this.off(event, subscriber.fn);
+          }
+        }.bind(this, eventSubscriber), 0);
+      }
+
+      return this;
     }
   };
 
