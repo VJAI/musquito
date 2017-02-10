@@ -24,7 +24,7 @@
     }
 
     function muteBuzzer() {
-      if (buzzer.isMuted()) {
+      if (buzzer.muted()) {
         buzzer.unmute();
         buzzerMuteBtn.innerHTML = 'Mute';
       } else {
@@ -55,7 +55,7 @@
         .replace('#id#', buzz.id)
         .replace('#sound#', src);
       buzzesList.appendChild(buzzLi);
-      
+
       buzzLi.querySelector('.buzz-play').addEventListener('click', function () {
         buzz.play();
       }, false);
@@ -65,7 +65,7 @@
       }, false);
 
       buzzLi.querySelector('.buzz-mute').addEventListener('click', function () {
-        if (buzz.isMuted()) {
+        if (buzz.muted()) {
           buzz.unmute();
           this.innerHTML = 'Mute';
         } else {

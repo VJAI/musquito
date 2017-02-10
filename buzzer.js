@@ -70,7 +70,7 @@
       }
 
       this._volume = volume;
-      this._gain && (this._gain.value = this._volume);
+      this._gain && (this._gain.gain.value = this._volume);
       return this._volume;
     },
 
@@ -82,7 +82,7 @@
         return;
       }
 
-      this._gain && (this._gain.value = 0);
+      this._gain && (this._gain.gain.value = 0);
       this._muted = true;
     },
 
@@ -107,7 +107,7 @@
 
     /**
      * Returns the created audio context.
-     * @returns {AudioContext|null}
+     * @returns {AudioContext}
      */
     context: function () {
       return this._context;
@@ -115,7 +115,7 @@
 
     /**
      * Returns the master gain node.
-     * @returns {*|null}
+     * @returns {GainNode}
      */
     gain: function () {
       return this._gain;
@@ -184,6 +184,8 @@
 
     this._buffer = null;
     this._bufferSource = null;
+
+    this._endTimer = null;
 
     this._subscribers = {
       'load': [],
@@ -279,27 +281,37 @@
       }
 
       var play = function () {
+        if (this._endTimer) {
+          clearTimeout(this._endTimer);
+          this._endTimer = null;
+        }
+
+        var offset = this._pausedAt;
         this._bufferSource = this._context.createBufferSource();
         this._bufferSource.buffer = this._buffer;
         this._bufferSource.connect(this._gain);
-        this._fire('playstart');
-        this._bufferSource.start(0, this._pausedAt);
-        this._startedAt = this._context.currentTime - this._pausedAt;
+        this._bufferSource.start(0, offset);
+        this._startedAt = this._context.currentTime - offset;
         this._pausedAt = 0;
+        this._endTimer = setTimeout(onEnd, this._duration * 1000);
         this._state = BuzzState.Playing;
-        return this;
-      };
+        this._fire('playstart');
 
-      // TODO: use this method
+        return this;
+      }.bind(this);
+
       var onEnd = function () {
+        this._startedAt = 0;
+        this._pausedAt = 0;
+        this._endTimer = null;
         this._state = BuzzState.Stopped;
         this._fire('end');
-      };
+      }.bind(this);
 
-      if(this._loadStatus === AudioLoadState.Loaded) {
-        return play.call(this)
+      if (this._loadStatus === AudioLoadState.Loaded) {
+        return play();
       } else {
-        this.on('load', play.bind(this), true);
+        this.on('load', play, true);
         this.load();
       }
 
@@ -313,12 +325,14 @@
     stop: function () {
       // We can stop the sound either if it "playing" or in "paused" state.
       if (this._state !== BuzzState.Playing && this._state !== BuzzState.Paused) {
-        return;
+        return this;
       }
 
       this._bufferSource.disconnect();
       this._bufferSource.stop(0);
       this._bufferSource = null;
+      this._endTimer && clearTimeout(this._endTimer);
+      this._endTimer = null;
       this._pausedAt = 0;
       this._startedAt = 0;
       this._state = BuzzState.Stopped;
@@ -333,14 +347,17 @@
     pause: function () {
       // We can pause the sound only if it is "playing".
       if (this._state !== BuzzState.Playing) {
-        return;
+        return this;
       }
 
+      var elapsed = this._context.currentTime - this._startedAt;
       this._bufferSource.disconnect();
       this._bufferSource.stop(0);
       this._bufferSource = null;
+      this._endTimer && clearTimeout(this._endTimer);
+      this._endTimer = null;
       this._startedAt = 0;
-      this._pausedAt = this._context.currentTime - this._startedAt;
+      this._pausedAt = elapsed;
       this._state = BuzzState.Paused;
 
       return this;
@@ -382,7 +399,7 @@
      * @returns {Buzz|number}
      */
     volume: function (vol) {
-      if(typeof vol === 'undefined') {
+      if (typeof vol === 'undefined') {
         return this._volume;
       }
 
@@ -450,9 +467,9 @@
 
       var eventSubscribers = this._subscribers[event];
 
-      for(var i = 0; i < eventSubscribers.length; i++) {
+      for (var i = 0; i < eventSubscribers.length; i++) {
         var eventSubscriber = eventSubscribers[i];
-        if(eventSubscriber.fn === fn) {
+        if (eventSubscriber.fn === fn) {
           eventSubscribers.splice(i, 1);
           break;
         }
@@ -481,13 +498,13 @@
     _fire: function (event, args) {
       var eventSubscribers = this._subscribers[event];
 
-      for(var i = 0; i < eventSubscribers.length; i++) {
+      for (var i = 0; i < eventSubscribers.length; i++) {
         var eventSubscriber = eventSubscribers[i];
 
-        setTimeout(function(subscriber) {
+        setTimeout(function (subscriber) {
           subscriber.fn(this, args);
 
-          if(subscriber.once) {
+          if (subscriber.once) {
             this.off(event, subscriber.fn);
           }
         }.bind(this, eventSubscriber), 0);
