@@ -198,8 +198,9 @@
     Constructed: 0,
     Playing: 1,
     Paused: 2,
-    Stopped: 3,
-    NA: 4
+    Finished: 3,
+    Stopped: 4,
+    NA: 5
   };
 
   /**
@@ -233,7 +234,6 @@
    * @param {function} args.onend
    * @param {function} args.onstop
    * @param {function} args.onpause
-   * @param {function} args.onmute
    * @constructor
    */
   function Buzz(args) {
@@ -419,6 +419,7 @@
       this._pausedAt = 0;
       this._startedAt = 0;
       this._state = BuzzState.Stopped;
+      this._fire('stop');
 
       return this;
     },
@@ -446,6 +447,7 @@
       this._startedAt = 0;
       this._pausedAt = elapsed;
       this._state = BuzzState.Paused;
+      this._fire('pause');
 
       return this;
     },
@@ -542,8 +544,8 @@
      * @returns {Buzz}
      */
     on: function (event, fn, once) {
-      if (!this._subscribers.hasOwnProperty(event)) return;
-      if (typeof fn !== 'function') return;
+      if (!this._subscribers.hasOwnProperty(event)) return this;
+      if (typeof fn !== 'function') return this;
 
       this._subscribers[event].push({fn: fn, once: once});
 
@@ -557,8 +559,8 @@
      * @returns {Buzz}
      */
     off: function (event, fn) {
-      if (!this._subscribers.hasOwnProperty(event)) return;
-      if (typeof fn !== 'function') return;
+      if (!this._subscribers.hasOwnProperty(event)) return this;
+      if (typeof fn !== 'function') return this;
 
       var eventSubscribers = this._subscribers[event];
 
