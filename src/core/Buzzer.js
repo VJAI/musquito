@@ -1,16 +1,25 @@
+import log, { LogType } from '../util/Logger';
+
 /**
- * Enumeration to represent the different states of the audio engine.
- * @type {{Constructed: number, Ready: number, Done: number}}
+ * Enum that represent the different states of the audio engine.
+ * @enum {number}
  */
-export const BuzzerState = {
+const BuzzerState = {
   Constructed: 0,
   Ready: 1,
   Done: 2,
   NA: 3
 };
 
-export default class Buzzer {
+/**
+ * Represents the audio engine.
+ * @class
+ */
+class Buzzer {
   
+  /**
+   * @constructor
+   */
   constructor() {
     this._context = null;
     this._codecs = {};
@@ -29,7 +38,7 @@ export default class Buzzer {
    */
   setup(context) {
     if (this._state === BuzzerState.NA) {
-      log('Audio engine is not available because the current platform not supports Web Audio.', 'error');
+      log('Audio engine is not available because the current platform not supports Web Audio.', LogType.Error);
       return false;
     }
     
@@ -165,3 +174,7 @@ export default class Buzzer {
     return this._state !== BuzzerState.NA;
   }
 }
+
+const buzzer = new Buzzer();
+
+export { BuzzerState, buzzer as default };

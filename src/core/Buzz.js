@@ -1,8 +1,12 @@
+import cache from '../util/Cache';
+import log, { LogType } from '../util/Logger';
+import buzzer from './Buzzer';
+
 /**
- * Enumeration that represents the different states of a sound.
- * @type {{Constructed: number, Playing: number, Paused: number, Stopped: number}}
+ * Enum that represents the different states of a sound.
+ * @enum {number}
  */
-export const BuzzState = {
+const BuzzState = {
   Constructed: 0,
   Playing: 1,
   Paused: 2,
@@ -11,23 +15,47 @@ export const BuzzState = {
 };
 
 /**
- * Enumeration that represents the states of loading the audio.
- * @type {{NotLoaded: number, Loading: number, Loaded: number, Error: number}}
+ * Enum that represents the different states of loading the audio.
+ * @enum {number}
  */
-export const AudioLoadState = {
+const AudioLoadState = {
   NotLoaded: 0,
   Loading: 1,
   Loaded: 2,
   Error: 3
 };
 
-export const ErrorType = {
+/**
+ * Enum that represents the different errors thrown by a Buzz object.
+ * @enum {number}
+ */
+const ErrorType = {
   AudioUnAvailable: 1,
   LoadError: 2
 };
 
-export default class Buzz {
+/**
+ * Represents a single sound.
+ * @class
+ */
+class Buzz {
   
+  /**
+   * @param {object} args
+   * @param {string} args.src The source of the audio file.
+   * @param {string[]} args.formats The available formats for the file.
+   * @param {number} args.volume The initial volume of the sound.
+   * @param {number} args.loop Whether the sound should play repeatedly.
+   * @param {boolean} args.preload Load the sound initially itself.
+   * @param {boolean} args.autoplay Play automatically once the object is created.
+   * @param {function} args.onload Event-handler for the "load" event.
+   * @param {function} args.onerror Event-handler for the "error" event.
+   * @param {function} args.onplaystart Event-handler for the "playstart" event.
+   * @param {function} args.onend Event-handler for the "end" event.
+   * @param {function} args.onstop Event-handler for the "stop" event.
+   * @param {function} args.onpause Event-handler for the "pause" event.
+   * @constructor
+   */
   constructor(args) {
     this._id = Math.round(Date.now() * Math.random());
     this._src = args.src;
@@ -105,8 +133,8 @@ export default class Buzz {
       this._fire('load', buffer);
     }.bind(this);
     
-    if (cache.hasOwnProperty(this._src)) {
-      loadBuffer(cache[this._src]);
+    if (cache.exists(this._src)) {
+      loadBuffer(cache.retrieve(this._src));
       return this;
     }
     
@@ -118,7 +146,7 @@ export default class Buzz {
     
     var onLoad = function () {
       this._context.decodeAudioData(xhr.response, function (buffer) {
-        cache[this._src] = buffer;
+        cache.store(this._src, buffer);
         loadBuffer(buffer);
       }.bind(this), onError);
     };
@@ -400,12 +428,19 @@ export default class Buzz {
     return this;
   }
   
+  /**
+   * Logs error and returns false if audio is not available.
+   * @returns {boolean}
+   * @private
+   */
   _check() {
     if (this._state === BuzzState.NA) {
-      log('Web Audio API is unavailable', 'error');
+      log('Web Audio API is unavailable', LogType.Error);
       return false;
     }
     
     return true;
   }
 }
+
+export { BuzzState, AudioLoadState, ErrorType, Buzz as default };
