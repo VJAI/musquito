@@ -22,5 +22,5 @@ export default {
       'process.env': {NODE_ENV: JSON.stringify(nodeEnv)}
     })
   ],
-  devtool: optimizeMinimize ? 'source-map' : null
+  devtool: optimizeMinimize ? 'source-map' : false
 };
