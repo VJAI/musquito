@@ -1,7 +1,7 @@
-import HtmlWebpackPlugin from 'html-webpack-plugin';
-import {HotModuleReplacementPlugin} from 'webpack';
+var HtmlWebpackPlugin = require('html-webpack-plugin');
+var HotModuleReplacementPlugin = require('webpack').HotModuleReplacementPlugin;
 
-export default {
+module.exports = {
   entry: {app: './dev.js'},
   module: {
     loaders: [

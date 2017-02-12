@@ -1,7 +1,7 @@
 import log, { LogType } from '../util/Logger';
 
 /**
- * Enum that represent the different states of the audio engine.
+ * Represents the different states of the audio engine.
  * @enum {number}
  */
 const BuzzerState = {
@@ -12,12 +12,13 @@ const BuzzerState = {
 };
 
 /**
- * Represents the audio engine.
+ * The audio engine.
  * @class
  */
 class Buzzer {
   
   /**
+   * Initialize the internal variables.
    * @constructor
    */
   constructor() {
@@ -25,7 +26,7 @@ class Buzzer {
     this._codecs = {};
     this._muted = false;
     this._volume = 1.0;
-    this._gain = null;
+    this._gainNode = null;
     this._contextType = AudioContext || webkitAudioContext;
     this._state = typeof this._contextType !== 'undefined' ? BuzzerState.Constructed : BuzzerState.NA;
   }
@@ -48,9 +49,9 @@ class Buzzer {
     
     this._context = context || new this._contextType();
     this.codecs();
-    this._gain = this._context.createGain();
-    this._gain.gain.value = this._volume;
-    this._gain.connect(this._context.destination);
+    this._gainNode = this._context.createGain();
+    this._gainNode.gain.value = this._volume;
+    this._gainNode.connect(this._context.destination);
     this._state = BuzzerState.Ready;
     return true;
   }
@@ -89,9 +90,13 @@ class Buzzer {
   /**
    * Set/get the volume for the audio engine that controls global volume for all sounds.
    * @param {number} vol
-   * @returns {number}
+   * @returns {Buzzer|number}
    */
   volume(vol) {
+    if (typeof vol === 'undefined') {
+      return this._volume;
+    }
+    
     var volume = parseFloat(vol);
     
     if (isNaN(volume) || volume < 0 || volume > 1.0) {
@@ -99,8 +104,9 @@ class Buzzer {
     }
     
     this._volume = volume;
-    this._gain && (this._gain.gain.value = this._volume);
-    return this._volume;
+    this._gainNode && (this._gainNode.gain.value = this._volume);
+    
+    return this;
   }
   
   /**
@@ -111,7 +117,7 @@ class Buzzer {
       return;
     }
     
-    this._gain && (this._gain.gain.value = 0);
+    this._gainNode && (this._gainNode.gain.value = 0);
     this._muted = true;
   }
   
@@ -123,7 +129,7 @@ class Buzzer {
       return;
     }
     
-    this._gain && (this._gain.gain.value = this._volume);
+    this._gainNode && (this._gainNode.gain.value = this._volume);
     this._muted = false;
   }
   
@@ -147,7 +153,7 @@ class Buzzer {
    * @returns {GainNode}
    */
   gain() {
-    return this._gain;
+    return this._gainNode;
   }
   
   /**
