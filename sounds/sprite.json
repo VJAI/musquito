@@ -1,0 +1,25 @@
+{
+  "resources": [
+    "output.ogg",
+    "output.m4a",
+    "output.mp3",
+    "output.ac3"
+  ],
+  "spritemap": {
+    "beep": {
+      "start": 0,
+      "end": 0.48108843537414964,
+      "loop": false
+    },
+    "button": {
+      "start": 2,
+      "end": 2.4290249433106577,
+      "loop": false
+    },
+    "click": {
+      "start": 4,
+      "end": 4.672018140589569,
+      "loop": false
+    }
+  }
+}
