@@ -4,6 +4,9 @@ var HotModuleReplacementPlugin = require('webpack').HotModuleReplacementPlugin;
 module.exports = {
   entry: {app: './dev.js'},
   module: {
+    preLoaders: [
+      { test: /\.js$/, exclude: /node_modules/, loader: 'eslint' }
+    ],
     loaders: [
       {test: /\.js$/, exclude: /node_modules/, loader: "babel-loader"}
     ]
@@ -11,6 +14,10 @@ module.exports = {
   devServer: {
     inline: true,
     hot: true
+  },
+  eslint: {
+    failOnWarning: false,
+    failOnError: true
   },
   plugins: [
     new HotModuleReplacementPlugin(),
