@@ -13,10 +13,6 @@ module.exports = {
     inline: true,
     hot: true
   },
-  eslint: {
-    failOnWarning: false,
-    failOnError: true
-  },
   plugins: [
     new HotModuleReplacementPlugin(),
     new HtmlWebpackPlugin({

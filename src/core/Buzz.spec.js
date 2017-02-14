@@ -40,11 +40,34 @@ describe('Buzz', () => {
 
       it('should get constructed with variables initialized to right values', () => {
         const src = 'base/sounds/beep.mp3',
+          formats = ['ogg', 'wav'],
           volume = 0.5,
-
+          muted = true,
+          loop = true,
+          emptyFn = () => {},
           buzz = new Buzz({
-
+            src: src,
+            volume: volume,
+            muted: true,
+            loop: true,
+            onload: emptyFn,
+            onerror: emptyFn,
+            onplaystart: emptyFn,
+            onend: emptyFn,
+            onstop: emptyFn,
+            onpause: emptyFn
           });
+
+        expect(buzz._src).toBe(src);
+        expect(buzz._volume).toBe(volume);
+        expect(buzz._muted).toBe(muted);
+        expect(buzz._loop).toBe(loop);
+        expect(buzz._subscribers.load[0].fn).toBe(emptyFn);
+        expect(buzz._subscribers.error[0].fn).toBe(emptyFn);
+        expect(buzz._subscribers.playstart[0].fn).toBe(emptyFn);
+        expect(buzz._subscribers.end[0].fn).toBe(emptyFn);
+        expect(buzz._subscribers.stop[0].fn).toBe(emptyFn);
+        expect(buzz._subscribers.pause[0].fn).toBe(emptyFn);
       });
     });
 

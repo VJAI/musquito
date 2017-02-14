@@ -75,6 +75,7 @@ class Buzz {
     this._loop = options.loop || false;
     this._preload = options.preload || false;
     this._autoplay = options.autoplay || false;
+
     this._subscribers = {
       'load': [],
       'error': [],
@@ -96,7 +97,7 @@ class Buzz {
     this._endTimer = null;
     this._duration = 0;
     this._startedAt = 0;
-    this._pausedAt = 0;
+    this._elapsed = 0;
 
     if (buzzer.setup(null)) {
       this._context = buzzer.context();
@@ -193,13 +194,11 @@ class Buzz {
         this._endTimer = null;
       }
 
-      var offset = this._pausedAt;
       this._bufferSource = this._context.createBufferSource();
       this._bufferSource.buffer = this._buffer;
       this._bufferSource.connect(this._gainNode);
-      this._bufferSource.start(0, offset);
-      this._startedAt = this._context.currentTime - offset;
-      this._pausedAt = 0;
+      this._bufferSource.start(0, this._elapsed % this._duration);
+      this._startedAt = this._context.currentTime;
       this._endTimer = setTimeout(onEnd, this._duration * 1000);
       this._state = BuzzState.Playing;
       this._fire('playstart');
@@ -209,7 +208,7 @@ class Buzz {
 
     var onEnd = function () {
       this._startedAt = 0;
-      this._pausedAt = 0;
+      this._elapsed = 0;
       this._endTimer = null;
       this._state = BuzzState.Stopped;
       this._fire('end');
@@ -242,10 +241,10 @@ class Buzz {
     this._bufferSource.disconnect();
     this._bufferSource.stop(0);
     this._bufferSource = null;
+    this._startedAt = 0;
+    this._elapsed = 0;
     this._endTimer && clearTimeout(this._endTimer);
     this._endTimer = null;
-    this._pausedAt = 0;
-    this._startedAt = 0;
     this._state = BuzzState.Stopped;
     this._fire('stop');
 
@@ -266,14 +265,12 @@ class Buzz {
       return this;
     }
 
-    var elapsed = this._context.currentTime - this._startedAt;
     this._bufferSource.disconnect();
     this._bufferSource.stop(0);
     this._bufferSource = null;
+    this._elapsed += this._context.currentTime - this._startedAt;
     this._endTimer && clearTimeout(this._endTimer);
     this._endTimer = null;
-    this._startedAt = 0;
-    this._pausedAt = elapsed;
     this._state = BuzzState.Paused;
     this._fire('pause');
 
@@ -375,7 +372,7 @@ class Buzz {
     if (!this._subscribers.hasOwnProperty(event)) return this;
     if (typeof fn !== 'function') return this;
 
-    this._subscribers[event].push({fn: fn, once: once});
+    this._subscribers[event].push({fn: fn, once: once || false });
 
     return this;
   }
