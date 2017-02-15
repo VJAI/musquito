@@ -26,9 +26,7 @@ describe('Buzz', () => {
         expect(buzz._loop).toBe(false);
         expect(buzz._preload).toBe(false);
         expect(buzz._autoplay).toBe(false);
-        expect(buzz._context).toBeDefined();
         expect(buzz._context).not.toBeNull();
-        expect(buzz._gainNode).toBeDefined();
         expect(buzz._gainNode).not.toBeNull();
         expect(buzz._gainNode.gain.value).toBe(volume);
         expect(buzz._state).toBe(BuzzState.Constructed);
