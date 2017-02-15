@@ -1,5 +1,3 @@
-import log, { LogType } from '../util/Logger';
-
 /**
  * Represents the different states of the audio engine.
  * @enum {number}
@@ -7,8 +5,7 @@ import log, { LogType } from '../util/Logger';
 const BuzzerState = {
   Constructed: 0,
   Ready: 1,
-  Done: 2,
-  NA: 3
+  Done: 2
 };
 
 /**
@@ -16,7 +13,7 @@ const BuzzerState = {
  * @class
  */
 class Buzzer {
-  
+
   /**
    * Initialize the internal variables.
    * @constructor
@@ -28,9 +25,14 @@ class Buzzer {
     this._volume = 1.0;
     this._gainNode = null;
     this._contextType = AudioContext || webkitAudioContext;
-    this._state = typeof this._contextType !== 'undefined' ? BuzzerState.Constructed : BuzzerState.NA;
+
+    if(!this._contextType) {
+      throw new Error('Web Audio API is unavailable');
+    }
+
+    this._state = BuzzerState.Constructed;
   }
-  
+
   /**
    * Instantiate audio context and other important objects.
    * Returns true if the setup is success.
@@ -38,15 +40,10 @@ class Buzzer {
    * @returns {boolean}
    */
   setup(context) {
-    if (this._state === BuzzerState.NA) {
-      log('Audio engine is not available because the current platform not supports Web Audio.', LogType.Error);
-      return false;
-    }
-    
     if (this._state === BuzzerState.Ready) {
       return true;
     }
-    
+
     this._context = context || new this._contextType();
     this.codecs();
     this._gainNode = this._context.createGain();
@@ -55,7 +52,7 @@ class Buzzer {
     this._state = BuzzerState.Ready;
     return true;
   }
-  
+
   /**
    * Figure out the supported codecs and return the result as an object.
    * @returns {object}
@@ -63,7 +60,7 @@ class Buzzer {
   codecs() {
     if (Object.keys(this._codecs).length === 0 && typeof Audio !== 'undefined') {
       var audioTest = new Audio();
-      
+
       this._codecs = {
         mp3: !!audioTest.canPlayType('audio/mp3;').replace(/^no$/, ''),
         mpeg: !!audioTest.canPlayType('audio/mpeg;').replace(/^no$/, ''),
@@ -80,13 +77,13 @@ class Buzzer {
         dolby: !!audioTest.canPlayType('audio/mp4; codecs="ec-3"').replace(/^no$/, ''),
         flac: !!(audioTest.canPlayType('audio/x-flac;') || audioTest.canPlayType('audio/flac;')).replace(/^no$/, '')
       };
-      
+
       audioTest = null;
     }
-    
+
     return this._codecs;
   }
-  
+
   /**
    * Set/get the volume for the audio engine that controls global volume for all sounds.
    * @param {number} vol
@@ -96,19 +93,19 @@ class Buzzer {
     if (typeof vol === 'undefined') {
       return this._volume;
     }
-    
+
     var volume = parseFloat(vol);
-    
+
     if (isNaN(volume) || volume < 0 || volume > 1.0) {
       return this._volume;
     }
-    
+
     this._volume = volume;
     this._gainNode && (this._gainNode.gain.value = this._volume);
-    
+
     return this;
   }
-  
+
   /**
    * Mute the engine.
    */
@@ -116,11 +113,11 @@ class Buzzer {
     if (this._muted) {
       return;
     }
-    
+
     this._gainNode && (this._gainNode.gain.value = 0);
     this._muted = true;
   }
-  
+
   /**
    * Unmute the engine.
    */
@@ -128,18 +125,18 @@ class Buzzer {
     if (!this._muted) {
       return;
     }
-    
+
     this._gainNode && (this._gainNode.gain.value = this._volume);
     this._muted = false;
   }
-  
+
   /**
    * TODO
    */
   tearDown() {
     this._state = BuzzerState.Done;
   }
-  
+
   /**
    * Returns the created audio context.
    * @returns {AudioContext}
@@ -147,7 +144,7 @@ class Buzzer {
   context() {
     return this._context;
   }
-  
+
   /**
    * Returns the master gain node.
    * @returns {GainNode}
@@ -155,7 +152,7 @@ class Buzzer {
   gain() {
     return this._gainNode;
   }
-  
+
   /**
    * Returns whether the engine is currently muted or not.
    * @returns {boolean}
@@ -163,7 +160,7 @@ class Buzzer {
   muted() {
     return this._muted;
   }
-  
+
   /**
    * Returns the state of the engine.
    * @returns {number}
@@ -171,7 +168,7 @@ class Buzzer {
   state() {
     return this._state;
   }
-  
+
   /**
    * Returns whether the engine is available or not.
    * @returns {boolean}

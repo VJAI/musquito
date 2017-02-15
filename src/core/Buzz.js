@@ -1,5 +1,4 @@
 import cache from '../util/Cache';
-import log, { LogType } from '../util/Logger';
 import buzzer from './Buzzer';
 
 /**
@@ -10,8 +9,7 @@ const BuzzState = {
   Constructed: 0,
   Playing: 1,
   Paused: 2,
-  Stopped: 3,
-  NA: 4
+  Stopped: 3
 };
 
 /**
@@ -60,9 +58,9 @@ class Buzz {
    * @constructor
    */
   constructor(args) {
-    let options = typeof args === 'string' ? { src: args } : args || {};
+    let options = typeof args === 'string' ? {src: args} : args || {};
 
-    if(!options.src && !options.sprite) {
+    if (!options.src && !options.sprite) {
       throw new Error('Either you should pass "src" or "sprite"');
     }
 
@@ -99,26 +97,23 @@ class Buzz {
     this._startedAt = 0;
     this._elapsed = 0;
 
-    if (buzzer.setup(null)) {
-      this._context = buzzer.context();
-      this._gainNode = this._context.createGain();
-      this._gainNode.connect(buzzer.gain());
-      this._gainNode.gain.value = this._volume;
+    buzzer.setup(null);
 
-      this._loadStatus = AudioLoadState.NotLoaded;
-      this._state = BuzzState.Constructed;
+    this._context = buzzer.context();
+    this._gainNode = this._context.createGain();
+    this._gainNode.connect(buzzer.gain());
+    this._gainNode.gain.value = this._volume;
 
-      if (this._autoplay) {
-        this.play();
-        return;
-      }
+    this._loadStatus = AudioLoadState.NotLoaded;
+    this._state = BuzzState.Constructed;
 
-      if (this._preload) {
-        this.load();
-      }
-    } else {
-      this._state = BuzzState.NA;
-      this._fire('error', { type: ErrorType.AudioUnAvailable, error: 'Web Audio API is unavailable' });
+    if (this._autoplay) {
+      this.play();
+      return;
+    }
+
+    if (this._preload) {
+      this.load();
     }
   }
 
@@ -128,10 +123,6 @@ class Buzz {
    * @returns {Buzz}
    */
   load() {
-    if (!this._check()) {
-      return this;
-    }
-
     // If the loading is in progress or already the audio file is loaded return.
     if (this._loadStatus === AudioLoadState.Loading || this._loadStatus === AudioLoadState.Loaded) {
       return this;
@@ -180,10 +171,6 @@ class Buzz {
    * @returns {Buzz}
    */
   play() {
-    if (!this._check()) {
-      return this;
-    }
-
     if (this._state === BuzzState.Playing) {
       return this;
     }
@@ -229,10 +216,6 @@ class Buzz {
    * @returns {Buzz}
    */
   stop() {
-    if (!this._check()) {
-      return this;
-    }
-
     // We can stop the sound either if it "playing" or in "paused" state.
     if (this._state !== BuzzState.Playing && this._state !== BuzzState.Paused) {
       return this;
@@ -256,10 +239,6 @@ class Buzz {
    * @returns {Buzz}
    */
   pause() {
-    if (!this._check()) {
-      return this;
-    }
-
     // We can pause the sound only if it is "playing".
     if (this._state !== BuzzState.Playing) {
       return this;
@@ -372,7 +351,7 @@ class Buzz {
     if (!this._subscribers.hasOwnProperty(event)) return this;
     if (typeof fn !== 'function') return this;
 
-    this._subscribers[event].push({fn: fn, once: once || false });
+    this._subscribers[event].push({fn: fn, once: once || false});
 
     return this;
   }
@@ -434,20 +413,6 @@ class Buzz {
 
     return this;
   }
-
-  /**
-   * Logs error and returns false if audio is not available.
-   * @returns {boolean}
-   * @private
-   */
-  _check() {
-    if (this._state === BuzzState.NA) {
-      log('Web Audio API is unavailable', LogType.Error);
-      return false;
-    }
-
-    return true;
-  }
 }
 
-export { BuzzState, AudioLoadState, ErrorType, Buzz as default };
+export {BuzzState, AudioLoadState, ErrorType, Buzz as default};
