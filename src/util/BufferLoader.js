@@ -174,4 +174,5 @@ class BufferLoader {
   }
 }
 
-export {BufferCache, DownloadResult, DownloadStatus, BufferLoader as default};
+const bufferLoader = new BufferLoader();
+export {BufferCache, DownloadResult, DownloadStatus, bufferLoader as default};

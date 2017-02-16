@@ -1,4 +1,4 @@
-import cache from '../util/Cache';
+import bufferLoader from '../util/BufferLoader';
 import buzzer from './Buzzer';
 
 /**

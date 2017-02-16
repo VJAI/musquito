@@ -1,4 +1,4 @@
-import BufferLoader, {BufferCache, DownloadStatus} from './BufferLoader';
+import bufferLoader, {BufferCache, DownloadStatus} from './BufferLoader';
 
 describe('BufferLoader', () => {
 
@@ -15,10 +15,13 @@ describe('BufferLoader', () => {
     }
   });
 
+  afterAll(() => {
+    bufferLoader.unload();
+  });
+
   describe('on constructed', () => {
 
     it('should have cache created', () => {
-      const bufferLoader = new BufferLoader();
       expect(bufferLoader._bufferCache).toBeDefined();
     });
   });
@@ -27,10 +30,7 @@ describe('BufferLoader', () => {
 
     describe('from a valid source', () => {
 
-      const url = 'base/sounds/beep.mp3',
-        cache = new BufferCache(),
-        bufferLoader = new BufferLoader(cache);
-
+      const url = 'base/sounds/beep.mp3';
       let downloadResult;
 
       beforeAll((done) => {
@@ -41,6 +41,10 @@ describe('BufferLoader', () => {
           });
       });
 
+      afterAll(() => {
+        bufferLoader.unload();
+      });
+
       it('should return an object with url, value, status and empty error', () => {
         expect(downloadResult.status).toBe(DownloadStatus.Success);
         expect(downloadResult.url).toBe(url);
@@ -49,8 +53,8 @@ describe('BufferLoader', () => {
       });
 
       it('should have the buffer cached', () => {
-        expect(cache.hasBuffer(url)).toBe(true);
-        expect(cache.getBuffer(url)).toBe(downloadResult.value);
+        expect(bufferLoader._bufferCache.hasBuffer(url)).toBe(true);
+        expect(bufferLoader._bufferCache.getBuffer(url)).toBe(downloadResult.value);
       });
 
       describe('and reloading again', () => {
@@ -74,10 +78,7 @@ describe('BufferLoader', () => {
 
     describe('from an invalid source', () => {
 
-      const url = 'base/sounds/notexist.mp3',
-        cache = new BufferCache(),
-        bufferLoader = new BufferLoader(cache);
-
+      const url = 'base/sounds/notexist.mp3';
       let downloadResult;
 
       beforeAll((done) => {
@@ -94,7 +95,7 @@ describe('BufferLoader', () => {
       });
 
       it('should not be cached', () => {
-        expect(cache.count()).toBe(0);
+        expect(bufferLoader._bufferCache.count()).toBe(0);
       });
     });
   });
@@ -103,10 +104,7 @@ describe('BufferLoader', () => {
 
     describe('with valid and invalid sources', () => {
 
-      const urls = ['base/sounds/beep.mp3', 'base/sounds/notexist.mp3'],
-        cache = new BufferCache(),
-        bufferLoader = new BufferLoader(cache);
-
+      const urls = ['base/sounds/beep.mp3', 'base/sounds/notexist.mp3'];
       let downloadResults;
 
       beforeAll((done) => {
@@ -115,6 +113,10 @@ describe('BufferLoader', () => {
             downloadResults = result;
             done();
           });
+      });
+
+      afterAll(() => {
+        bufferLoader.unload();
       });
 
       it('should return all the results with correct values', () => {
