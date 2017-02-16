@@ -1,4 +1,4 @@
-import bufferLoader from '../util/BufferLoader';
+import bufferLoader, {DownloadStatus} from '../util/BufferLoader';
 import buzzer from './Buzzer';
 
 /**
@@ -118,49 +118,30 @@ class Buzz {
   }
 
   /**
-   * Downloads the sound from the url, decode it into audio buffer and store it locally.
+   * Load the sound into an audio buffer.
    * Fires 'load' event on successful load and 'error' event on failure.
    * @returns {Buzz}
    */
   load() {
-    // If the loading is in progress or already the audio file is loaded return.
+    // If the loading is in progress or already the buffer is loaded return.
     if (this._loadStatus === AudioLoadState.Loading || this._loadStatus === AudioLoadState.Loaded) {
-      return this;
-    }
-
-    var loadBuffer = function (buffer) {
-      this._buffer = buffer;
-      this._duration = buffer.duration;
-      this._loadStatus = AudioLoadState.Loaded;
-      this._fire('load', buffer);
-    }.bind(this);
-
-    if (cache.exists(this._src)) {
-      loadBuffer(cache.retrieve(this._src));
       return this;
     }
 
     this._loadStatus = AudioLoadState.Loading;
 
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', this._src, true);
-    xhr.responseType = 'arraybuffer';
+    bufferLoader.load(this._src, this._context).then(downloadResult => {
+      if(downloadResult.status === DownloadStatus.Failure) {
+        this._loadStatus = AudioLoadState.Error;
+        this._fire('error', {type: ErrorType.LoadError, error: downloadResult.error});
+        return;
+      }
 
-    var onLoad = function () {
-      this._context.decodeAudioData(xhr.response, function (buffer) {
-        cache.store(this._src, buffer);
-        loadBuffer(buffer);
-      }.bind(this), onError);
-    };
-
-    var onError = function (err) {
-      this._loadStatus = AudioLoadState.Error;
-      this._fire('error', {type: ErrorType.LoadError, error: err});
-    };
-
-    xhr.addEventListener('load', onLoad.bind(this));
-    xhr.addEventListener('error', onError.bind(this));
-    xhr.send();
+      this._buffer = downloadResult.value;
+      this._duration = this._buffer.duration;
+      this._loadStatus = AudioLoadState.Loaded;
+      this._fire('load', downloadResult);
+    });
 
     return this;
   }
@@ -175,7 +156,15 @@ class Buzz {
       return this;
     }
 
-    var play = function () {
+    const playEnd = () => {
+      this._startedAt = 0;
+      this._elapsed = 0;
+      this._endTimer = null;
+      this._state = BuzzState.Stopped;
+      this._fire('end');
+    };
+
+    const play = () => {
       if (this._endTimer) {
         clearTimeout(this._endTimer);
         this._endTimer = null;
@@ -186,20 +175,12 @@ class Buzz {
       this._bufferSource.connect(this._gainNode);
       this._bufferSource.start(0, this._elapsed % this._duration);
       this._startedAt = this._context.currentTime;
-      this._endTimer = setTimeout(onEnd, this._duration * 1000);
+      this._endTimer = setTimeout(playEnd, this._duration * 1000);
       this._state = BuzzState.Playing;
       this._fire('playstart');
 
       return this;
-    }.bind(this);
-
-    var onEnd = function () {
-      this._startedAt = 0;
-      this._elapsed = 0;
-      this._endTimer = null;
-      this._state = BuzzState.Stopped;
-      this._fire('end');
-    }.bind(this);
+    };
 
     if (this._loadStatus === AudioLoadState.Loaded) {
       return play();

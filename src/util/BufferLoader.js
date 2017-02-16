@@ -96,10 +96,9 @@ class BufferLoader {
 
   /**
    * @constructor
-   * @param cache
    */
-  constructor(cache) {
-    this._bufferCache = cache || new BufferCache();
+  constructor() {
+    this._bufferCache = new BufferCache();
   }
 
   /**

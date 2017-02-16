@@ -1,4 +1,4 @@
-import bufferLoader, {BufferCache, DownloadStatus} from './BufferLoader';
+import bufferLoader, {DownloadStatus} from './BufferLoader';
 
 describe('BufferLoader', () => {
 
