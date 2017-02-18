@@ -123,7 +123,7 @@ var Buzzer = function () {
     _classCallCheck(this, Buzzer);
 
     this._context = null;
-    this._codecs = {};
+    this._formats = {};
     this._muted = false;
     this._volume = 1.0;
     this._gain = null;
@@ -168,10 +168,10 @@ var Buzzer = function () {
   }, {
     key: 'codecs',
     value: function codecs() {
-      if (Object.keys(this._codecs).length === 0 && typeof Audio !== 'undefined') {
+      if (Object.keys(this._formats).length === 0 && typeof Audio !== 'undefined') {
         var audioTest = new Audio();
 
-        this._codecs = {
+        this._formats = {
           mp3: !!audioTest.canPlayType('audio/mp3;').replace(/^no$/, ''),
           mpeg: !!audioTest.canPlayType('audio/mpeg;').replace(/^no$/, ''),
           opus: !!audioTest.canPlayType('audio/ogg; codecs="opus"').replace(/^no$/, ''),
@@ -191,7 +191,7 @@ var Buzzer = function () {
         audioTest = null;
       }
 
-      return this._codecs;
+      return this._formats;
     }
 
     /**

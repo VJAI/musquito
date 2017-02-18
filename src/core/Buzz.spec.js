@@ -68,27 +68,50 @@ describe('Buzz', () => {
         expect(buzz._subscribers.pause[0].fn).toBe(emptyFn);
       });
     });
-
-    describe('with passing sprite definition', () => {
-
-    });
-
-    describe('without web audio available', () => {
-
-    });
   });
 
   describe('when calling load', () => {
 
     describe('with valid source', () => {
 
+      let buzz;
+
+      beforeAll(done => {
+        buzz = new Buzz({
+          src: 'base/sounds/beep.mp3',
+          preload: true,
+          onload: done
+        });
+      });
+
+      it('The buffer and duration should be set to right values', () => {
+        expect(buzz._buffer).not.toBeNull();
+        expect(buzz._duration).not.toBe(0);
+      });
+
+      it('The status should be set to loaded', () => {
+        expect(buzz._loadStatus).toBe(AudioLoadState.Loaded);
+      });
     });
 
     describe('with invalid source', () => {
 
+      let buzz;
+
+      beforeAll(done => {
+        buzz = new Buzz({
+          src: 'base/sounds/notexist.mp3',
+          preload: true,
+          onerror: done
+        });
+      });
+
+      it('The status should set to error', () => {
+        expect(buzz._loadStatus).toBe(AudioLoadState.Error);
+      });
     });
 
-    // More Cases...
+
   });
 
 

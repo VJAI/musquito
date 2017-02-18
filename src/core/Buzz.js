@@ -73,7 +73,6 @@ class Buzz {
     this._loop = options.loop || false;
     this._preload = options.preload || false;
     this._autoplay = options.autoplay || false;
-
     this._subscribers = {
       'load': [],
       'error': [],
@@ -83,12 +82,7 @@ class Buzz {
       'pause': [],
       'mute': []
     };
-
-    for (var event in this._subscribers) {
-      if (this._subscribers.hasOwnProperty(event) && typeof options['on' + event] === 'function') {
-        this.on(event, options['on' + event]);
-      }
-    }
+    Object.keys(this._subscribers).forEach(event => options[`on${event}`] && this.on(event, options[`on${event}`]));
 
     this._buffer = null;
     this._bufferSource = null;
@@ -131,16 +125,16 @@ class Buzz {
     this._loadStatus = AudioLoadState.Loading;
 
     bufferLoader.load(this._src, this._context).then(downloadResult => {
-      if(downloadResult.status === DownloadStatus.Failure) {
-        this._loadStatus = AudioLoadState.Error;
-        this._fire('error', {type: ErrorType.LoadError, error: downloadResult.error});
+      if(downloadResult.status === DownloadStatus.Success) {
+        this._buffer = downloadResult.value;
+        this._duration = this._buffer.duration;
+        this._loadStatus = AudioLoadState.Loaded;
+        this._fire('load', downloadResult);
         return;
       }
 
-      this._buffer = downloadResult.value;
-      this._duration = this._buffer.duration;
-      this._loadStatus = AudioLoadState.Loaded;
-      this._fire('load', downloadResult);
+      this._loadStatus = AudioLoadState.Error;
+      this._fire('error', {type: ErrorType.LoadError, error: downloadResult.error});
     });
 
     return this;
@@ -149,9 +143,10 @@ class Buzz {
   /**
    * Plays the sound.
    * Fires 'playstart' event before playing and 'end' event after the sound is played.
+   * @param {string?} sound
    * @returns {Buzz}
    */
-  play() {
+  play(sound) {
     if (this._state === BuzzState.Playing) {
       return this;
     }
