@@ -5,17 +5,27 @@ describe('BufferLoader', () => {
   let context, bufferLoader;
 
   beforeAll(() => {
+    jasmine.Ajax.install();
     context = new (AudioContext || webkitAudioContext)();
     bufferLoader = new BufferLoader(context);
   });
 
   afterAll(() => {
+    jasmine.Ajax.uninstall();
+
     if (context) {
       context.close();
       context = null;
     }
 
     bufferLoader.dispose();
+  });
+
+  describe('on constructed', () => {
+
+    it('should have cache created', () => {
+      expect(bufferLoader._bufferCache).toBeDefined();
+    });
   });
 
   describe('when loading a single sound', () => {
@@ -41,7 +51,12 @@ describe('BufferLoader', () => {
         expect(downloadResult.status).toBe(DownloadStatus.Success);
         expect(downloadResult.url).toBe(url);
         expect(downloadResult.value).toBeDefined();
-        expect(downloadResult.error).toBeUndefined();
+        expect(downloadResult.error).not.toBeDefined();
+      });
+
+      it('should have the buffer cached', () => {
+        expect(bufferLoader._bufferCache.hasBuffer(url)).toBe(true);
+        expect(bufferLoader._bufferCache.getBuffer(url)).toBe(downloadResult.value);
       });
 
       describe('and reloading again', () => {
@@ -79,6 +94,10 @@ describe('BufferLoader', () => {
       it('should return error', () => {
         expect(downloadResult.status).toBe(DownloadStatus.Failure);
         expect(downloadResult.error).toBeDefined();
+      });
+
+      it('should not be cached', () => {
+        expect(bufferLoader._bufferCache.count()).toBe(0);
       });
     });
   });

@@ -3,7 +3,7 @@ var webpackConfig = require('./webpack.dev.config');
 module.exports = function (config) {
   config.set({
     basePath: '.',
-    frameworks: ['jasmine'],
+    frameworks: ['jasmine-ajax', 'jasmine'],
     files: [
       'src/**/*.spec.js',
       {pattern: 'sounds/*.*', included: false}
@@ -26,6 +26,7 @@ module.exports = function (config) {
     plugins: [
       'karma-chrome-launcher',
       'karma-jasmine',
+      'karma-jasmine-ajax',
       'karma-webpack',
       'karma-mocha-reporter'
     ],

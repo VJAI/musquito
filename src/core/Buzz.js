@@ -1,4 +1,5 @@
-import bufferLoader, {DownloadStatus} from '../util/BufferLoader';
+import {DownloadStatus} from '../util/BufferLoader';
+import codecaid from '../util/CodecAid';
 import buzzer from './Buzzer';
 
 /**
@@ -60,14 +61,19 @@ class Buzz {
   constructor(args) {
     let options = typeof args === 'string' ? {src: args} : args || {};
 
-    if (!options.src && !options.sprite) {
-      throw new Error('Either you should pass "src" or "sprite"');
+    if (!options.src && !options.sprite && !options.sprite.src) {
+      throw new Error('You should pass the source of the audio either in "src" or in "sprite"');
     }
 
-    this._src = options.src;
+    const possibleSrc = Buzz._getFeasibleSrc(options);
+
+    if (!possibleSrc) {
+      throw new Error('None of the audio format you passed is supported');
+    }
+
+    this._src = possibleSrc;
     this._id = options.id || Math.round(Date.now() * Math.random());
     this._sprite = options.sprite;
-    this._formats = options.formats;
     this._volume = options.volume || 1.0;
     this._muted = options.muted || false;
     this._loop = options.loop || false;
@@ -111,6 +117,18 @@ class Buzz {
     }
   }
 
+  static _getFeasibleSrc(options) {
+    const src = options.sprite ? options.sprite.src : options.src;
+    const formats = options.sprite ? options.sprite.formats : options.formats;
+
+    if (!formats && formats.length) {
+      return codecaid.supported(src) ? src : null;
+    }
+
+    const format = codecaid.supported(formats);
+    return format ? `${options.src}.${format}` : null;
+  }
+
   /**
    * Load the sound into an audio buffer.
    * Fires 'load' event on successful load and 'error' event on failure.
@@ -124,8 +142,8 @@ class Buzz {
 
     this._loadStatus = AudioLoadState.Loading;
 
-    bufferLoader.load(this._src, this._context).then(downloadResult => {
-      if(downloadResult.status === DownloadStatus.Success) {
+    buzzer.load(this._src).then(downloadResult => {
+      if (downloadResult.status === DownloadStatus.Success) {
         this._buffer = downloadResult.value;
         this._duration = this._buffer.duration;
         this._loadStatus = AudioLoadState.Loaded;
@@ -151,40 +169,40 @@ class Buzz {
       return this;
     }
 
-    const playEnd = () => {
-      this._startedAt = 0;
-      this._elapsed = 0;
-      this._endTimer = null;
-      this._state = BuzzState.Stopped;
-      this._fire('end');
-    };
-
-    const play = () => {
-      if (this._endTimer) {
-        clearTimeout(this._endTimer);
-        this._endTimer = null;
-      }
-
-      this._bufferSource = this._context.createBufferSource();
-      this._bufferSource.buffer = this._buffer;
-      this._bufferSource.connect(this._gainNode);
-      this._bufferSource.start(0, this._elapsed % this._duration);
-      this._startedAt = this._context.currentTime;
-      this._endTimer = setTimeout(playEnd, this._duration * 1000);
-      this._state = BuzzState.Playing;
-      this._fire('playstart');
-
-      return this;
-    };
-
     if (this._loadStatus === AudioLoadState.Loaded) {
-      return play();
+      return this._play();
     } else {
-      this.on('load', play, true);
+      this.on('load', this._play, true);
       this.load();
     }
 
     return this;
+  }
+
+  _play() {
+    if (this._endTimer) {
+      clearTimeout(this._endTimer);
+      this._endTimer = null;
+    }
+
+    this._bufferSource = this._context.createBufferSource();
+    this._bufferSource.buffer = this._buffer;
+    this._bufferSource.connect(this._gainNode);
+    this._bufferSource.start(0, this._elapsed % this._duration);
+    this._startedAt = this._context.currentTime;
+    this._endTimer = setTimeout(this._playEnd, this._duration * 1000);
+    this._state = BuzzState.Playing;
+    this._fire('playstart');
+
+    return this;
+  }
+
+  _playEnd() {
+    this._startedAt = 0;
+    this._elapsed = 0;
+    this._endTimer = null;
+    this._state = BuzzState.Stopped;
+    this._fire('end');
   }
 
   /**
@@ -202,6 +220,7 @@ class Buzz {
     this._bufferSource = null;
     this._startedAt = 0;
     this._elapsed = 0;
+    this.off('load', this._playEnd);
     this._endTimer && clearTimeout(this._endTimer);
     this._endTimer = null;
     this._state = BuzzState.Stopped;
@@ -223,6 +242,7 @@ class Buzz {
     this._bufferSource.disconnect();
     this._bufferSource.stop(0);
     this._bufferSource = null;
+    this.off('load', this._playEnd);
     this._elapsed += this._context.currentTime - this._startedAt;
     this._endTimer && clearTimeout(this._endTimer);
     this._endTimer = null;
@@ -292,12 +312,24 @@ class Buzz {
     throw new Error('Not Implemented');
   }
 
+  id() {
+    return this._id;
+  }
+
+  buffer() {
+    return this._buffer;
+  }
+
   /**
    * Returns whether sound is muted or not.
    * @returns {boolean}
    */
   muted() {
     return this._muted;
+  }
+
+  loadStatus() {
+    return this._loadStatus;
   }
 
   /**

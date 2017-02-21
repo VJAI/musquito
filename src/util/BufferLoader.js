@@ -1,17 +1,17 @@
 /**
- * An in-memory cache class that is used to cache the loaded audio buffers.
+ * An in-memory cache to cache audio buffers.
  */
 class BufferCache {
 
   /**
-   * Initialize the cache object.
+   * Initialize the in-memory cache object. The key is the url and the value is the buffer.
    */
   constructor() {
     this._cache = {};
   }
 
   /**
-   * Returns true if the buffer for the url is available in cache.
+   * Returns true if the buffer is available in cache.
    * @param {string} url
    * @return {boolean}
    */
@@ -20,7 +20,7 @@ class BufferCache {
   }
 
   /**
-   * Returns the cached buffer for the url.
+   * Returns the cached buffer.
    * @param {string} url
    * @return {AudioBuffer}
    */
@@ -29,7 +29,7 @@ class BufferCache {
   }
 
   /**
-   * Store the audio buffer.
+   * Stores the buffer.
    * @param {string} url
    * @param {AudioBuffer} buffer
    */
@@ -38,7 +38,7 @@ class BufferCache {
   }
 
   /**
-   * Remove the cached buffer of the url.
+   * Removes the buffer.
    * @param {string} url
    */
   removeBuffer(url) {
@@ -46,14 +46,14 @@ class BufferCache {
   }
 
   /**
-   * Remove all the cached buffers.
+   * Removes all the cached buffers.
    */
   clearBuffers() {
     this._cache = {};
   }
 
   /**
-   * Returns the no. of buffers in cache.
+   * Returns the number of buffers in cache.
    * @return {Number}
    */
   count() {
@@ -76,10 +76,9 @@ const DownloadStatus = {
 class DownloadResult {
 
   /**
-   * @constructor
    * @param {string} url
-   * @param {AudioBuffer} value
-   * @param {*} error
+   * @param {AudioBuffer?} value
+   * @param {*?} error
    */
   constructor(url, value, error) {
     this.url = url;
@@ -90,39 +89,44 @@ class DownloadResult {
 }
 
 /**
- * The class that downloads the audio files, load them into audio buffers, cache them and returns.
+ * Loads the audio sources into audio buffers and returns them.
+ * The loaded buffers are cached.
  */
 class BufferLoader {
 
   /**
-   * @constructor
+   * Create the cache.
+   * @param {AudioContext} context
    */
-  constructor() {
+  constructor(context) {
+    if(!context) {
+      throw new Error('AudioContext is required');
+    }
+
+    this._context = context;
     this._bufferCache = new BufferCache();
   }
 
   /**
-   * Loads a single or multiple audio resources into audio buffers.
+   * Loads single or multiple audio resources into audio buffers.
    * @param {string|string[]} urls
-   * @param {AudioContext} context
    * @return {Promise}
    */
-  load(urls, context) {
+  load(urls) {
     if (typeof urls === 'string') {
-      return this._load(urls, context);
+      return this._load(urls);
     }
 
-    return Promise.all(urls.map(url => this._load(url, context)));
+    return Promise.all(urls.map(url => this._load(url)));
   }
 
   /**
    * Loads a single audio resource into audio buffer and cache result if the download is succeeded.
    * @param {string} url
-   * @param {AudioContext} context
    * @return {Promise}
    * @private
    */
-  _load(url, context) {
+  _load(url) {
     return new Promise(resolve => {
 
       if (this._bufferCache.hasBuffer(url)) {
@@ -139,7 +143,7 @@ class BufferLoader {
       };
 
       req.addEventListener('load', () => {
-        context.decodeAudioData(req.response).then(buffer => {
+        this._context.decodeAudioData(req.response).then(buffer => {
           this._bufferCache.setBuffer(url, buffer);
           resolve(new DownloadResult(url, buffer));
         }, reject);
@@ -152,7 +156,7 @@ class BufferLoader {
 
   /**
    * Removes the cached audio buffers.
-   * @param {string|string[]} urls
+   * @param {string|string[]?} urls
    */
   unload(urls) {
     if (typeof urls === "string") {
@@ -171,7 +175,12 @@ class BufferLoader {
   _unload(url) {
     this._bufferCache.removeBuffer(url);
   }
+
+  dispose() {
+    this.unload();
+    this._bufferCache = null;
+    this._context = null;
+  }
 }
 
-const bufferLoader = new BufferLoader();
-export {BufferCache, DownloadResult, DownloadStatus, bufferLoader as default};
+export {BufferCache, DownloadResult, DownloadStatus, BufferLoader as default};

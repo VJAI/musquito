@@ -39,6 +39,7 @@
     "karma-chrome-launcher": "^2.0.0",
     "karma-coverage": "^1.1.1",
     "karma-jasmine": "^1.1.0",
+    "karma-jasmine-ajax": "^0.1.13",
     "karma-mocha-reporter": "^2.2.2",
     "karma-webpack": "^2.0.2",
     "opener": "^1.4.2",

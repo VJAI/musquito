@@ -1,3 +1,6 @@
+import codecaid from '../util/CodecAid';
+import BufferLoader from '../util/BufferLoader';
+
 /**
  * Represents the different states of the audio engine.
  * @enum {number}
@@ -20,6 +23,7 @@ class Buzzer {
    */
   constructor() {
     this._context = null;
+    this._bufferLoader = null;
     this._formats = {};
     this._muted = false;
     this._volume = 1.0;
@@ -45,7 +49,7 @@ class Buzzer {
     }
 
     this._context = context || new this._contextType();
-    this.codecs();
+    this._bufferLoader = new BufferLoader(this._context);
     this._gainNode = this._context.createGain();
     this._gainNode.gain.value = this._volume;
     this._gainNode.connect(this._context.destination);
@@ -54,34 +58,12 @@ class Buzzer {
   }
 
   /**
-   * Figure out the supported codecs and return the result as an object.
-   * @returns {object}
+   * Loads single or multiple audio resources into audio buffers.
+   * @param {string|string[]} urls
+   * @return {Promise}
    */
-  codecs() {
-    if (Object.keys(this._formats).length === 0 && typeof Audio !== 'undefined') {
-      var audioTest = new Audio();
-
-      this._formats = {
-        mp3: !!audioTest.canPlayType('audio/mp3;').replace(/^no$/, ''),
-        mpeg: !!audioTest.canPlayType('audio/mpeg;').replace(/^no$/, ''),
-        opus: !!audioTest.canPlayType('audio/ogg; codecs="opus"').replace(/^no$/, ''),
-        ogg: !!audioTest.canPlayType('audio/ogg; codecs="vorbis"').replace(/^no$/, ''),
-        oga: !!audioTest.canPlayType('audio/ogg; codecs="vorbis"').replace(/^no$/, ''),
-        wav: !!audioTest.canPlayType('audio/wav; codecs="1"').replace(/^no$/, ''),
-        aac: !!audioTest.canPlayType('audio/aac;').replace(/^no$/, ''),
-        caf: !!audioTest.canPlayType('audio/x-caf;').replace(/^no$/, ''),
-        m4a: !!(audioTest.canPlayType('audio/x-m4a;') || audioTest.canPlayType('audio/m4a;') || audioTest.canPlayType('audio/aac;')).replace(/^no$/, ''),
-        mp4: !!(audioTest.canPlayType('audio/x-mp4;') || audioTest.canPlayType('audio/mp4;') || audioTest.canPlayType('audio/aac;')).replace(/^no$/, ''),
-        weba: !!audioTest.canPlayType('audio/webm; codecs="vorbis"').replace(/^no$/, ''),
-        webm: !!audioTest.canPlayType('audio/webm; codecs="vorbis"').replace(/^no$/, ''),
-        dolby: !!audioTest.canPlayType('audio/mp4; codecs="ec-3"').replace(/^no$/, ''),
-        flac: !!(audioTest.canPlayType('audio/x-flac;') || audioTest.canPlayType('audio/flac;')).replace(/^no$/, '')
-      };
-
-      audioTest = null;
-    }
-
-    return this._formats;
+  load(urls) {
+    return this._bufferLoader.load(urls);
   }
 
   /**
