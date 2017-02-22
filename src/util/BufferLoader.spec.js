@@ -18,6 +18,13 @@ describe('BufferLoader', () => {
     bufferLoader.dispose();
   });
 
+  describe('on constructed', () => {
+
+    it('should have cache created', () => {
+      expect(bufferLoader._bufferCache).toBeDefined();
+    });
+  });
+
   describe('when loading a single sound', () => {
 
     describe('from a valid source', () => {
@@ -42,6 +49,11 @@ describe('BufferLoader', () => {
         expect(downloadResult.url).toBe(url);
         expect(downloadResult.value).toBeDefined();
         expect(downloadResult.error).toBeUndefined();
+      });
+
+      it('should have the buffer cached', () => {
+        expect(bufferLoader._bufferCache.hasBuffer(url)).toBe(true);
+        expect(bufferLoader._bufferCache.getBuffer(url)).toBe(downloadResult.value);
       });
 
       describe('and reloading again', () => {
@@ -79,6 +91,10 @@ describe('BufferLoader', () => {
       it('should return error', () => {
         expect(downloadResult.status).toBe(DownloadStatus.Failure);
         expect(downloadResult.error).toBeDefined();
+      });
+
+      it('should not be cached', () => {
+        expect(bufferLoader._bufferCache.count()).toBe(0);
       });
     });
   });

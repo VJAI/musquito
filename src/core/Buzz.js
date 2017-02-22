@@ -1,6 +1,7 @@
 import {DownloadStatus} from '../util/BufferLoader';
-import codecaid from '../util/CodecAid';
+import codecAid from '../util/CodecAid';
 import buzzer from './Buzzer';
+import utility from '../util/Utility';
 
 /**
  * Enum that represents the different states of a sound.
@@ -44,7 +45,6 @@ class Buzz {
    * @param {string=} args.id An unique id for the sound.
    * @param {string} args.src The source of the audio file.
    * @param {object=} args.sprite The sprite definition.
-   * @param {string[]=} args.formats The available formats for the file.
    * @param {number} [args.volume = 1.0] The initial volume of the sound.
    * @param {boolean} [args.muted = false] Should be muted initially.
    * @param {number} [args.loop = false] Whether the sound should play repeatedly.
@@ -61,18 +61,16 @@ class Buzz {
   constructor(args) {
     let options = typeof args === 'string' ? {src: args} : args || {};
 
-    if (!options.src && !options.sprite && !options.sprite.src) {
-      throw new Error('You should pass the source of the audio either in "src" or in "sprite"');
+    if (!options.src && !(options.sprite && options.sprite.src)) {
+      throw new Error('You should pass the source of the audio');
     }
 
-    const possibleSrc = Buzz._getFeasibleSrc(options);
-
-    if (!possibleSrc) {
-      throw new Error('None of the audio format you passed is supported');
+    if(!codecAid.isFileSupported(options.src || options.sprite.src)) {
+      throw new Error('The audio formats you passed are not supported.');
     }
 
-    this._src = possibleSrc;
     this._id = options.id || Math.round(Date.now() * Math.random());
+    this._src = options.src || options.sprite.src;
     this._sprite = options.sprite;
     this._volume = options.volume || 1.0;
     this._muted = options.muted || false;
@@ -115,18 +113,6 @@ class Buzz {
     if (this._preload) {
       this.load();
     }
-  }
-
-  static _getFeasibleSrc(options) {
-    const src = options.sprite ? options.sprite.src : options.src;
-    const formats = options.sprite ? options.sprite.formats : options.formats;
-
-    if (!formats && formats.length) {
-      return codecaid.supported(src) ? src : null;
-    }
-
-    const format = codecaid.supported(formats);
-    return format ? `${options.src}.${format}` : null;
   }
 
   /**

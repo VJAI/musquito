@@ -1,3 +1,5 @@
+const fileExtRegEx = /^.+\.([^.]+)$/; // Ref: http://stackoverflow.com/questions/190852/how-can-i-get-file-extensions-with-javascript
+
 class CodecAid {
 
   constructor() {
@@ -27,17 +29,25 @@ class CodecAid {
     audio = null;
   }
 
-  // TODO: Check for file extension
-  supported(formats) {
-    if(!formats) {
-      return this._formats;
-    }
+  supportedFormats() {
+    return this._formats;
+  }
 
-    if(Array.isArray(formats)) {
-      return formats.find(format => this._formats[format]);
-    }
+  isFormatSupported(format) {
+    return !!this._formats[format];
+  }
 
-    return this._formats[formats];
+  getSupportedFormat(formats) {
+    return formats.find(format => this.isFormatSupported(format));
+  }
+
+  isFileSupported(file) {
+    const ext = fileExtRegEx.exec(file);
+    return ext ? this.isFormatSupported(ext[1]) : false;
+  }
+
+  getSupportedFile(files) {
+    return files.find(file => this.isFileSupported(file));
   }
 }
 

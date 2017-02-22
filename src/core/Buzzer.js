@@ -1,4 +1,4 @@
-import codecaid from '../util/CodecAid';
+import codecAid from '../util/CodecAid';
 import BufferLoader from '../util/BufferLoader';
 
 /**
@@ -157,6 +157,10 @@ class Buzzer {
    */
   available() {
     return this._state !== BuzzerState.NA;
+  }
+
+  supportedFormats() {
+    return codecAid.supported();
   }
 }
 
