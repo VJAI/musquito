@@ -1,0 +1,61 @@
+<html>
+<head>
+  <title>Playing Sprites</title>
+</head>
+<body>
+<h1>Playing Sprites</h1>
+<button id="play">Play</button>
+<button id="pause">Pause</button>
+<button id="stop">Stop</button>
+<div>Status: <span id="status"></span></div>
+<div></div>
+<script src="bufferloader.js"></script>
+<script>
+  var audioContext = new (AudioContext || webkitAudioContext)();
+  var buffer, bufferSourceNode, startedTime = 0, pausedTime = 0, elapsed = 0;
+  var st = document.getElementById('status');
+
+  loadBuffer(audioContext, '../sounds/bg.mp3', function (b) {
+    buffer = b;
+    st.innerText = "Ready";
+  });
+
+  document.getElementById('play').addEventListener('click', function () {
+    bufferSourceNode = audioContext.createBufferSource();
+    bufferSourceNode.buffer = buffer;
+    bufferSourceNode.start(0, elapsed);
+    startedTime = audioContext.currentTime;
+    pausedTime = 0;
+    console.log('----------- play -----------');
+    console.log('Started Time: ', startedTime);
+    console.log('Elapsed: ', elapsed);
+    bufferSourceNode.connect(audioContext.destination);
+  });
+
+  document.getElementById('pause').addEventListener('click', function () {
+    pausedTime = audioContext.currentTime;
+    elapsed += pausedTime - startedTime;
+    bufferSourceNode.stop(0);
+    bufferSourceNode.disconnect();
+    bufferSourceNode = null;
+    console.log('----------- pause -----------');
+    console.log('Paused Time: ', pausedTime);
+    console.log('Elapsed: ', elapsed);
+  });
+
+  document.getElementById('stop').addEventListener('click', function () {
+    printContextTime();
+    bufferSourceNode.stop(0);
+    bufferSourceNode.disconnect();
+    bufferSourceNode = null;
+    startedTime = 0;
+    pausedTime = 0;
+    elapsed = 0;
+  });
+
+  function printContextTime() {
+    time.innerText = audioContext.currentTime;
+  }
+</script>
+</body>
+</html>

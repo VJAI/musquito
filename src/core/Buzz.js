@@ -1,7 +1,6 @@
 import {DownloadStatus} from '../util/BufferLoader';
 import codecAid from '../util/CodecAid';
 import buzzer from './Buzzer';
-import utility from '../util/Utility';
 
 /**
  * Enum that represents the different states of a sound.
@@ -156,16 +155,30 @@ class Buzz {
     }
 
     if (this._loadStatus === AudioLoadState.Loaded) {
-      return this._play();
+      return this._play(sound);
     } else {
-      this.on('load', this._play, true);
+      this.on('load', () => this._play(sound), true);
       this.load();
     }
 
     return this;
   }
 
-  _play() {
+  _play(sound) {
+    let offset = this._elapsed;
+    let duration = this._duration;
+
+    if(this._sprite && this._sprite.map[sound]) {
+      const startEnd = this._sprite.map[sound],
+        soundStart = startEnd[0],
+        soundEnd = startEnd[1];
+      duration = soundEnd - soundStart;
+
+      if(offset === 0) {
+        offset = soundStart;
+      }
+    }
+
     if (this._endTimer) {
       clearTimeout(this._endTimer);
       this._endTimer = null;
@@ -174,9 +187,9 @@ class Buzz {
     this._bufferSource = this._context.createBufferSource();
     this._bufferSource.buffer = this._buffer;
     this._bufferSource.connect(this._gainNode);
-    this._bufferSource.start(0, this._elapsed % this._duration);
+    this._bufferSource.start(0, offset % duration);
     this._startedAt = this._context.currentTime;
-    this._endTimer = setTimeout(this._playEnd, this._duration * 1000);
+    this._endTimer = setTimeout(this._playEnd.bind(this), duration * 1000);
     this._state = BuzzState.Playing;
     this._fire('playstart');
 
@@ -298,24 +311,12 @@ class Buzz {
     throw new Error('Not Implemented');
   }
 
-  id() {
-    return this._id;
-  }
-
-  buffer() {
-    return this._buffer;
-  }
-
   /**
    * Returns whether sound is muted or not.
    * @returns {boolean}
    */
   muted() {
     return this._muted;
-  }
-
-  loadStatus() {
-    return this._loadStatus;
   }
 
   /**

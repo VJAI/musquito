@@ -1,6 +1,5 @@
 {
-  "src": "output",
-  "formats": ["mp3", "ogg", "m4a", "ac3"],
+  "src": ["output.mp3", "output.ogg", "output.m4a", "output.ac3"],
   "map": {
     "beep": [0, 0.48108843537414964],
     "button": [2, 2.4290249433106577],
