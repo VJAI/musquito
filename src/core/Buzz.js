@@ -187,7 +187,7 @@ class Buzz {
     this._bufferSource = this._context.createBufferSource();
     this._bufferSource.buffer = this._buffer;
     this._bufferSource.connect(this._gainNode);
-    this._bufferSource.start(0, offset % duration);
+    this._bufferSource.start(0, offset);
     this._startedAt = this._context.currentTime;
     this._endTimer = setTimeout(this._playEnd.bind(this), duration * 1000);
     this._state = BuzzState.Playing;
@@ -197,6 +197,9 @@ class Buzz {
   }
 
   _playEnd() {
+    this._bufferSource.disconnect();
+    this._bufferSource.stop(0);
+    this._bufferSource = null;
     this._startedAt = 0;
     this._elapsed = 0;
     this._endTimer = null;
