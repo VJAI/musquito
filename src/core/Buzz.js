@@ -1,6 +1,7 @@
 import {DownloadStatus} from '../util/BufferLoader';
 import codecAid from '../util/CodecAid';
 import buzzer from './Buzzer';
+import EventEmitter from '../util/EventEmitter';
 
 /**
  * Enum that represents the different states of a sound.
@@ -76,16 +77,11 @@ class Buzz {
     this._loop = options.loop || false;
     this._preload = options.preload || false;
     this._autoplay = options.autoplay || false;
-    this._subscribers = {
-      'load': [],
-      'error': [],
-      'playstart': [],
-      'end': [],
-      'stop': [],
-      'pause': [],
-      'mute': []
-    };
-    Object.keys(this._subscribers).forEach(event => options[`on${event}`] && this.on(event, options[`on${event}`]));
+
+    const events = ['load', 'error', 'playstart', 'end', 'stop', 'pause', 'mute'];
+    this._emitter = new EventEmitter(events);
+    ['on', 'off', 'once', 'fire'].forEach(m => this[m] = this._emitter[m]);
+    events.forEach(event => options[`on${event}`] && this.on(event, options[`on${event}`]));
 
     this._buffer = null;
     this._bufferSource = null;
@@ -336,80 +332,6 @@ class Buzz {
    */
   duration() {
     return this._duration;
-  }
-
-  /**
-   * Method to subscribe to an event.
-   * @param {string} event
-   * @param {function} fn
-   * @param {boolean} [once = false]
-   * @returns {Buzz}
-   */
-  on(event, fn, once) {
-    if (!this._subscribers.hasOwnProperty(event)) return this;
-    if (typeof fn !== 'function') return this;
-
-    this._subscribers[event].push({fn: fn, once: once || false});
-
-    return this;
-  }
-
-  /**
-   * Method to un-subscribe from an event.
-   * @param {string} event
-   * @param {function} fn
-   * @returns {Buzz}
-   */
-  off(event, fn) {
-    if (!this._subscribers.hasOwnProperty(event)) return this;
-    if (typeof fn !== 'function') return this;
-
-    var eventSubscribers = this._subscribers[event];
-
-    for (var i = 0; i < eventSubscribers.length; i++) {
-      var eventSubscriber = eventSubscribers[i];
-      if (eventSubscriber.fn === fn) {
-        eventSubscribers.splice(i, 1);
-        break;
-      }
-    }
-
-    return this;
-  }
-
-  /**
-   * Method to subscribe to an event only once.
-   * @param {string} event
-   * @param {function} fn
-   * @returns {*|Buzz}
-   */
-  once(event, fn) {
-    return this.on(event, fn, true);
-  }
-
-  /**
-   * Fires an event passing the sound and other optional arguments.
-   * @param {string} event
-   * @param {object=} args
-   * @returns {Buzz}
-   * @private
-   */
-  _fire(event, args) {
-    var eventSubscribers = this._subscribers[event];
-
-    for (var i = 0; i < eventSubscribers.length; i++) {
-      var eventSubscriber = eventSubscribers[i];
-
-      setTimeout(function (subscriber) {
-        subscriber.fn(this, args);
-
-        if (subscriber.once) {
-          this.off(event, subscriber.fn);
-        }
-      }.bind(this, eventSubscriber), 0);
-    }
-
-    return this;
   }
 }
 
