@@ -80,7 +80,6 @@ class Buzz {
 
     const events = ['load', 'error', 'playstart', 'end', 'stop', 'pause', 'mute'];
     this._emitter = new EventEmitter(events);
-    ['on', 'off', 'once', 'fire'].forEach(m => this[m] = this._emitter[m]);
     events.forEach(event => options[`on${event}`] && this.on(event, options[`on${event}`]));
 
     this._buffer = null;
@@ -332,6 +331,48 @@ class Buzz {
    */
   duration() {
     return this._duration;
+  }
+
+  /**
+   * Method to subscribe to an event.
+   * @param {string} event
+   * @param {function} fn
+   * @param {boolean} [once = false]
+   * @returns {Buzz}
+   */
+  on(event, fn, once) {
+    this._emitter.on(event, fn, once);
+  }
+
+  /**
+   * Method to un-subscribe from an event.
+   * @param {string} event
+   * @param {function} fn
+   * @returns {EventEmitter}
+   */
+  off(event, fn) {
+    this._emitter.off(event, fn);
+  }
+
+  /**
+   * Method to subscribe to an event only once.
+   * @param {string} event
+   * @param {function} fn
+   * @returns {*|EventEmitter}
+   */
+  once(event, fn) {
+    this._emitter.once(event, fn);
+  }
+
+  /**
+   * Fires an event passing the sound and other optional arguments.
+   * @param {string} event
+   * @param {object=} args
+   * @returns {EventEmitter}
+   * @private
+   */
+  _fire(event, args) {
+    this._emitter.fire(event, args);
   }
 }
 

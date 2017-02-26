@@ -60,14 +60,14 @@ class EventEmitter {
    * @param {object=} args
    * @returns {EventEmitter}
    */
-  fire(event, args) {
+  fire(event, obj, args) {
     var eventSubscribers = this._events[event];
 
     for (var i = 0; i < eventSubscribers.length; i++) {
       var eventSubscriber = eventSubscribers[i];
 
       setTimeout(function (subscriber) {
-        subscriber.fn(this, args);
+        subscriber.fn.call(obj, args);
 
         if (subscriber.once) {
           this.off(event, subscriber.fn);
@@ -76,6 +76,10 @@ class EventEmitter {
     }
 
     return this;
+  }
+
+  clear() {
+    Object.keys(this._events).forEach(evt => this._events[evt] = []);
   }
 }
 
