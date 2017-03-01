@@ -1,0 +1,33 @@
+<html>
+<head>
+  <title>Stereo-Panner Experiment</title>
+</head>
+<body>
+<h1>Filters Experiment</h1>
+<div>Status: <span id="status"></span></div>
+<script src="bufferloader.js"></script>
+<script>
+  var audioContext = new (AudioContext || webkitAudioContext)();
+  var buffer, gain = audioContext.createGain(), bufferSourceNode;
+  var st = document.getElementById('status');
+
+  loadBuffer(audioContext, '../sounds/bg.mp3', function (b) {
+    buffer = b;
+    st.innerText = "Ready";
+  });
+
+  document.getElementById('play').addEventListener('click', function () {
+    bufferSourceNode = audioContext.createBufferSource();
+    bufferSourceNode.buffer = buffer;
+    bufferSourceNode.connect(gain);
+    bufferSourceNode.start(0);
+  });
+
+  document.getElementById('stop').addEventListener('click', function () {
+    bufferSourceNode.stop(0);
+    bufferSourceNode.disconnect();
+    bufferSourceNode = null;
+  });
+</script>
+</body>
+</html>

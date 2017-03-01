@@ -212,9 +212,11 @@ class Buzz {
       return this;
     }
 
-    this._bufferSource.disconnect();
-    this._bufferSource.stop(0);
-    this._bufferSource = null;
+    if(this._bufferSource) {
+      this._bufferSource.disconnect();
+      this._bufferSource.stop(0);
+      this._bufferSource = null;
+    }
     this._startedAt = 0;
     this._elapsed = 0;
     this.off('load', this._playEnd);

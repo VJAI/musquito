@@ -90,7 +90,7 @@ class BuzzerTester {
       }
     });
     buzzLi.querySelector('.buzz-stop').addEventListener('click', () => buzz.stop());
-    buzzLi.querySelector('.buzz-volume').addEventListener('change', () => buzz.volume(this.value));
+    buzzLi.querySelector('.buzz-volume').addEventListener('change', () => buzz.volume(buzzLi.querySelector('.buzz-volume').value));
 
     event.preventDefault();
     return false;
