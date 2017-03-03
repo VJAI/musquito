@@ -151,7 +151,7 @@ class Buzz {
     if (this._isLoaded) {
       return this._play(sound);
     } else {
-      this.on('load', this._play, true);
+      this.on('load', this._play.bind(this), true);
       this.load();
     }
 
