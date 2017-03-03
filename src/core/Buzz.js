@@ -9,20 +9,11 @@ import EventEmitter from '../util/EventEmitter';
  */
 const BuzzState = {
   Constructed: 0,
-  Playing: 1,
-  Paused: 2,
-  Stopped: 3
-};
-
-/**
- * Enum that represents the different states of loading the audio.
- * @enum {number}
- */
-const AudioLoadState = {
-  NotLoaded: 0,
   Loading: 1,
-  Loaded: 2,
-  Error: 3
+  Ready: 2,
+  Playing: 3,
+  Paused: 4,
+  Error: 5
 };
 
 /**
@@ -30,8 +21,7 @@ const AudioLoadState = {
  * @enum {number}
  */
 const ErrorType = {
-  AudioUnAvailable: 1,
-  LoadError: 2
+  LoadError: 1
 };
 
 /**
@@ -53,7 +43,7 @@ class Buzz {
    * @param {function=} args.onload Event-handler for the "load" event.
    * @param {function=} args.onerror Event-handler for the "error" event.
    * @param {function=} args.onplaystart Event-handler for the "playstart" event.
-   * @param {function=} args.onend Event-handler for the "end" event.
+   * @param {function=} args.onplayend Event-handler for the "playend" event.
    * @param {function=} args.onstop Event-handler for the "stop" event.
    * @param {function=} args.onpause Event-handler for the "pause" event.
    * @constructor
@@ -78,7 +68,7 @@ class Buzz {
     this._preload = options.preload || false;
     this._autoplay = options.autoplay || false;
 
-    const events = ['load', 'error', 'playstart', 'end', 'stop', 'pause', 'mute'];
+    const events = ['load', 'error', 'playstart', 'playend', 'stop', 'pause', 'mute'];
     this._emitter = new EventEmitter(events);
     events.forEach(event => options[`on${event}`] && this.on(event, options[`on${event}`]));
 
@@ -88,15 +78,17 @@ class Buzz {
     this._duration = 0;
     this._startedAt = 0;
     this._elapsed = 0;
+    this._spriteSound = null;
 
     buzzer.setup(null);
 
+    // Create the simple audio graph.
     this._context = buzzer.context();
     this._gainNode = this._context.createGain();
     this._gainNode.connect(buzzer.gain());
     this._gainNode.gain.value = this._volume;
 
-    this._loadStatus = AudioLoadState.NotLoaded;
+    this._isLoaded = false;
     this._state = BuzzState.Constructed;
 
     if (this._autoplay) {
@@ -115,24 +107,27 @@ class Buzz {
    * @returns {Buzz}
    */
   load() {
-    // If the loading is in progress or already the buffer is loaded return.
-    if (this._loadStatus === AudioLoadState.Loading || this._loadStatus === AudioLoadState.Loaded) {
+    // If the buffer is already loaded return without reloading again.
+    if(this._isLoaded) {
       return this;
     }
 
-    this._loadStatus = AudioLoadState.Loading;
+    // Set the state to "Loading" to avoid multiple times loading the buffer.
+    this._state = BuzzState.Loading;
 
     buzzer.load(this._src).then(downloadResult => {
       if (downloadResult.status === DownloadStatus.Success) {
         this._buffer = downloadResult.value;
         this._duration = this._buffer.duration;
-        this._loadStatus = AudioLoadState.Loaded;
+        this._isLoaded = true;
+        this._state = BuzzState.Ready;
         this._fire('load', downloadResult);
         return;
       }
 
-      this._loadStatus = AudioLoadState.Error;
-      this._fire('error', {type: ErrorType.LoadError, error: downloadResult.error});
+      this._removePlayHandler();
+      this._state = BuzzState.Error;
+      this._fire('error', { type: ErrorType.LoadError, error: downloadResult.error });
     });
 
     return this;
@@ -140,45 +135,45 @@ class Buzz {
 
   /**
    * Plays the sound.
-   * Fires 'playstart' event before playing and 'end' event after the sound is played.
+   * Fires 'playstart' event before playing and 'playend' event after the sound is played.
    * @param {string?} sound
    * @returns {Buzz}
    */
   play(sound) {
+    // If the sound is already in "Playing" state then it's not allowed to play again.
     if (this._state === BuzzState.Playing) {
       return this;
     }
 
-    if (this._loadStatus === AudioLoadState.Loaded) {
+    this._spriteSound = sound;
+
+    // If the sound is already loaded start playing else load and then play.
+    if (this._isLoaded) {
       return this._play(sound);
     } else {
-      this.on('load', () => this._play(sound), true);
+      this.on('load', this._play, true);
       this.load();
     }
 
     return this;
   }
 
-  _play(sound) {
+  _play() {
     let offset = this._elapsed;
     let duration = this._duration;
 
-    if(this._sprite && this._sprite.map[sound]) {
-      const startEnd = this._sprite.map[sound],
-        soundStart = startEnd[0],
-        soundEnd = startEnd[1];
+    // If we are gonna play a sound in sprite calculate the duration and also check if the offset is within that
+    // sound boundaries and if not reset to the starting point.
+    if(typeof this._spriteSound !== 'undefined' && this._sprite && this._sprite.map[this._spriteSound]) {
+      const startEnd = this._sprite.map[this._spriteSound], soundStart = startEnd[0], soundEnd = startEnd[1];
       duration = soundEnd - soundStart;
 
-      if(offset === 0) {
+      if(offset < soundStart || offset > soundEnd) {
         offset = soundStart;
       }
     }
 
-    if (this._endTimer) {
-      clearTimeout(this._endTimer);
-      this._endTimer = null;
-    }
-
+    this._clearEndTimer();
     this._bufferSource = this._context.createBufferSource();
     this._bufferSource.buffer = this._buffer;
     this._bufferSource.connect(this._gainNode);
@@ -192,14 +187,32 @@ class Buzz {
   }
 
   _playEnd() {
-    this._bufferSource.disconnect();
-    this._bufferSource.stop(0);
-    this._bufferSource = null;
+    this._reset();
+    this._state = BuzzState.Ready;
+    this._fire('playend');
+  }
+
+  _removePlayHandler() {
+    this.off('load', this._play);
+  }
+
+  _clearEndTimer() {
+    if (this._endTimer) {
+      clearTimeout(this._endTimer);
+      this._endTimer = null;
+    }
+  }
+
+  _reset() {
+    if(this._bufferSource) {
+      this._bufferSource.disconnect();
+      this._bufferSource.stop(0);
+      this._bufferSource = null;
+    }
+
     this._startedAt = 0;
     this._elapsed = 0;
-    this._endTimer = null;
-    this._state = BuzzState.Stopped;
-    this._fire('end');
+    this._clearEndTimer();
   }
 
   /**
@@ -207,21 +220,15 @@ class Buzz {
    * @returns {Buzz}
    */
   stop() {
+    // Remove the "play" event handler from queue if there is one.
+    this._removePlayHandler();
+
     // We can stop the sound either if it "playing" or in "paused" state.
     if (this._state !== BuzzState.Playing && this._state !== BuzzState.Paused) {
       return this;
     }
 
-    if(this._bufferSource) {
-      this._bufferSource.disconnect();
-      this._bufferSource.stop(0);
-      this._bufferSource = null;
-    }
-    this._startedAt = 0;
-    this._elapsed = 0;
-    this.off('load', this._playEnd);
-    this._endTimer && clearTimeout(this._endTimer);
-    this._endTimer = null;
+    this._reset();
     this._state = BuzzState.Stopped;
     this._fire('stop');
 
@@ -233,18 +240,17 @@ class Buzz {
    * @returns {Buzz}
    */
   pause() {
-    // We can pause the sound only if it is "playing".
+    // Remove the "play" event handler from queue if there is one.
+    this._removePlayHandler();
+
+    // We can pause the sound only if it is "playing" state.
     if (this._state !== BuzzState.Playing) {
       return this;
     }
 
-    this._bufferSource.disconnect();
-    this._bufferSource.stop(0);
-    this._bufferSource = null;
-    this.off('load', this._playEnd);
-    this._elapsed += this._context.currentTime - this._startedAt;
-    this._endTimer && clearTimeout(this._endTimer);
-    this._endTimer = null;
+    const startedAt = this._startedAt;
+    this._reset();
+    this._elapsed += this._context.currentTime - startedAt;
     this._state = BuzzState.Paused;
     this._fire('pause');
 
@@ -272,7 +278,7 @@ class Buzz {
    */
   unmute() {
     if (!this._muted) {
-      return;
+      return this;
     }
 
     this._gainNode && (this._gainNode.gain.value = this._volume);
@@ -301,14 +307,6 @@ class Buzz {
     this._gainNode && (this._gainNode.gain.value = this._volume);
 
     return this;
-  }
-
-  fadeOut() {
-    throw new Error('Not Implemented');
-  }
-
-  fadeIn() {
-    throw new Error('Not Implemented');
   }
 
   /**
@@ -344,38 +342,42 @@ class Buzz {
    */
   on(event, fn, once) {
     this._emitter.on(event, fn, once);
+    return this;
   }
 
   /**
    * Method to un-subscribe from an event.
    * @param {string} event
    * @param {function} fn
-   * @returns {EventEmitter}
+   * @returns {Buzz}
    */
   off(event, fn) {
     this._emitter.off(event, fn);
+    return this;
   }
 
   /**
    * Method to subscribe to an event only once.
    * @param {string} event
    * @param {function} fn
-   * @returns {*|EventEmitter}
+   * @returns {Buzz}
    */
   once(event, fn) {
     this._emitter.once(event, fn);
+    return this;
   }
 
   /**
    * Fires an event passing the sound and other optional arguments.
    * @param {string} event
    * @param {object=} args
-   * @returns {EventEmitter}
+   * @returns {Buzz}
    * @private
    */
   _fire(event, args) {
     this._emitter.fire(event, args);
+    return this;
   }
 }
 
-export {BuzzState, AudioLoadState, ErrorType, Buzz as default};
+export {BuzzState, ErrorType, Buzz as default};

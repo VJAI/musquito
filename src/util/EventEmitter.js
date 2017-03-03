@@ -48,7 +48,7 @@ class EventEmitter {
    * Method to subscribe to an event only once.
    * @param {string} event
    * @param {function} fn
-   * @returns {*|EventEmitter}
+   * @returns {EventEmitter}
    */
   once(event, fn) {
     return this.on(event, fn, true);

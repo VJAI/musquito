@@ -1,4 +1,4 @@
-import Buzz, { BuzzState, AudioLoadState } from './Buzz';
+import Buzz, { BuzzState } from './Buzz';
 
 describe('Buzz', () => {
 
@@ -30,7 +30,6 @@ describe('Buzz', () => {
         expect(buzz._gainNode).not.toBeNull();
         expect(buzz._gainNode.gain.value).toBe(volume);
         expect(buzz._state).toBe(BuzzState.Constructed);
-        expect(buzz._loadStatus).toBe(AudioLoadState.NotLoaded);
       });
     });
 
@@ -77,8 +76,8 @@ describe('Buzz', () => {
         expect(buzz._duration).not.toBe(0);
       });
 
-      it('The status should be set to loaded', () => {
-        expect(buzz._loadStatus).toBe(AudioLoadState.Loaded);
+      it('The status should be set to ready', () => {
+        expect(buzz._state).toBe(BuzzState.Ready);
       });
     });
 
@@ -95,7 +94,7 @@ describe('Buzz', () => {
       });
 
       it('The status should set to error', () => {
-        expect(buzz._loadStatus).toBe(AudioLoadState.Error);
+        expect(buzz._state).toBe(BuzzState.Error);
       });
     });
 
