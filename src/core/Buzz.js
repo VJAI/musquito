@@ -51,17 +51,17 @@ class Buzz {
   constructor(args) {
     let options = typeof args === 'string' ? {src: args} : args || {};
 
-    if (!options.src && !(options.sprite && options.sprite.src)) {
+    if (!options.src) {
       throw new Error('You should pass the source of the audio');
     }
 
-    if(!codecAid.isFileSupported(options.src || options.sprite.src)) {
-      throw new Error('The audio formats you passed are not supported.');
+    if (!codecAid.isFileSupported(options.src)) {
+      throw new Error('The audio format you passed is not supported.');
     }
 
     this._id = options.id || Math.round(Date.now() * Math.random());
-    this._src = options.src || options.sprite.src;
-    this._sprite = options.sprite;
+    this._src = options.src;
+    this._sprite = options.sprite || {'_default': [0, 0]};
     this._volume = options.volume || 1.0;
     this._muted = options.muted || false;
     this._loop = options.loop || false;
@@ -78,7 +78,6 @@ class Buzz {
     this._duration = 0;
     this._startedAt = 0;
     this._elapsed = 0;
-    this._spriteSound = null;
 
     buzzer.setup(null);
 
@@ -108,7 +107,7 @@ class Buzz {
    */
   load() {
     // If the buffer is already loaded return without reloading again.
-    if(this._isLoaded) {
+    if (this._isLoaded) {
       return this;
     }
 
@@ -127,7 +126,7 @@ class Buzz {
 
       this._removePlayHandler();
       this._state = BuzzState.Error;
-      this._fire('error', { type: ErrorType.LoadError, error: downloadResult.error });
+      this._fire('error', {type: ErrorType.LoadError, error: downloadResult.error});
     });
 
     return this;
@@ -145,30 +144,29 @@ class Buzz {
       return this;
     }
 
-    this._spriteSound = sound;
+    if (!this._isLoaded) {
+      this.on('load', {
+        fn: this.play,
+        scope: this,
+        args: [sound],
+        once: true
+      });
 
-    // If the sound is already loaded start playing else load and then play.
-    if (this._isLoaded) {
-      return this._play(sound);
-    } else {
-      this.on('load', this._play.bind(this), true);
       this.load();
+
+      return this;
     }
 
-    return this;
-  }
-
-  _play() {
     let offset = this._elapsed;
     let duration = this._duration;
 
     // If we are gonna play a sound in sprite calculate the duration and also check if the offset is within that
     // sound boundaries and if not reset to the starting point.
-    if(typeof this._spriteSound !== 'undefined' && this._sprite && this._sprite.map[this._spriteSound]) {
-      const startEnd = this._sprite.map[this._spriteSound], soundStart = startEnd[0], soundEnd = startEnd[1];
+    if (typeof sound !== 'undefined' && this._sprite && this._sprite.map[sound]) {
+      const startEnd = this._sprite.map[sound], soundStart = startEnd[0], soundEnd = startEnd[1];
       duration = soundEnd - soundStart;
 
-      if(offset < soundStart || offset > soundEnd) {
+      if (offset < soundStart || offset > soundEnd) {
         offset = soundStart;
       }
     }
@@ -179,21 +177,19 @@ class Buzz {
     this._bufferSource.connect(this._gainNode);
     this._bufferSource.start(0, offset);
     this._startedAt = this._context.currentTime;
-    this._endTimer = setTimeout(this._playEnd.bind(this), duration * 1000);
+    this._endTimer = setTimeout(() => {
+      this._reset();
+      this._state = BuzzState.Ready;
+      this._fire('playend');
+    }, duration * 1000);
     this._state = BuzzState.Playing;
     this._fire('playstart');
 
     return this;
   }
 
-  _playEnd() {
-    this._reset();
-    this._state = BuzzState.Ready;
-    this._fire('playend');
-  }
-
   _removePlayHandler() {
-    this.off('load', this._play);
+    this.off('load', this.play);
   }
 
   _clearEndTimer() {
@@ -204,7 +200,7 @@ class Buzz {
   }
 
   _reset() {
-    if(this._bufferSource) {
+    if (this._bufferSource) {
       this._bufferSource.disconnect();
       this._bufferSource.stop(0);
       this._bufferSource = null;
@@ -336,41 +332,34 @@ class Buzz {
   /**
    * Method to subscribe to an event.
    * @param {string} event
-   * @param {function} fn
-   * @param {boolean} [once = false]
+   * @param {function|object} options
+   * @param {function} options.handler
+   * @param {object?} options.target
+   * @param {Array?} options.args
+   * @param {boolean?} [options.once = false]
    * @returns {Buzz}
    */
-  on(event, fn, once) {
-    this._emitter.on(event, fn, once);
+  on(event, options) {
+    this._emitter.on(event, options);
     return this;
   }
 
   /**
    * Method to un-subscribe from an event.
    * @param {string} event
-   * @param {function} fn
+   * @param {function} handler
+   * @param {object?} target
    * @returns {Buzz}
    */
-  off(event, fn) {
+  off(event, handler, target) {
     this._emitter.off(event, fn);
-    return this;
-  }
-
-  /**
-   * Method to subscribe to an event only once.
-   * @param {string} event
-   * @param {function} fn
-   * @returns {Buzz}
-   */
-  once(event, fn) {
-    this._emitter.once(event, fn);
     return this;
   }
 
   /**
    * Fires an event passing the sound and other optional arguments.
    * @param {string} event
-   * @param {object=} args
+   * @param {Array?} args
    * @returns {Buzz}
    * @private
    */

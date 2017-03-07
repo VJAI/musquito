@@ -8,15 +8,28 @@ class EventEmitter {
   /**
    * Method to subscribe to an event.
    * @param {string} event
-   * @param {function} fn
-   * @param {boolean} [once = false]
+   * @param {function|object} options
+   * @param {function} options.handler
+   * @param {object?} options.target
+   * @param {Array?} options.args
+   * @param {boolean?} [options.once = false]
    * @returns {EventEmitter}
    */
-  on(event, fn, once) {
-    if (!this._events.hasOwnProperty(event)) return this;
-    if (typeof fn !== 'function') return this;
+  on(event, options) {
+    if (!this._events.hasOwnProperty(event) || !options) return this;
 
-    this._events[event].push({fn: fn, once: once || false});
+    if(typeof options === 'function') {
+      this._events[event].push({
+        handler: options
+      });
+    } else {
+      this._events[event].push({
+        handler: options.handler,
+        target: options.target,
+        args: options.args,
+        once: options.once || false
+      });
+    }
 
     return this;
   }
@@ -24,18 +37,18 @@ class EventEmitter {
   /**
    * Method to un-subscribe from an event.
    * @param {string} event
-   * @param {function} fn
+   * @param {function} handler
+   * @param {object?} target
    * @returns {EventEmitter}
    */
-  off(event, fn) {
-    if (!this._events.hasOwnProperty(event)) return this;
-    if (typeof fn !== 'function') return this;
+  off(event, handler, target) {
+    if (!this._events.hasOwnProperty(event) || !handler) return this;
 
     var eventSubscribers = this._events[event];
 
     for (var i = 0; i < eventSubscribers.length; i++) {
       var eventSubscriber = eventSubscribers[i];
-      if (eventSubscriber.fn === fn) {
+      if (eventSubscriber.handler === handler && (target ? eventSubscriber.target === target : true)) {
         eventSubscribers.splice(i, 1);
         break;
       }
@@ -45,32 +58,22 @@ class EventEmitter {
   }
 
   /**
-   * Method to subscribe to an event only once.
+   * Fires an event passing the source and other optional arguments.
    * @param {string} event
-   * @param {function} fn
+   * @param {Array?} args
    * @returns {EventEmitter}
    */
-  once(event, fn) {
-    return this.on(event, fn, true);
-  }
-
-  /**
-   * Fires an event passing the sound and other optional arguments.
-   * @param {string} event
-   * @param {object=} args
-   * @returns {EventEmitter}
-   */
-  fire(event, obj, args) {
+  fire(event, args) {
     var eventSubscribers = this._events[event];
 
     for (var i = 0; i < eventSubscribers.length; i++) {
       var eventSubscriber = eventSubscribers[i];
 
       setTimeout(function (subscriber) {
-        subscriber.fn.call(obj, args);
+        subscriber.handler.apply(subscriber.target, (subscriber.args || []).concat(args || []));
 
         if (subscriber.once) {
-          this.off(event, subscriber.fn);
+          this.off(event, subscriber.handler, subscriber.target);
         }
       }.bind(this, eventSubscriber), 0);
     }

@@ -8,7 +8,9 @@ import BufferLoader from '../util/BufferLoader';
 const BuzzerState = {
   Constructed: 0,
   Ready: 1,
-  Done: 2
+  Idle: 2,
+  Done: 3,
+  Error: 4
 };
 
 /**
@@ -29,11 +31,6 @@ class Buzzer {
     this._volume = 1.0;
     this._gainNode = null;
     this._contextType = AudioContext || webkitAudioContext;
-
-    if(!this._contextType) {
-      throw new Error('Web Audio API is unavailable');
-    }
-
     this._state = BuzzerState.Constructed;
   }
 
@@ -46,6 +43,11 @@ class Buzzer {
   setup(context) {
     if (this._state === BuzzerState.Ready) {
       return true;
+    }
+
+    if(!this._contextType) {
+      this._state = BuzzerState.Error;
+      throw new Error('Web Audio API is unavailable');
     }
 
     this._context = context || new this._contextType();
