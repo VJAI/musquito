@@ -11,7 +11,7 @@ class EventEmitter {
    * @param {function|object} options
    * @param {function} options.handler
    * @param {object?} options.target
-   * @param {Array?} options.args
+   * @param {object|Array?} options.args
    * @param {boolean?} [options.once = false]
    * @returns {EventEmitter}
    */
@@ -20,13 +20,14 @@ class EventEmitter {
 
     if(typeof options === 'function') {
       this._events[event].push({
-        handler: options
+        handler: options,
+        once: false
       });
     } else {
       this._events[event].push({
         handler: options.handler,
         target: options.target,
-        args: options.args,
+        args: options.args ? (Array.isArray(options.args) ? options.args : [options.args]) : [],
         once: options.once || false
       });
     }
@@ -44,15 +45,9 @@ class EventEmitter {
   off(event, handler, target) {
     if (!this._events.hasOwnProperty(event) || !handler) return this;
 
-    var eventSubscribers = this._events[event];
-
-    for (var i = 0; i < eventSubscribers.length; i++) {
-      var eventSubscriber = eventSubscribers[i];
-      if (eventSubscriber.handler === handler && (target ? eventSubscriber.target === target : true)) {
-        eventSubscribers.splice(i, 1);
-        break;
-      }
-    }
+    this._events[event] = this._events[event].filter(eventSubscriber => {
+      return eventSubscriber.handler !== handler || (target ? eventSubscriber.target !== target : false);
+    });
 
     return this;
   }
@@ -60,7 +55,7 @@ class EventEmitter {
   /**
    * Fires an event passing the source and other optional arguments.
    * @param {string} event
-   * @param {Array?} args
+   * @param {object|Array?} args
    * @returns {EventEmitter}
    */
   fire(event, args) {
@@ -70,7 +65,8 @@ class EventEmitter {
       var eventSubscriber = eventSubscribers[i];
 
       setTimeout(function (subscriber) {
-        subscriber.handler.apply(subscriber.target, (subscriber.args || []).concat(args || []));
+        let eventArgs = args ? (Array.isArray(args) ? args : [args]) : [];
+        subscriber.handler.apply(subscriber.target, (subscriber.args || []).concat(eventArgs));
 
         if (subscriber.once) {
           this.off(event, subscriber.handler, subscriber.target);

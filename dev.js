@@ -46,14 +46,11 @@ class BuzzerTester {
       loop = this._buzzCreateForm['buzz-loop'].value;
 
     var buzz = new Buzz({
-      src: !isSprite ? src : undefined,
+      src: src,
       sprite: isSprite ? {
-        src: src,
-        map: {
-          beep: [0, 0.48108843537414964],
-          button: [2, 2.4290249433106577],
-          click: [4, 4.672018140589569]
-        }
+        beep: [0, 0.48108843537414964],
+        button: [2, 2.4290249433106577],
+        click: [4, 4.672018140589569]
       } : undefined,
       volume: volume,
       loop: loop

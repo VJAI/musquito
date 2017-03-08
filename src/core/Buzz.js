@@ -61,7 +61,7 @@ class Buzz {
 
     this._id = options.id || Math.round(Date.now() * Math.random());
     this._src = options.src;
-    this._sprite = options.sprite || {'_default': [0, 0]};
+    this._sprite = options.sprite;
     this._volume = options.volume || 1.0;
     this._muted = options.muted || false;
     this._loop = options.loop || false;
@@ -119,6 +119,7 @@ class Buzz {
         this._buffer = downloadResult.value;
         this._duration = this._buffer.duration;
         this._isLoaded = true;
+        this._gainNode.gain.value = this._muted ? 0 : this._volume;
         this._state = BuzzState.Ready;
         this._fire('load', downloadResult);
         return;
@@ -146,8 +147,8 @@ class Buzz {
 
     if (!this._isLoaded) {
       this.on('load', {
-        fn: this.play,
-        scope: this,
+        handler: this.play,
+        target: this,
         args: [sound],
         once: true
       });
@@ -162,8 +163,11 @@ class Buzz {
 
     // If we are gonna play a sound in sprite calculate the duration and also check if the offset is within that
     // sound boundaries and if not reset to the starting point.
-    if (typeof sound !== 'undefined' && this._sprite && this._sprite.map[sound]) {
-      const startEnd = this._sprite.map[sound], soundStart = startEnd[0], soundEnd = startEnd[1];
+    if (typeof sound !== 'undefined' && this._sprite && this._sprite[sound]) {
+      const startEnd = this._sprite[sound],
+        soundStart = startEnd[0],
+        soundEnd = startEnd[1];
+
       duration = soundEnd - soundStart;
 
       if (offset < soundStart || offset > soundEnd) {
@@ -335,7 +339,7 @@ class Buzz {
    * @param {function|object} options
    * @param {function} options.handler
    * @param {object?} options.target
-   * @param {Array?} options.args
+   * @param {object|Array?} options.args
    * @param {boolean?} [options.once = false]
    * @returns {Buzz}
    */
@@ -352,14 +356,14 @@ class Buzz {
    * @returns {Buzz}
    */
   off(event, handler, target) {
-    this._emitter.off(event, fn);
+    this._emitter.off(event, handler);
     return this;
   }
 
   /**
    * Fires an event passing the sound and other optional arguments.
    * @param {string} event
-   * @param {Array?} args
+   * @param {object|Array?} args
    * @returns {Buzz}
    * @private
    */
