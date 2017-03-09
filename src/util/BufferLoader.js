@@ -77,8 +77,8 @@ class DownloadResult {
 
   /**
    * @param {string} url
-   * @param {AudioBuffer?} value
-   * @param {*?} error
+   * @param {AudioBuffer=} value
+   * @param {*=} error
    */
   constructor(url, value, error) {
     this.url = url;
@@ -156,7 +156,7 @@ class BufferLoader {
 
   /**
    * Removes the cached audio buffers.
-   * @param {string|string[]?} urls
+   * @param {string|string[]=} urls
    */
   unload(urls) {
     if (typeof urls === "string") {

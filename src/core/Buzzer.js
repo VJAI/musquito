@@ -1,5 +1,6 @@
 import codecAid from '../util/CodecAid';
 import BufferLoader from '../util/BufferLoader';
+import EventEmitter from '../util/EventEmitter';
 
 /**
  * Represents the different states of the audio engine.
@@ -27,20 +28,27 @@ class Buzzer {
     this._context = null;
     this._bufferLoader = null;
     this._formats = {};
+    this._buzzes = {};
     this._muted = false;
     this._volume = 1.0;
     this._gainNode = null;
     this._contextType = AudioContext || webkitAudioContext;
+    this._eventEmitter = new EventEmitter('suspend,resume,playstart,playend,stop');
     this._state = BuzzerState.Constructed;
   }
 
   /**
    * Instantiate audio context and other important objects.
    * Returns true if the setup is success.
-   * @param {AudioContext} context
-   * @returns {boolean}
+   * @param {object=} args
+   * @param {number=} [args.volume = 1.0]
+   * @param {boolean=} [args.saveEnergy = false]
+   * @param {AudioContext=} args.context
+   * @returns {Buzzer}
    */
-  setup(context) {
+  setup(args) {
+    const options = args || {};
+
     if (this._state === BuzzerState.Ready) {
       return true;
     }
@@ -50,13 +58,16 @@ class Buzzer {
       throw new Error('Web Audio API is unavailable');
     }
 
-    this._context = context || new this._contextType();
+    this._context = options.context || new this._contextType();
+    const volume = parseFloat(options.volume);
+    this._volume = !isNaN(volume) && volume >= 0 && volume <= 1.0 ? volume : this._volume;
+    this._saveEnergy = typeof options.saveEnergy === 'boolean' ? options.saveEnergy : true;
     this._bufferLoader = new BufferLoader(this._context);
     this._gainNode = this._context.createGain();
     this._gainNode.gain.value = this._volume;
     this._gainNode.connect(this._context.destination);
     this._state = BuzzerState.Ready;
-    return true;
+    return this;
   }
 
   /**
@@ -69,8 +80,18 @@ class Buzzer {
   }
 
   /**
+   * Unloads single or multiple loaded audio buffers from cache.
+   * @param {string|string[]} urls
+   * @return {Buzzer}
+   */
+  unload(urls) {
+    this._bufferLoader.unload(urls);
+    return this;
+  }
+
+  /**
    * Set/get the volume for the audio engine that controls global volume for all sounds.
-   * @param {number} vol
+   * @param {number=} vol
    * @returns {Buzzer|number}
    */
   volume(vol) {
@@ -78,7 +99,7 @@ class Buzzer {
       return this._volume;
     }
 
-    var volume = parseFloat(vol);
+    const volume = parseFloat(vol);
 
     if (isNaN(volume) || volume < 0 || volume > 1.0) {
       return this._volume;
@@ -88,6 +109,19 @@ class Buzzer {
     this._gainNode && (this._gainNode.gain.value = this._volume);
 
     return this;
+  }
+
+  stop() {
+    Object.keys(this._buzzes).forEach(buzz => buzz.stop());
+    return this;
+  }
+
+  suspend() {
+
+  }
+
+  resume() {
+
   }
 
   /**
@@ -112,6 +146,14 @@ class Buzzer {
 
     this._gainNode && (this._gainNode.gain.value = this._volume);
     this._muted = false;
+  }
+
+  add(buzz) {
+    this._buzzes[buzz.id] = buzz;
+  }
+
+  remove(buzz) {
+    delete this._buzzes[buzz.id];
   }
 
   /**

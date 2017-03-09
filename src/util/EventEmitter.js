@@ -2,7 +2,8 @@ class EventEmitter {
 
   constructor(events) {
     this._events = {};
-    events.forEach(evt => this._events[evt] = []);
+    const eventNames = Array.isArray(events) ? events : events.split(',');
+    eventNames.forEach(evt => this._events[evt] = []);
   }
 
   /**
@@ -10,13 +11,19 @@ class EventEmitter {
    * @param {string} event
    * @param {function|object} options
    * @param {function} options.handler
-   * @param {object?} options.target
-   * @param {object|Array?} options.args
-   * @param {boolean?} [options.once = false]
+   * @param {object=} options.target
+   * @param {object|Array=} options.args
+   * @param {boolean=} [options.once = false]
    * @returns {EventEmitter}
    */
   on(event, options) {
-    if (!this._events.hasOwnProperty(event) || !options) return this;
+    if (!this._events.hasOwnProperty(event)) {
+      return this;
+    }
+
+    if(typeof options !== 'function' && typeof options !== 'object') {
+      return this;
+    }
 
     if(typeof options === 'function') {
       this._events[event].push({
@@ -39,11 +46,13 @@ class EventEmitter {
    * Method to un-subscribe from an event.
    * @param {string} event
    * @param {function} handler
-   * @param {object?} target
+   * @param {object=} target
    * @returns {EventEmitter}
    */
   off(event, handler, target) {
-    if (!this._events.hasOwnProperty(event) || !handler) return this;
+    if (!this._events.hasOwnProperty(event) || typeof handler !== 'function') {
+      return this;
+    }
 
     this._events[event] = this._events[event].filter(eventSubscriber => {
       return eventSubscriber.handler !== handler || (target ? eventSubscriber.target !== target : false);
@@ -55,18 +64,17 @@ class EventEmitter {
   /**
    * Fires an event passing the source and other optional arguments.
    * @param {string} event
-   * @param {object|Array?} args
+   * @param {...*} args
    * @returns {EventEmitter}
    */
-  fire(event, args) {
+  fire(event, ...args) {
     var eventSubscribers = this._events[event];
 
     for (var i = 0; i < eventSubscribers.length; i++) {
       var eventSubscriber = eventSubscribers[i];
 
       setTimeout(function (subscriber) {
-        let eventArgs = args ? (Array.isArray(args) ? args : [args]) : [];
-        subscriber.handler.apply(subscriber.target, (subscriber.args || []).concat(eventArgs));
+        subscriber.handler.apply(subscriber.target, (subscriber.args || []).concat(args));
 
         if (subscriber.once) {
           this.off(event, subscriber.handler, subscriber.target);

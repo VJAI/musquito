@@ -46,48 +46,55 @@ class Buzz {
    * @param {function=} args.onplayend Event-handler for the "playend" event.
    * @param {function=} args.onstop Event-handler for the "stop" event.
    * @param {function=} args.onpause Event-handler for the "pause" event.
+   * @param {function=} args.onmute Event-handler for the "mute" event.
+   * @param {function=} args.onvolume Event-handler for the "volume" event.
    * @constructor
    */
   constructor(args) {
     let options = typeof args === 'string' ? {src: args} : args || {};
 
-    if (!options.src) {
+    if (typeof options.src === 'undefined') {
       throw new Error('You should pass the source of the audio');
+    }
+
+    if(typeof options.src !== 'string') {
+      throw new Error('The source of the audio should be a string');
     }
 
     if (!codecAid.isFileSupported(options.src)) {
       throw new Error('The audio format you passed is not supported.');
     }
 
-    this._id = options.id || Math.round(Date.now() * Math.random());
+    this._id = typeof options.id === 'string' ? options.id : Math.round(Date.now() * Math.random());
     this._src = options.src;
-    this._sprite = options.sprite;
-    this._volume = options.volume || 1.0;
-    this._muted = options.muted || false;
-    this._loop = options.loop || false;
-    this._preload = options.preload || false;
-    this._autoplay = options.autoplay || false;
+    this._sprite = typeof options.sprite === 'object' ? options.sprite : undefined;
+    const volume = parseFloat(options.volume);
+    this._volume = !isNaN(volume) && volume >= 0 && volume <= 1.0 ? volume : 1.0;
+    this._muted = typeof options.muted === 'boolean' ? options.muted : false;
+    this._loop = typeof options.loop === 'boolean' ? options.loop : false;
+    this._preload = typeof options.preload === 'boolean' ? options.preload : false;
+    this._autoplay = typeof options.autoplay === 'boolean' ? options.autoplay : false;
+    typeof options.onload === 'function' && this.on('load', options.onload);
+    typeof options.onerror === 'function' && this.on('error', options.onerror);
+    typeof options.onplaystart === 'function' && this.on('playstart', options.onplaystart);
+    typeof options.onplayend === 'function' && this.on('playend', options.onplayend);
+    typeof options.onstop === 'function' && this.on('stop', options.onstop);
+    typeof options.onpause === 'function' && this.on('pause', options.onpause);
+    typeof options.onmute === 'function' && this.on('mute', options.onmute);
+    typeof options.onvolume === 'function' && this.on('volume', options.onvolume);
 
-    const events = ['load', 'error', 'playstart', 'playend', 'stop', 'pause', 'mute'];
-    this._emitter = new EventEmitter(events);
-    events.forEach(event => options[`on${event}`] && this.on(event, options[`on${event}`]));
-
+    this._emitter = new EventEmitter('load,error,playstart,playend,stop,pause,mute,volume');
     this._buffer = null;
     this._bufferSource = null;
     this._endTimer = null;
     this._duration = 0;
     this._startedAt = 0;
     this._elapsed = 0;
+    this._isLoaded = false;
 
     buzzer.setup(null);
 
-    // Create the simple audio graph.
     this._context = buzzer.context();
-    this._gainNode = this._context.createGain();
-    this._gainNode.connect(buzzer.gain());
-    this._gainNode.gain.value = this._volume;
-
-    this._isLoaded = false;
     this._state = BuzzState.Constructed;
 
     if (this._autoplay) {
@@ -118,10 +125,11 @@ class Buzz {
       if (downloadResult.status === DownloadStatus.Success) {
         this._buffer = downloadResult.value;
         this._duration = this._buffer.duration;
-        this._isLoaded = true;
+        this._gainNode = this._context.createGain();
         this._gainNode.gain.value = this._muted ? 0 : this._volume;
+        this._isLoaded = true;
         this._state = BuzzState.Ready;
-        this._fire('load', downloadResult);
+        this._fire('load', downloadResult, this);
         return;
       }
 
@@ -136,7 +144,7 @@ class Buzz {
   /**
    * Plays the sound.
    * Fires 'playstart' event before playing and 'playend' event after the sound is played.
-   * @param {string?} sound
+   * @param {string=} sound
    * @returns {Buzz}
    */
   play(sound) {
@@ -175,7 +183,9 @@ class Buzz {
       }
     }
 
+    buzzer.add(this);
     this._clearEndTimer();
+    this._gainNode.connect(buzzer.gain());
     this._bufferSource = this._context.createBufferSource();
     this._bufferSource.buffer = this._buffer;
     this._bufferSource.connect(this._gainNode);
@@ -204,6 +214,12 @@ class Buzz {
   }
 
   _reset() {
+    buzzer.remove(this);
+
+    if(this._gainNode) {
+      this._gainNode.disconnect();
+    }
+
     if (this._bufferSource) {
       this._bufferSource.disconnect();
       this._bufferSource.stop(0);
@@ -248,9 +264,9 @@ class Buzz {
       return this;
     }
 
-    const startedAt = this._startedAt;
+    const startedAt = this._startedAt, elapsed = this._elapsed;
     this._reset();
-    this._elapsed += this._context.currentTime - startedAt;
+    this._elapsed = elapsed + this._context.currentTime - startedAt;
     this._state = BuzzState.Paused;
     this._fire('pause');
 
@@ -268,6 +284,7 @@ class Buzz {
 
     this._gainNode && (this._gainNode.gain.value = 0);
     this._muted = true;
+    this._fire('mute');
 
     return this;
   }
@@ -297,7 +314,7 @@ class Buzz {
       return this._volume;
     }
 
-    var volume = parseFloat(vol);
+    const volume = parseFloat(vol);
 
     if (isNaN(volume) || volume < 0 || volume > 1.0) {
       return this;
@@ -338,9 +355,9 @@ class Buzz {
    * @param {string} event
    * @param {function|object} options
    * @param {function} options.handler
-   * @param {object?} options.target
-   * @param {object|Array?} options.args
-   * @param {boolean?} [options.once = false]
+   * @param {object=} options.target
+   * @param {object|Array=} options.args
+   * @param {boolean=} [options.once = false]
    * @returns {Buzz}
    */
   on(event, options) {
@@ -352,7 +369,7 @@ class Buzz {
    * Method to un-subscribe from an event.
    * @param {string} event
    * @param {function} handler
-   * @param {object?} target
+   * @param {object=} target
    * @returns {Buzz}
    */
   off(event, handler, target) {
@@ -363,7 +380,7 @@ class Buzz {
   /**
    * Fires an event passing the sound and other optional arguments.
    * @param {string} event
-   * @param {object|Array?} args
+   * @param {object|Array=} args
    * @returns {Buzz}
    * @private
    */
