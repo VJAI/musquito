@@ -33,7 +33,7 @@ class Buzzer {
     this._volume = 1.0;
     this._gainNode = null;
     this._contextType = AudioContext || webkitAudioContext;
-    this._eventEmitter = new EventEmitter('suspend,resume,playstart,playend,stop');
+    this._eventEmitter = new EventEmitter('suspend,resume,playstart,playend,stop,mute,volume');
     this._state = BuzzerState.Constructed;
   }
 
@@ -50,7 +50,7 @@ class Buzzer {
     const options = args || {};
 
     if (this._state === BuzzerState.Ready) {
-      return true;
+      return this;
     }
 
     if(!this._contextType) {

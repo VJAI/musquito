@@ -129,7 +129,7 @@ class Buzz {
         this._gainNode.gain.value = this._muted ? 0 : this._volume;
         this._isLoaded = true;
         this._state = BuzzState.Ready;
-        this._fire('load', downloadResult, this);
+        this._fire('load', downloadResult);
         return;
       }
 
@@ -300,6 +300,7 @@ class Buzz {
 
     this._gainNode && (this._gainNode.gain.value = this._volume);
     this._muted = false;
+    this._fire('mute');
 
     return this;
   }
@@ -322,6 +323,7 @@ class Buzz {
 
     this._volume = volume;
     this._gainNode && (this._gainNode.gain.value = this._volume);
+    this._fire('volume');
 
     return this;
   }
