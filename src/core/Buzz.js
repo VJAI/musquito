@@ -154,7 +154,7 @@ class Buzz {
     }
 
     if (!this._isLoaded) {
-      this.on('load', {
+      this._emitter.on('load', {
         handler: this.play,
         target: this,
         args: [sound],
@@ -284,7 +284,7 @@ class Buzz {
 
     this._gainNode && (this._gainNode.gain.value = 0);
     this._muted = true;
-    this._fire('mute');
+    this._fire('mute', this._muted);
 
     return this;
   }
@@ -300,7 +300,7 @@ class Buzz {
 
     this._gainNode && (this._gainNode.gain.value = this._volume);
     this._muted = false;
-    this._fire('mute');
+    this._fire('mute', this._muted);
 
     return this;
   }
@@ -323,7 +323,7 @@ class Buzz {
 
     this._volume = volume;
     this._gainNode && (this._gainNode.gain.value = this._volume);
-    this._fire('volume');
+    this._fire('volume', this._volume);
 
     return this;
   }
@@ -355,15 +355,12 @@ class Buzz {
   /**
    * Method to subscribe to an event.
    * @param {string} event
-   * @param {function|object} options
-   * @param {function} options.handler
-   * @param {object=} options.target
-   * @param {object|Array=} options.args
-   * @param {boolean=} [options.once = false]
+   * @param {function} handler
+   * @param {boolean} [once = false]
    * @returns {Buzz}
    */
-  on(event, options) {
-    this._emitter.on(event, options);
+  on(event, handler, once = false) {
+    this._emitter.on(event, { handler: handler, once });
     return this;
   }
 
@@ -371,10 +368,9 @@ class Buzz {
    * Method to un-subscribe from an event.
    * @param {string} event
    * @param {function} handler
-   * @param {object=} target
    * @returns {Buzz}
    */
-  off(event, handler, target) {
+  off(event, handler) {
     this._emitter.off(event, handler);
     return this;
   }
@@ -382,12 +378,12 @@ class Buzz {
   /**
    * Fires an event passing the sound and other optional arguments.
    * @param {string} event
-   * @param {object|Array=} args
+   * @param {...*} args
    * @returns {Buzz}
    * @private
    */
-  _fire(event, args) {
-    this._emitter.fire(event, args);
+  _fire(event, ...args) {
+    this._emitter.fire(event, ...args, this);
     return this;
   }
 }
