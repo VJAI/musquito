@@ -33,7 +33,8 @@ class Buzzer {
     this._volume = 1.0;
     this._gainNode = null;
     this._contextType = AudioContext || webkitAudioContext;
-    this._emitter = new EventEmitter('suspend,resume,playstart,playend,stop,mute,volume');
+    this._buzzEvents = ['playstart', 'playend', 'pause', 'stop'];
+    this._emitter = new EventEmitter('suspend,resume,stop,mute,volume,buzzplaystart,buzzplayend,buzzpause,buzzstop');
     this._state = BuzzerState.Constructed;
   }
 
@@ -45,11 +46,13 @@ class Buzzer {
    * @param {boolean=} [args.saveEnergy = false]
    * @param {function=} args.onsuspend Event-handler for the "suspend" event.
    * @param {function=} args.onresume Event-handler for the "resume" event.
-   * @param {function=} args.onplaystart Event-handler for the "playstart" event.
-   * @param {function=} args.onplayend Event-handler for the "playend" event.
    * @param {function=} args.onstop Event-handler for the "stop" event.
    * @param {function=} args.onmute Event-handler for the "mute" event.
    * @param {function=} args.onvolume Event-handler for the "volume" event.
+   * @param {function=} args.onbuzzplaystart Event-handler for the "buzzplaystart" event.
+   * @param {function=} args.onbuzzplayend Event-handler for the "buzzplayend" event.
+   * @param {function=} args.onbuzzpause Event-handler for the "buzzpause" event.
+   * @param {function=} args.onbuzzstop Event-handler for the "buzzstop" event.
    * @param {AudioContext=} args.context
    * @returns {Buzzer}
    */
@@ -71,11 +74,13 @@ class Buzzer {
     this._saveEnergy = typeof options.saveEnergy === 'boolean' ? options.saveEnergy : true;
     typeof options.onsuspend === 'function' && this.on('suspend', options.onsuspend);
     typeof options.onresume === 'function' && this.on('resume', options.onresume);
-    typeof options.onplaystart === 'function' && this.on('playstart', options.onplaystart);
-    typeof options.onplayend === 'function' && this.on('playend', options.onplayend);
     typeof options.onstop === 'function' && this.on('stop', options.onstop);
     typeof options.onmute === 'function' && this.on('mute', options.onmute);
     typeof options.onvolume === 'function' && this.on('volume', options.onvolume);
+    typeof options.onbuzzplaystart === 'function' && this.on('buzzplaystart', options.onbuzzplaystart);
+    typeof options.onbuzzplayend === 'function' && this.on('buzzplayend', options.onbuzzplayend);
+    typeof options.onbuzzpause === 'function' && this.on('buzzpause', options.onbuzzpause);
+    typeof options.onbuzzstop === 'function' && this.on('buzzstop', options.onbuzzstop);
     
     this._bufferLoader = new BufferLoader(this._context);
     this._gainNode = this._context.createGain();
@@ -107,17 +112,37 @@ class Buzzer {
   /**
    * Adds the buzz to the internal array for controlling the playback.
    * @param {Buzz} buzz
+   * @returns {Buzzer}
    */
   add(buzz) {
     this._buzzes[buzz.id] = buzz;
+    this._buzzEvents.forEach(event => buzz.on(event, {
+      handler: this._fireBuzzEvent,
+      target: this,
+      args: event
+    }));
+    return this;
+  }
+  
+  /**
+   * TODO: Add proper description.
+   * @param {string} event
+   * @param {...*} args
+   * @private
+   */
+  _fireBuzzEvent(event, ...args) {
+    this._fire(`buzz${event}`, ...args);
   }
   
   /**
    * Removes the buzz from the array.
    * @param {Buzz} buzz
+   * @returns {Buzzer}
    */
   remove(buzz) {
+    this._buzzEvents.forEach(event => buzz.off(event, this._fireBuzzEvent));
     delete this._buzzes[buzz.id];
+    return this;
   }
   
   /**
@@ -181,7 +206,7 @@ class Buzzer {
    */
   stop() {
     Object.keys(this._buzzes).forEach(buzz => buzz.stop());
-    this._fire('stop', this);
+    this._fire('stop');
     return this;
   }
   
@@ -193,6 +218,9 @@ class Buzzer {
     if(this._state === BuzzerState.Suspended) {
       return this;
     }
+    
+    this._fire('suspend');
+    return this;
   }
   
   /**
@@ -200,7 +228,12 @@ class Buzzer {
    * @returns {Buzzer}
    */
   resume() {
-    throw new Error('Not Implemented');
+    if(this._state === BuzzerState.Ready) {
+      return this;
+    }
+    
+    this._fire('resume');
+    return this;
   }
 
   /**
@@ -242,14 +275,6 @@ class Buzzer {
     return this._state;
   }
 
-  /**
-   * Returns whether the engine is available or not.
-   * @returns {boolean}
-   */
-  available() {
-    return this._state !== BuzzerState.NA;
-  }
-
   supportedFormats() {
     return codecAid.supported();
   }
@@ -257,12 +282,15 @@ class Buzzer {
   /**
    * Method to subscribe to an event.
    * @param {string} event
-   * @param {function} handler
-   * @param {boolean} [once = false]
-   * @returns {Buzz}
+   * @param {function|object} options
+   * @param {function} options.handler
+   * @param {object=} options.target
+   * @param {object|Array=} options.args
+   * @param {boolean=} [options.once = false]
+   * @returns {Buzzer}
    */
-  on(event, handler, once = false) {
-    this._emitter.on(event, { handler: handler, once });
+  on(event, options) {
+    this._emitter.on(event, options);
     return this;
   }
   
@@ -270,10 +298,11 @@ class Buzzer {
    * Method to un-subscribe from an event.
    * @param {string} event
    * @param {function} handler
-   * @returns {Buzz}
+   * @param {object=} target
+   * @returns {Buzzer}
    */
-  off(event, handler) {
-    this._emitter.off(event, handler);
+  off(event, handler, target) {
+    this._emitter.off(event, handler, target);
     return this;
   }
   
@@ -281,7 +310,7 @@ class Buzzer {
    * Fires an event passing the sound and other optional arguments.
    * @param {string} event
    * @param {...*} args
-   * @returns {Buzz}
+   * @returns {Buzzer}
    * @private
    */
   _fire(event, ...args) {

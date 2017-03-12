@@ -43,7 +43,7 @@ class BuzzerTester {
     var isSprite = this._buzzCreateForm['buzz-sound'].value === 'sprite',
       src = 'sounds/' + (isSprite ? 'sprite.mp3' : this._buzzCreateForm['buzz-sound'].value),
       volume = parseFloat(this._buzzCreateForm['buzz-volume'].value),
-      loop = this._buzzCreateForm['buzz-loop'].value;
+      loop = this._buzzCreateForm['buzz-loop'].checked;
 
     var buzz = new Buzz({
       src: src,

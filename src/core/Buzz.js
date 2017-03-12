@@ -154,7 +154,7 @@ class Buzz {
     }
 
     if (!this._isLoaded) {
-      this._emitter.on('load', {
+      this.on('load', {
         handler: this.play,
         target: this,
         args: [sound],
@@ -171,16 +171,13 @@ class Buzz {
 
     // If we are gonna play a sound in sprite calculate the duration and also check if the offset is within that
     // sound boundaries and if not reset to the starting point.
-    if (typeof sound !== 'undefined' && this._sprite && this._sprite[sound]) {
+    if (sound && this._sprite && this._sprite[sound]) {
       const startEnd = this._sprite[sound],
         soundStart = startEnd[0],
         soundEnd = startEnd[1];
 
       duration = soundEnd - soundStart;
-
-      if (offset < soundStart || offset > soundEnd) {
-        offset = soundStart;
-      }
+      offset = (offset < soundStart || offset > soundEnd) ? soundStart : offset;
     }
 
     buzzer.add(this);
@@ -192,9 +189,17 @@ class Buzz {
     this._bufferSource.start(0, offset);
     this._startedAt = this._context.currentTime;
     this._endTimer = setTimeout(() => {
-      this._reset();
-      this._state = BuzzState.Ready;
-      this._fire('playend');
+      if(this._loop) {
+        this._startedAt = 0;
+        this._elapsed = 0;
+        this._state = BuzzState.Ready;
+        this._fire('playend');
+        this.play(sound);
+      } else {
+        this._reset();
+        this._state = BuzzState.Ready;
+        this._fire('playend');
+      }
     }, duration * 1000);
     this._state = BuzzState.Playing;
     this._fire('playstart');
@@ -351,16 +356,19 @@ class Buzz {
   duration() {
     return this._duration;
   }
-
+  
   /**
    * Method to subscribe to an event.
    * @param {string} event
-   * @param {function} handler
-   * @param {boolean} [once = false]
+   * @param {function|object} options
+   * @param {function} options.handler
+   * @param {object=} options.target
+   * @param {object|Array=} options.args
+   * @param {boolean=} [options.once = false]
    * @returns {Buzz}
    */
-  on(event, handler, once = false) {
-    this._emitter.on(event, { handler: handler, once });
+  on(event, options) {
+    this._emitter.on(event, options);
     return this;
   }
 
@@ -368,10 +376,11 @@ class Buzz {
    * Method to un-subscribe from an event.
    * @param {string} event
    * @param {function} handler
+   * @param {object=} target
    * @returns {Buzz}
    */
-  off(event, handler) {
-    this._emitter.off(event, handler);
+  off(event, handler, target) {
+    this._emitter.off(event, handler, target);
     return this;
   }
 
