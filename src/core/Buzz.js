@@ -34,7 +34,8 @@ class Buzz {
   /**
    * @param {object} args
    * @param {string=} args.id An unique id for the sound.
-   * @param {string} args.src The source of the audio file.
+   * @param {string=} args.src The source of the audio file.
+   * @param {string=} args.dataUri The source of the audio in base64 string.
    * @param {object=} args.sprite The sprite definition.
    * @param {number} [args.volume = 1.0] The initial volume of the sound.
    * @param {boolean} [args.muted = false] Should be muted initially.
@@ -55,20 +56,13 @@ class Buzz {
   constructor(args) {
     let options = typeof args === 'string' ? {src: args} : args || {};
 
-    if (typeof options.src === 'undefined') {
+    if (typeof options.src === 'undefined' && typeof options.dataUri === 'undefined') {
       throw new Error('You should pass the source of the audio');
     }
 
-    if(typeof options.src !== 'string') {
-      throw new Error('The source of the audio should be a string');
-    }
-
-    if (!codecAid.isFileSupported(options.src)) {
-      throw new Error('The audio format you passed is not supported.');
-    }
-
     this._id = typeof options.id === 'string' ? options.id : Math.round(Date.now() * Math.random());
-    this._src = options.src;
+    this._src = Array.isArray(options.src) ? options.src : [options.src];
+    this._dataUri = options.dataUri;
     this._sprite = typeof options.sprite === 'object' ? options.sprite : undefined;
     const volume = parseFloat(options.volume);
     this._volume = !isNaN(volume) && volume >= 0 && volume <= 1.0 ? volume : 1.0;
@@ -123,6 +117,15 @@ class Buzz {
 
     // Set the state to "Loading" to avoid multiple times loading the buffer.
     this._state = BuzzState.Loading;
+
+    const src = codecAid.getSupportedFile(this._src);
+
+    if(!src) {
+      this._removePlayHandler();
+      this._state = BuzzState.Error;
+      this._fire('error', {type: ErrorType.LoadError, error: 'None of the audio format you passed is supported'});
+      return this;
+    }
 
     buzzer.load(this._src).then(downloadResult => {
       if (downloadResult.status === DownloadStatus.Success) {
