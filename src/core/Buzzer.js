@@ -10,8 +10,9 @@ const BuzzerState = {
   Constructed: 0,
   Ready: 1,
   Suspended: 2,
-  Done: 3,
-  Error: 4
+  Closing: 3,
+  Done: 4,
+  Error: 5
 };
 
 /**
@@ -34,7 +35,6 @@ class Buzzer {
     this._gainNode = null;
     this._contextType = AudioContext || webkitAudioContext;
     this._buzzEvents = ['playstart', 'playend', 'pause', 'stop'];
-    this._emitter = new EventEmitter('suspend,resume,stop,mute,volume,buzzplaystart,buzzplayend,buzzpause,buzzstop');
     this._state = BuzzerState.Constructed;
   }
 
@@ -46,6 +46,7 @@ class Buzzer {
    * @param {boolean=} [args.saveEnergy = false]
    * @param {function=} args.onsuspend Event-handler for the "suspend" event.
    * @param {function=} args.onresume Event-handler for the "resume" event.
+   * @param {function=} args.ondone Event-handler for the "done" event.
    * @param {function=} args.onstop Event-handler for the "stop" event.
    * @param {function=} args.onmute Event-handler for the "mute" event.
    * @param {function=} args.onvolume Event-handler for the "volume" event.
@@ -63,17 +64,20 @@ class Buzzer {
       return this;
     }
 
-    if(!this._contextType) {
+    if (!this._contextType) {
       this._state = BuzzerState.Error;
       throw new Error('Web Audio API is unavailable');
     }
 
-    this._context = options.context || new this._contextType();
+    this._isContextInjected = !!options.context;
+    this._context = this._isContextInjected ? options.context : new this._contextType();
     const volume = parseFloat(options.volume);
     this._volume = !isNaN(volume) && volume >= 0 && volume <= 1.0 ? volume : this._volume;
     this._saveEnergy = typeof options.saveEnergy === 'boolean' ? options.saveEnergy : true;
+    this._emitter = new EventEmitter('suspend,resume,done,stop,mute,volume,buzzplaystart,buzzplayend,buzzpause,buzzstop');
     typeof options.onsuspend === 'function' && this.on('suspend', options.onsuspend);
     typeof options.onresume === 'function' && this.on('resume', options.onresume);
+    typeof options.ondone === 'function' && this.on('done', options.ondone);
     typeof options.onstop === 'function' && this.on('stop', options.onstop);
     typeof options.onmute === 'function' && this.on('mute', options.onmute);
     typeof options.onvolume === 'function' && this.on('volume', options.onvolume);
@@ -81,7 +85,7 @@ class Buzzer {
     typeof options.onbuzzplayend === 'function' && this.on('buzzplayend', options.onbuzzplayend);
     typeof options.onbuzzpause === 'function' && this.on('buzzpause', options.onbuzzpause);
     typeof options.onbuzzstop === 'function' && this.on('buzzstop', options.onbuzzstop);
-    
+
     this._bufferLoader = new BufferLoader(this._context);
     this._gainNode = this._context.createGain();
     this._gainNode.gain.value = this._volume;
@@ -108,24 +112,28 @@ class Buzzer {
     this._bufferLoader.unload(urls);
     return this;
   }
-  
+
   /**
-   * Adds the buzz to the internal array for controlling the playback.
+   * Adds the buzz to the internal array for controlling the playback and to the audio graph.
    * @param {Buzz} buzz
    * @returns {Buzzer}
+   * @private
    */
-  add(buzz) {
+  _link(buzz) {
     this._buzzes[buzz.id] = buzz;
+    buzz._gainNode.connect(this._gainNode);
+
     this._buzzEvents.forEach(event => buzz.on(event, {
       handler: this._fireBuzzEvent,
       target: this,
       args: event
     }));
+
     return this;
   }
-  
+
   /**
-   * TODO: Add proper description.
+   * Publish the buzz playback events.
    * @param {string} event
    * @param {...*} args
    * @private
@@ -133,18 +141,24 @@ class Buzzer {
   _fireBuzzEvent(event, ...args) {
     this._fire(`buzz${event}`, ...args);
   }
-  
+
   /**
-   * Removes the buzz from the array.
+   * Removes the buzz from the array and the graph.
    * @param {Buzz} buzz
    * @returns {Buzzer}
+   * @private
    */
-  remove(buzz) {
+  _unlink(buzz) {
     this._buzzEvents.forEach(event => buzz.off(event, this._fireBuzzEvent));
+
+    if (buzz._gainNode) {
+      buzz._gainNode.disconnect();
+    }
+
     delete this._buzzes[buzz.id];
     return this;
   }
-  
+
   /**
    * Set/get the volume for the audio engine that controls global volume for all sounds.
    * @param {number=} vol
@@ -180,7 +194,7 @@ class Buzzer {
     this._gainNode && (this._gainNode.gain.value = 0);
     this._muted = true;
     this._fire('mute', this._muted);
-    
+
     return this;
   }
 
@@ -196,10 +210,10 @@ class Buzzer {
     this._gainNode && (this._gainNode.gain.value = this._volume);
     this._muted = false;
     this._fire('mute', this._muted);
-  
+
     return this;
   }
-  
+
   /**
    * Stops all the currently playing sounds.
    * @return {Buzzer}
@@ -209,38 +223,68 @@ class Buzzer {
     this._fire('stop');
     return this;
   }
-  
+
   /**
    * Suspends the audio context to save energy.
    * @returns {Buzzer}
    */
   suspend() {
-    if(this._state === BuzzerState.Suspended) {
+    if (this._state === BuzzerState.Suspended) {
       return this;
     }
-    
+
     this._fire('suspend');
     return this;
   }
-  
+
   /**
    * Resumes the audio context from the suspended mode.
    * @returns {Buzzer}
    */
   resume() {
-    if(this._state === BuzzerState.Ready) {
+    if (this._state === BuzzerState.Ready) {
       return this;
     }
-    
+
     this._fire('resume');
     return this;
   }
 
   /**
-   * TODO
+   * Shuts down the engine.
    */
   tearDown() {
-    this._state = BuzzerState.Done;
+    if (this._state !== BuzzerState.Ready || this._state !== BuzzerState.Suspended) {
+      return this;
+    }
+
+    this._state = BuzzerState.Closing;
+
+    // Destroy all the playing sounds.
+    Object.keys(this._buzzes).forEach(buzz => buzz.destroy());
+
+    // Remove the Master Gain node.
+    this._gainNode.disconnect();
+    this._gainNode = null;
+
+    // Clear the cache and remove the loader.
+    this._bufferLoader.unload();
+    this._bufferLoader = null;
+
+    // Close the context.
+    if (!this._isContextInjected) {
+      this._context.close().then(() => {
+        this._context = null;
+
+        this._state = BuzzerState.Done;
+
+        // Fire the "done" event.
+        this._fire('done');
+
+        this._emitter.clear();
+        this._emitter = null;
+      });
+    }
   }
 
   /**
@@ -249,14 +293,6 @@ class Buzzer {
    */
   context() {
     return this._context;
-  }
-
-  /**
-   * Returns the master gain node.
-   * @returns {GainNode}
-   */
-  gain() {
-    return this._gainNode;
   }
 
   /**
@@ -275,10 +311,14 @@ class Buzzer {
     return this._state;
   }
 
+  /**
+   * Returns the supported audio formats.
+   * @return {object}
+   */
   supportedFormats() {
-    return codecAid.supported();
+    return codecAid.supportedFormats();
   }
-  
+
   /**
    * Method to subscribe to an event.
    * @param {string} event
@@ -293,7 +333,7 @@ class Buzzer {
     this._emitter.on(event, options);
     return this;
   }
-  
+
   /**
    * Method to un-subscribe from an event.
    * @param {string} event
@@ -305,7 +345,7 @@ class Buzzer {
     this._emitter.off(event, handler, target);
     return this;
   }
-  
+
   /**
    * Fires an event passing the sound and other optional arguments.
    * @param {string} event
@@ -321,4 +361,4 @@ class Buzzer {
 
 const buzzer = new Buzzer();
 
-export { BuzzerState, buzzer as default };
+export {BuzzerState, buzzer as default};

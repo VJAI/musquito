@@ -13,7 +13,8 @@ const BuzzState = {
   Ready: 2,
   Playing: 3,
   Paused: 4,
-  Error: 5
+  Error: 5,
+  Destroyed: 6
 };
 
 /**
@@ -48,6 +49,7 @@ class Buzz {
    * @param {function=} args.onpause Event-handler for the "pause" event.
    * @param {function=} args.onmute Event-handler for the "mute" event.
    * @param {function=} args.onvolume Event-handler for the "volume" event.
+   * @param {function=} args.ondestroy Event-handler for the "destroy" event.
    * @constructor
    */
   constructor(args) {
@@ -82,6 +84,7 @@ class Buzz {
     typeof options.onpause === 'function' && this.on('pause', options.onpause);
     typeof options.onmute === 'function' && this.on('mute', options.onmute);
     typeof options.onvolume === 'function' && this.on('volume', options.onvolume);
+    typeof options.ondestroy === 'function' && this.on('destroy', options.ondestroy);
 
     this._emitter = new EventEmitter('load,error,playstart,playend,stop,pause,mute,volume');
     this._buffer = null;
@@ -180,9 +183,8 @@ class Buzz {
       offset = (offset < soundStart || offset > soundEnd) ? soundStart : offset;
     }
 
-    buzzer.add(this);
+    buzzer._link(this);
     this._clearEndTimer();
-    this._gainNode.connect(buzzer.gain());
     this._bufferSource = this._context.createBufferSource();
     this._bufferSource.buffer = this._buffer;
     this._bufferSource.connect(this._gainNode);
@@ -219,11 +221,7 @@ class Buzz {
   }
 
   _reset() {
-    buzzer.remove(this);
-
-    if(this._gainNode) {
-      this._gainNode.disconnect();
-    }
+    buzzer._unlink(this);
 
     if (this._bufferSource) {
       this._bufferSource.disconnect();
@@ -234,26 +232,6 @@ class Buzz {
     this._startedAt = 0;
     this._elapsed = 0;
     this._clearEndTimer();
-  }
-
-  /**
-   * Stops the sound that is playing or in paused state.
-   * @returns {Buzz}
-   */
-  stop() {
-    // Remove the "play" event handler from queue if there is one.
-    this._removePlayHandler();
-
-    // We can stop the sound either if it "playing" or in "paused" state.
-    if (this._state !== BuzzState.Playing && this._state !== BuzzState.Paused) {
-      return this;
-    }
-
-    this._reset();
-    this._state = BuzzState.Stopped;
-    this._fire('stop');
-
-    return this;
   }
 
   /**
@@ -334,6 +312,45 @@ class Buzz {
   }
 
   /**
+   * Stops the sound that is playing or in paused state.
+   * @returns {Buzz}
+   */
+  stop() {
+    // Remove the "play" event handler from queue if there is one.
+    this._removePlayHandler();
+
+    // We can stop the sound either if it "playing" or in "paused" state.
+    if (this._state !== BuzzState.Playing && this._state !== BuzzState.Paused) {
+      return this;
+    }
+
+    this._reset();
+    this._state = BuzzState.Stopped;
+    this._fire('stop');
+
+    return this;
+  }
+
+  /**
+   * Destroys the buzz.
+   */
+  destroy() {
+    // TODO: Conditional check missing!
+
+    this.stop();
+
+    this._buffer = null;
+    this._context = null;
+    this._gainNode = null;
+    this._state = BuzzState.Destroyed;
+
+    this._fire('destroy');
+
+    this._emitter.clear();
+    this._emitter = null;
+  }
+
+  /**
    * Returns whether sound is muted or not.
    * @returns {boolean}
    */
@@ -356,7 +373,7 @@ class Buzz {
   duration() {
     return this._duration;
   }
-  
+
   /**
    * Method to subscribe to an event.
    * @param {string} event
