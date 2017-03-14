@@ -16,7 +16,7 @@ const BuzzState = {
 };
 
 /**
- * Enum that represents the different errors thrown by a Buzz object.
+ * Enum that represents the different type of errors thrown by Buzz.
  * @enum {number}
  */
 const ErrorType = {
@@ -24,17 +24,120 @@ const ErrorType = {
 };
 
 /**
- * Represents the base class for a sound.
+ * Represents the base class for all types of sounds.
  * @class
  */
 class BaseBuzz {
 
   /**
+   * Unique id of the sound.
+   * @type {string|null}
+   * @protected
+   */
+  _id = null;
+
+  /**
+   * The source of the audio file.
+   * @type {string[]}
+   * @protected
+   */
+  _src = [];
+
+  /**
+   * The current volume of the sound. The value should be between 0.0 and 1.0.
+   * @type {number}
+   * @protected
+   */
+  _volume = 1.0;
+
+  /**
+   * Represents whether the sound is currently muted or not.
+   * @type {boolean}
+   * @protected
+   */
+  _muted = false;
+
+  /**
+   * Represents whether the sound should keep playing repeatedly or not.
+   * @type {boolean}
+   * @protected
+   */
+  _loop = false;
+
+  /**
+   * Represents whether the sound should be preloaded on construction.
+   * @type {boolean}
+   * @protected
+   */
+  _preload = false;
+
+  /**
+   * Represents whether the sound should start playing on construction.
+   * @type {boolean}
+   * @protected
+   */
+  _autoplay = false;
+
+  /**
+   * Represents the current state (playing, paused etc.) of the sound.
+   * @type {BuzzState|null}
+   * @protected
+   */
+  _state = null;
+
+  /**
+   * AudioContext.
+   * @type {AudioContext|null}
+   * @protected
+   */
+  _context = null;
+
+  /**
+   * Event emitter.
+   * @type {EventEmitter|null}
+   * @protected
+   */
+  _emitter = null;
+
+  /**
+   * Represents the timer that is used to reset the variables after the playback.
+   * @type {number|null}
+   * @protected
+   */
+  _endTimer = null;
+
+  /**
+   * Duration of the sound.
+   * @type {number}
+   * @protected
+   */
+  _duration = 0;
+
+  /**
+   * Represents the time sound started playing relative to context's current time.
+   * @type {number}
+   * @protected
+   */
+  _startedAt= 0;
+
+  /**
+   * Represents the total time elapsed after started playing.
+   * @type {number}
+   * @protected
+   */
+  _elapsed = 0;
+
+  /**
+   * Whether the source of the sound is loaded or not.
+   * @type {boolean}
+   * @protected
+   */
+  _isLoaded = false;
+
+  /**
    * @param {object} args
    * @param {string=} args.id An unique id for the sound.
-   * @param {string=} args.src The source of the audio file.
-   * @param {string=} args.dataUri The source of the audio in base64 string.
-   * @param {object=} args.sprite The sprite definition.
+   * @param {string|string[]=} args.src The source of the audio file.
    * @param {number} [args.volume = 1.0] The initial volume of the sound.
    * @param {boolean} [args.muted = false] Should be muted initially.
    * @param {number} [args.loop = false] Whether the sound should play repeatedly.
@@ -52,22 +155,23 @@ class BaseBuzz {
    * @constructor
    */
   constructor(args) {
-    let options = typeof args === 'string' ? {src: args} : args || {};
+    let options = typeof args === 'string' || Array.isArray(args) ? { src: args } : args || {};
 
-    if (typeof options.src === 'undefined' && typeof options.dataUri === 'undefined') {
+    if (!options.src || options.src.length === 0) {
       throw new Error('You should pass the source of the audio');
     }
 
-    this._id = typeof options.id === 'string' ? options.id : Math.round(Date.now() * Math.random());
+    this._id = typeof options.id === 'string' ? options.id : Math.round(Date.now() * Math.random()).toString();
     this._src = Array.isArray(options.src) ? options.src : [options.src];
-    this._dataUri = options.dataUri;
-    this._sprite = typeof options.sprite === 'object' ? options.sprite : undefined;
-    const volume = parseFloat(options.volume);
-    this._volume = !isNaN(volume) && volume >= 0 && volume <= 1.0 ? volume : 1.0;
-    this._muted = typeof options.muted === 'boolean' ? options.muted : false;
-    this._loop = typeof options.loop === 'boolean' ? options.loop : false;
-    this._preload = typeof options.preload === 'boolean' ? options.preload : false;
-    this._autoplay = typeof options.autoplay === 'boolean' ? options.autoplay : false;
+
+    if(typeof options.volume === 'number' && options.volume >= 0 && options.volume <= 1.0) {
+      this._volume = options.volume;
+    }
+
+    typeof options.muted === 'boolean' && (this._muted = options.muted);
+    typeof options.loop === 'boolean' && (this._loop = options.loop);
+    typeof options.preload === 'boolean' && (this._preload = options.preload);
+    typeof options.autoplay === 'boolean' && (this._autoplay = options.autoplay);
     typeof options.onload === 'function' && this.on('load', options.onload);
     typeof options.onerror === 'function' && this.on('error', options.onerror);
     typeof options.onplaystart === 'function' && this.on('playstart', options.onplaystart);
@@ -79,8 +183,6 @@ class BaseBuzz {
     typeof options.ondestroy === 'function' && this.on('destroy', options.ondestroy);
 
     this._emitter = new EventEmitter('load,error,playstart,playend,stop,pause,mute,volume');
-    this._buffer = null;
-    this._bufferSource = null;
     this._endTimer = null;
     this._duration = 0;
     this._startedAt = 0;
