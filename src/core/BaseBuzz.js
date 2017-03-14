@@ -1,6 +1,4 @@
 import buzzer from './Buzzer';
-import {DownloadStatus} from '../util/BufferLoader';
-import codecAid from '../util/CodecAid';
 import EventEmitter from '../util/EventEmitter';
 
 /**
@@ -104,12 +102,164 @@ class BaseBuzz {
     }
   }
 
+  /**
+   * Load the sound into an audio buffer.
+   * Fires 'load' event on successful load and 'error' event on failure.
+   * @returns {BaseBuzz}
+   */
   load() {
     throw new Error('Not Implemented');
   }
 
-  play() {
+  /**
+   * Plays the sound.
+   * Fires 'playstart' event before playing and 'playend' event after the sound is played.
+   * @param {string=} sound
+   * @returns {BaseBuzz}
+   */
+  play(sound) {
     throw new Error('Not Implemented');
+  }
+
+  /**
+   * Pause the playing sound.
+   * @returns {BaseBuzz}
+   */
+  pause() {
+    throw new Error('Not Implemented');
+  }
+
+  /**
+   * Stops the sound that is playing or in paused state.
+   * @returns {BaseBuzz}
+   */
+  stop() {
+    throw new Error('Not Implemented');
+  }
+
+  /**
+   * Destroys the buzz.
+   */
+  destroy() {
+    throw new Error('Not Implemented');
+  }
+
+  /**
+   * Mute the sound.
+   * @returns {BufferBuzz}
+   */
+  mute() {
+    if (this._muted) {
+      return this;
+    }
+
+    this._gainNode && (this._gainNode.gain.value = 0);
+    this._muted = true;
+    this._fire('mute', this._muted);
+
+    return this;
+  }
+
+  /**
+   * Unmute the sound.
+   * @returns {BufferBuzz}
+   */
+  unmute() {
+    if (!this._muted) {
+      return this;
+    }
+
+    this._gainNode && (this._gainNode.gain.value = this._volume);
+    this._muted = false;
+    this._fire('mute', this._muted);
+
+    return this;
+  }
+
+  /**
+   * Set/get the volume.
+   * @param {number=} vol
+   * @returns {Buzz|number}
+   */
+  volume(vol) {
+    if (typeof vol === 'undefined') {
+      return this._volume;
+    }
+
+    const volume = parseFloat(vol);
+
+    if (isNaN(volume) || volume < 0 || volume > 1.0) {
+      return this;
+    }
+
+    this._volume = volume;
+    this._gainNode && (this._gainNode.gain.value = this._volume);
+    this._fire('volume', this._volume);
+
+    return this;
+  }
+
+  /**
+   * Returns whether sound is muted or not.
+   * @returns {boolean}
+   */
+  muted() {
+    return this._muted;
+  }
+
+  /**
+   * Returns the state of the sound.
+   * @returns {number}
+   */
+  state() {
+    return this._state;
+  }
+
+  /**
+   * Returns the duration of the sound.
+   * @returns {number}
+   */
+  duration() {
+    return this._duration;
+  }
+
+  /**
+   * Method to subscribe to an event.
+   * @param {string} event
+   * @param {function|object} options
+   * @param {function} options.handler
+   * @param {object=} options.target
+   * @param {object|Array=} options.args
+   * @param {boolean=} [options.once = false]
+   * @returns {BaseBuzz}
+   */
+  on(event, options) {
+    this._emitter.on(event, options);
+    return this;
+  }
+
+  /**
+   * Method to un-subscribe from an event.
+   * @param {string} event
+   * @param {function} handler
+   * @param {object=} target
+   * @returns {BaseBuzz}
+   */
+  off(event, handler, target) {
+    this._emitter.off(event, handler, target);
+    return this;
+  }
+
+  /**
+   * Fires an event passing the sound and other optional arguments.
+   * @param {string} event
+   * @param {...*} args
+   * @returns {BaseBuzz}
+   * @private
+   */
+  _fire(event, ...args) {
+    this._emitter.fire(event, ...args, this);
+    return this;
   }
 }
 
