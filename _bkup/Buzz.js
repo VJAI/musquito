@@ -1,7 +1,7 @@
-import {DownloadStatus} from '../util/BufferLoader';
-import codecAid from '../util/CodecAid';
-import buzzer from './Buzzer';
-import EventEmitter from '../util/EventEmitter';
+import {DownloadStatus} from '../src/util/BufferLoader';
+import codecAid from '../src/util/CodecAid';
+import buzzer from '../src/core/Buzzer';
+import EventEmitter from '../src/util/EventEmitter';
 
 /**
  * Enum that represents the different states of a sound.

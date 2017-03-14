@@ -22,21 +22,87 @@ const BuzzerState = {
 class Buzzer {
 
   /**
-   * Initialize the internal variables.
-   * @constructor
+   * True to enable auto-suspend and save energy.
+   * @type {boolean}
+   * @private
    */
-  constructor() {
-    this._context = null;
-    this._bufferLoader = null;
-    this._formats = {};
-    this._buzzes = {};
-    this._muted = false;
-    this._volume = 1.0;
-    this._gainNode = null;
-    this._contextType = AudioContext || webkitAudioContext;
-    this._buzzEvents = ['playstart', 'playend', 'pause', 'stop'];
-    this._state = BuzzerState.Constructed;
-  }
+  _saveEnergy = true;
+
+  /**
+   * The web audio api's audio context.
+   * @type {AudioContext|null}
+   * @private
+   */
+  _context = null;
+
+  /**
+   * BufferLoader.
+   * @type {BufferLoader|null}
+   * @private
+   */
+  _bufferLoader = null;
+
+  /**
+   * EventEmitter.
+   * @type {EventEmitter}
+   * @private
+   */
+  _emitter = new EventEmitter('suspend,resume,done,stop,mute,volume,buzzplaystart,buzzplayend,buzzpause,buzzstop');
+
+  /**
+   * Dictionary of buzzes that are currently playing.
+   * @type {object}
+   * @private
+   */
+  _buzzes = {};
+
+  /**
+   * Represents whether the audio engine is currently muted or not.
+   * @type {boolean}
+   * @private
+   */
+  _muted = false;
+
+  /**
+   * Represents the global volume.
+   * @type {number}
+   * @private
+   */
+  _volume = 1.0;
+
+  /**
+   * Represents the master gain node.
+   * @type {GainNode|null}
+   * @private
+   */
+  _gainNode = null;
+
+  /**
+   * Represents the context type that is available in the environment.
+   * @private
+   */
+  _contextType = AudioContext || webkitAudioContext;
+
+  /**
+   * Array of buzz events that the engine broadcast.
+   * @type {string[]}
+   * @private
+   */
+  _buzzEvents = ['playstart', 'playend', 'pause', 'stop'];
+
+  /**
+   * Represents the current state of the engine.
+   * @type {BuzzerState}
+   * @private
+   */
+  _state = BuzzerState.Constructed;
+
+  /**
+   * Whether the context is injected from outside or not.
+   * @type {boolean}
+   * @private
+   */
+  _isContextInjected = false;
 
   /**
    * Instantiate audio context and other important objects.
@@ -71,9 +137,12 @@ class Buzzer {
 
     this._isContextInjected = !!options.context;
     this._context = this._isContextInjected ? options.context : new this._contextType();
-    const volume = parseFloat(options.volume);
-    this._volume = !isNaN(volume) && volume >= 0 && volume <= 1.0 ? volume : this._volume;
-    this._saveEnergy = typeof options.saveEnergy === 'boolean' ? options.saveEnergy : true;
+
+    if (typeof options.volume === 'number' && options.volume >= 0 && options.volume <= 1.0) {
+      this._volume = options.volume;
+    }
+
+    typeof options.saveEnergy === 'boolean' && (this._saveEnergy = options.saveEnergy);
     this._emitter = new EventEmitter('suspend,resume,done,stop,mute,volume,buzzplaystart,buzzplayend,buzzpause,buzzstop');
     typeof options.onsuspend === 'function' && this.on('suspend', options.onsuspend);
     typeof options.onresume === 'function' && this.on('resume', options.onresume);
@@ -165,17 +234,15 @@ class Buzzer {
    * @returns {Buzzer|number}
    */
   volume(vol) {
-    if (typeof vol === 'undefined') {
+    if (vol == undefined) {
       return this._volume;
     }
 
-    const volume = parseFloat(vol);
-
-    if (isNaN(volume) || volume < 0 || volume > 1.0) {
-      return this._volume;
+    if (typeof vol !== 'number' || vol < 0 || vol > 1.0) {
+      return this;
     }
 
-    this._volume = volume;
+    this._volume = vol;
     this._gainNode && (this._gainNode.gain.value = this._volume);
     this._fire('volume', this._volume, this);
 
@@ -188,7 +255,7 @@ class Buzzer {
    */
   mute() {
     if (this._muted) {
-      return;
+      return this;
     }
 
     this._gainNode && (this._gainNode.gain.value = 0);
@@ -204,7 +271,7 @@ class Buzzer {
    */
   unmute() {
     if (!this._muted) {
-      return;
+      return this;
     }
 
     this._gainNode && (this._gainNode.gain.value = this._volume);

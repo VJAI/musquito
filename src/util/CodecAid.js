@@ -2,6 +2,13 @@ const fileExtRegEx = /^.+\.([^.]+)$/; // Ref: http://stackoverflow.com/questions
 
 class CodecAid {
 
+  /**
+   * Dictionary of audio formats and their support status.
+   * @type {object}
+   * @private
+   */
+  _formats = {};
+
   constructor() {
     this._figureOut();
   }

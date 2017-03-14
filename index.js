@@ -1,5 +1,5 @@
 import 'babel-polyfill';
 import buzzer from './src/core/Buzzer';
-import Buzz from './src/core/Buzz';
+import Buzz from './_bkup/Buzz';
 
 export { buzzer, Buzz };

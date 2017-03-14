@@ -1,4 +1,4 @@
-import BaseBuzz, {BuzzState, ErrorType} from './BaseBuzz';
+import BaseBuzz from './BaseBuzz';
 
 /**
  * Represents a single sound.
@@ -10,8 +10,6 @@ class MediaBuzz extends BaseBuzz {
    * @param {object} args
    * @param {string=} args.id An unique id for the sound.
    * @param {string=} args.src The source of the audio file.
-   * @param {string=} args.dataUri The source of the audio in base64 string.
-   * @param {object=} args.sprite The sprite definition.
    * @param {number} [args.volume = 1.0] The initial volume of the sound.
    * @param {boolean} [args.muted = false] Should be muted initially.
    * @param {number} [args.loop = false] Whether the sound should play repeatedly.
@@ -32,12 +30,19 @@ class MediaBuzz extends BaseBuzz {
     super(args);
   }
 
+  _readAndValidate(options) {
+    if(this._src.length === 0) {
+      throw new Error('You should pass the source for the audio.');
+    }
+  }
+
   /**
    * Load the sound into an audio buffer.
    * Fires 'load' event on successful load and 'error' event on failure.
    * @returns {MediaBuzz}
    */
   load() {
+    throw new Error('Not Implemented');
   }
 
   /**
@@ -47,6 +52,7 @@ class MediaBuzz extends BaseBuzz {
    * @returns {MediaBuzz}
    */
   play(sound) {
+    throw new Error('Not Implemented');
   }
 
   /**
@@ -54,6 +60,7 @@ class MediaBuzz extends BaseBuzz {
    * @returns {MediaBuzz}
    */
   pause() {
+    throw new Error('Not Implemented');
   }
 
   /**
@@ -61,12 +68,14 @@ class MediaBuzz extends BaseBuzz {
    * @returns {MediaBuzz}
    */
   stop() {
+    throw new Error('Not Implemented');
   }
 
   /**
    * Destroys the buzz.
    */
   destroy() {
+    throw new Error('Not Implemented');
   }
 }
 

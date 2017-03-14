@@ -1,7 +1,13 @@
 class EventEmitter {
 
+  /**
+   * Events and handlers map.
+   * @type {object}
+   * @private
+   */
+  _events = {};
+
   constructor(events) {
-    this._events = {};
     const eventNames = Array.isArray(events) ? events : events.split(',');
     eventNames.forEach(evt => this._events[evt] = []);
   }

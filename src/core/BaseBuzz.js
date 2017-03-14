@@ -93,11 +93,18 @@ class BaseBuzz {
   _context = null;
 
   /**
-   * Event emitter.
-   * @type {EventEmitter|null}
+   * The gain node to control the volume of the sound.
+   * @type {GainNode|null}
    * @protected
    */
-  _emitter = null;
+  _gainNode = null;
+
+  /**
+   * Event emitter.
+   * @type {EventEmitter}
+   * @protected
+   */
+  _emitter = new EventEmitter('load,error,playstart,playend,stop,pause,mute,volume');
 
   /**
    * Represents the timer that is used to reset the variables after the playback.
@@ -118,7 +125,7 @@ class BaseBuzz {
    * @type {number}
    * @protected
    */
-  _startedAt= 0;
+  _startedAt = 0;
 
   /**
    * Represents the total time elapsed after started playing.
@@ -155,16 +162,15 @@ class BaseBuzz {
    * @constructor
    */
   constructor(args) {
-    let options = typeof args === 'string' || Array.isArray(args) ? { src: args } : args || {};
-
-    if (!options.src || options.src.length === 0) {
-      throw new Error('You should pass the source of the audio');
-    }
+    let options = typeof args === 'string' || Array.isArray(args) ? {src: args} : args || {};
 
     this._id = typeof options.id === 'string' ? options.id : Math.round(Date.now() * Math.random()).toString();
-    this._src = Array.isArray(options.src) ? options.src : [options.src];
 
-    if(typeof options.volume === 'number' && options.volume >= 0 && options.volume <= 1.0) {
+    if (options !== undefined) {
+      this._src = Array.isArray(options.src) ? options.src : [options.src];
+    }
+
+    if (typeof options.volume === 'number' && options.volume >= 0 && options.volume <= 1.0) {
       this._volume = options.volume;
     }
 
@@ -182,15 +188,8 @@ class BaseBuzz {
     typeof options.onvolume === 'function' && this.on('volume', options.onvolume);
     typeof options.ondestroy === 'function' && this.on('destroy', options.ondestroy);
 
-    this._emitter = new EventEmitter('load,error,playstart,playend,stop,pause,mute,volume');
-    this._endTimer = null;
-    this._duration = 0;
-    this._startedAt = 0;
-    this._elapsed = 0;
-    this._isLoaded = false;
-
+    this._readAndValidate(options);
     buzzer.setup(null);
-
     this._context = buzzer.context();
     this._state = BuzzState.Constructed;
 
@@ -201,6 +200,21 @@ class BaseBuzz {
 
     if (this._preload) {
       this.load();
+    }
+  }
+
+  _readAndValidate(options) {
+    return undefined;
+  }
+
+  _removePlayHandler() {
+    this.off('load', this.play);
+  }
+
+  _clearEndTimer() {
+    if (this._endTimer) {
+      clearTimeout(this._endTimer);
+      this._endTimer = null;
     }
   }
 
@@ -281,20 +295,18 @@ class BaseBuzz {
   /**
    * Set/get the volume.
    * @param {number=} vol
-   * @returns {Buzz|number}
+   * @returns {BaseBuzz|number}
    */
   volume(vol) {
-    if (typeof vol === 'undefined') {
+    if (vol == undefined) {
       return this._volume;
     }
 
-    const volume = parseFloat(vol);
-
-    if (isNaN(volume) || volume < 0 || volume > 1.0) {
+    if (typeof vol !== 'number' || vol < 0 || vol > 1.0) {
       return this;
     }
 
-    this._volume = volume;
+    this._volume = vol;
     this._gainNode && (this._gainNode.gain.value = this._volume);
     this._fire('volume', this._volume);
 
@@ -357,7 +369,7 @@ class BaseBuzz {
    * @param {string} event
    * @param {...*} args
    * @returns {BaseBuzz}
-   * @private
+   * @protected
    */
   _fire(event, ...args) {
     this._emitter.fire(event, ...args, this);

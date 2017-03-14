@@ -1,6 +1,7 @@
 import BaseBuzz, {BuzzState, ErrorType} from './BaseBuzz';
 import {DownloadStatus} from '../util/BufferLoader';
 import codecAid from '../util/CodecAid';
+import EventEmitter from '../util/EventEmitter';
 import buzzer from './Buzzer';
 
 /**
@@ -8,6 +9,34 @@ import buzzer from './Buzzer';
  * @class
  */
 class BufferBuzz extends BaseBuzz {
+
+  /**
+   * Base64 string of the audio.
+   * @type {string}
+   * @private
+   */
+  _dataUri = '';
+
+  /**
+   * The sprite definition.
+   * @type {object}
+   * @private
+   */
+  _sprite = null;
+
+  /**
+   * Audio Buffer.
+   * @type {AudioBuffer|null}
+   * @private
+   */
+  _buffer = null;
+
+  /**
+   * AudioBufferSourceNode.
+   * @type {AudioBufferSourceNode|null}
+   * @private
+   */
+  _bufferSource = null;
 
   /**
    * @param {object} args
@@ -33,6 +62,14 @@ class BufferBuzz extends BaseBuzz {
    */
   constructor(args) {
     super(args);
+  }
+
+  _readAndValidate(options) {
+    typeof options.dataUri === 'string' && (this._dataUri = options.dataUri);
+
+    if(this._src.length === 0 && !this._dataUri) {
+      throw new Error('You should pass the source for the audio.');
+    }
   }
 
   /**
@@ -141,17 +178,6 @@ class BufferBuzz extends BaseBuzz {
     this._fire('playstart');
 
     return this;
-  }
-
-  _removePlayHandler() {
-    this.off('load', this.play);
-  }
-
-  _clearEndTimer() {
-    if (this._endTimer) {
-      clearTimeout(this._endTimer);
-      this._endTimer = null;
-    }
   }
 
   _reset() {
