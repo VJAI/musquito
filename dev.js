@@ -1,5 +1,6 @@
 import buzzer from './src/core/Buzzer';
-import Buzz from './src/core/Buzz';
+import BufferBuzz from './src/core/BufferBuzz';
+import MediaBuzz from './src/core/MediaBuzz';
 
 class BuzzerTester {
 
@@ -43,9 +44,11 @@ class BuzzerTester {
     var isSprite = this._buzzCreateForm['buzz-sound'].value === 'sprite',
       src = 'sounds/' + (isSprite ? 'sprite.mp3' : this._buzzCreateForm['buzz-sound'].value),
       volume = parseFloat(this._buzzCreateForm['buzz-volume'].value),
-      loop = this._buzzCreateForm['buzz-loop'].checked;
+      loop = this._buzzCreateForm['buzz-loop'].checked,
+      buffer = this._buzzCreateForm['buzz-buffer'].checked,
+      buzzType = buffer ? MediaBuzz : BufferBuzz;
 
-    var buzz = new Buzz({
+    var buzz = new buzzType({
       src: src,
       sprite: isSprite ? {
         beep: [0, 0.48108843537414964],
