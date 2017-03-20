@@ -60,6 +60,7 @@ class MediaBuzz extends BaseBuzz {
     const src = codecAid.getSupportedFile(this._src);
 
     if(!src) {
+      this._feasibleSrc = src;
       this._removePlayHandler();
       this._state = BuzzState.Error;
       this._fire('error', {type: ErrorType.LoadError, error: 'None of the audio format you passed is supported'});
@@ -85,7 +86,7 @@ class MediaBuzz extends BaseBuzz {
     this._gainNode.gain.value = this._muted ? 0 : this._volume;
     this._isLoaded = true;
     this._state = BuzzState.Ready;
-    this._fire('load', { url: this._src });
+    this._fire('load', new MediaDownloadResult(this._feasibleSrc, this._audio));
   }
 
   /**

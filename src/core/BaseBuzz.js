@@ -44,6 +44,13 @@ class BaseBuzz {
   _src = [];
 
   /**
+   * The supported source in the array of audio files.
+   * @type {string|null}
+   * @protected
+   */
+  _feasibleSrc = null;
+
+  /**
    * The current volume of the sound. The value should be between 0.0 and 1.0.
    * @type {number}
    * @protected
