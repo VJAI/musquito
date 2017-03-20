@@ -1,7 +1,6 @@
 import BaseBuzz, {BuzzState, ErrorType} from './BaseBuzz';
-import {DownloadStatus} from '../util/BufferLoader';
+import DownloadStatus from '../util/DownloadStatus';
 import codecAid from '../util/CodecAid';
-import EventEmitter from '../util/EventEmitter';
 import buzzer from './Buzzer';
 
 /**
@@ -64,12 +63,14 @@ class BufferBuzz extends BaseBuzz {
     super(args);
   }
 
-  _readAndValidate(options) {
-    typeof options.dataUri === 'string' && (this._dataUri = options.dataUri);
-
+  validate(options) {
     if(this._src.length === 0 && !this._dataUri) {
       throw new Error('You should pass the source for the audio.');
     }
+  }
+
+  _read(options) {
+    typeof options.dataUri === 'string' && (this._dataUri = options.dataUri);
   }
 
   /**

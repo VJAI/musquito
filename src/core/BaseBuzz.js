@@ -164,6 +164,8 @@ class BaseBuzz {
   constructor(args) {
     let options = typeof args === 'string' || Array.isArray(args) ? {src: args} : args || {};
 
+    this.validate(options);
+
     this._id = typeof options.id === 'string' ? options.id : Math.round(Date.now() * Math.random()).toString();
 
     if (options !== undefined) {
@@ -188,7 +190,7 @@ class BaseBuzz {
     typeof options.onvolume === 'function' && this.on('volume', options.onvolume);
     typeof options.ondestroy === 'function' && this.on('destroy', options.ondestroy);
 
-    this._readAndValidate(options);
+    this._read(options);
     buzzer.setup(null);
     this._context = buzzer.context();
     this._state = BuzzState.Constructed;
@@ -203,7 +205,11 @@ class BaseBuzz {
     }
   }
 
-  _readAndValidate(options) {
+  validate(options) {
+    return undefined;
+  }
+
+  _read(options) {
     return undefined;
   }
 

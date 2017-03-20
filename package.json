@@ -1,7 +1,7 @@
 {
   "name": "buzzer",
   "version": "0.1.0",
-  "description": "A light-weight audio engine for HTML5 games and interactive websites",
+  "description": "An audio engine for HTML5 games and interactive websites",
   "keywords": [
     "audio",
     "sound",

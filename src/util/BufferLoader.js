@@ -1,18 +1,10 @@
 import BufferCache from './BufferCache';
-
-/**
- * Enum to represent the download status of audio resource.
- * @enum {number}
- */
-const DownloadStatus = {
-  Success: 1,
-  Failure: 0
-};
+import DownloadStatus from './DownloadStatus';
 
 /**
  * Represents the success/failure download result of an audio resource.
  */
-class DownloadResult {
+class BufferDownloadResult {
 
   /**
    * @param {string} url
@@ -59,7 +51,7 @@ class BufferLoader {
   /**
    * Loads single or multiple audio resources into audio buffers.
    * @param {string|string[]} urls
-   * @return {Promise<DownloadResult|Array<DownloadResult>>}
+   * @return {Promise<BufferDownloadResult|Array<BufferDownloadResult>>}
    */
   load(urls) {
     if (typeof urls === 'string') {
@@ -72,14 +64,14 @@ class BufferLoader {
   /**
    * Loads a single audio resource into audio buffer and cache result if the download is succeeded.
    * @param {string} url
-   * @return {Promise<DownloadResult>}
+   * @return {Promise<BufferDownloadResult>}
    * @private
    */
   _load(url) {
     return new Promise(resolve => {
 
       if (this._bufferCache.hasBuffer(url)) {
-        resolve(new DownloadResult(url, this._bufferCache.getBuffer(url)));
+        resolve(new BufferDownloadResult(url, this._bufferCache.getBuffer(url)));
         return;
       }
 
@@ -88,13 +80,13 @@ class BufferLoader {
       req.responseType = 'arraybuffer';
 
       const reject = err => {
-        resolve(new DownloadResult(url, null, err));
+        resolve(new BufferDownloadResult(url, null, err));
       };
 
       req.addEventListener('load', () => {
         this._context.decodeAudioData(req.response).then(buffer => {
           this._bufferCache.setBuffer(url, buffer);
-          resolve(new DownloadResult(url, buffer));
+          resolve(new BufferDownloadResult(url, buffer));
         }, reject);
       }, false);
 
@@ -132,4 +124,4 @@ class BufferLoader {
   }
 }
 
-export {DownloadResult, DownloadStatus, BufferLoader as default};
+export {BufferDownloadResult, DownloadStatus, BufferLoader as default};

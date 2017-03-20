@@ -1,0 +1,47 @@
+<html>
+<head>
+  <title>
+    HTML5 Audio CanPlayThrough Experimentation
+  </title>
+</head>
+<body>
+<h1>HTML5 Audio CanPlayThrough Experimentation</h1>
+<button onclick="play()">Play</button>
+<button onclick="pause()">Pause</button>
+<button onclick="seek()">Seek</button>
+<button onclick="stop()">Stop</button>
+<audio src="http://prideparrot.com/demos/hollywood/assets/theme.mp3" controls preload="none"></audio>
+<script>
+  const audio = new Audio();
+
+  audio.src = 'http://prideparrot.com/demos/hollywood/assets/theme.mp3';
+
+  audio.addEventListener('canplaythrough', () => {
+    console.log('canplaythrough fired!');
+  });
+
+  audio.addEventListener('loadeddata', () => {
+    console.log('loadeddata fired!');
+  });
+
+  function play() {
+    console.log(audio.readyState);
+    audio.play();
+  }
+
+  function pause() {
+    audio.pause();
+  }
+
+  function seek() {
+    console.log(audio.readyState);
+    audio.currentTime = 70;
+  }
+
+  function stop() {
+    audio.pause();
+    audio.currentTime = 0;
+  }
+</script>
+</body>
+</html>

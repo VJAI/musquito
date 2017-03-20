@@ -1,10 +1,16 @@
-import BaseBuzz from './BaseBuzz';
+import BaseBuzz, {BuzzState, ErrorType} from './BaseBuzz';
+import codecAid from '../util/CodecAid';
+import {MediaDownloadResult} from '../util/MediaLoder';
 
 /**
  * Represents a single sound.
  * @class
  */
 class MediaBuzz extends BaseBuzz {
+
+  _audio = null;
+
+  _mediaElementAudioSourceNode = null;
 
   /**
    * @param {object} args
@@ -28,9 +34,10 @@ class MediaBuzz extends BaseBuzz {
    */
   constructor(args) {
     super(args);
+    this._audio = new Audio();
   }
 
-  _readAndValidate(options) {
+  _validate(options) {
     if(this._src.length === 0) {
       throw new Error('You should pass the source for the audio.');
     }
@@ -42,7 +49,43 @@ class MediaBuzz extends BaseBuzz {
    * @returns {MediaBuzz}
    */
   load() {
-    throw new Error('Not Implemented');
+    // If the buffer is already loaded return without reloading again.
+    if (this._isLoaded) {
+      return this;
+    }
+
+    // Set the state to "Loading" to avoid multiple times loading the buffer.
+    this._state = BuzzState.Loading;
+
+    const src = codecAid.getSupportedFile(this._src);
+
+    if(!src) {
+      this._removePlayHandler();
+      this._state = BuzzState.Error;
+      this._fire('error', {type: ErrorType.LoadError, error: 'None of the audio format you passed is supported'});
+      return this;
+    }
+
+    if(this._audio.readyState === 4) {
+      this._onLoad();
+      return this;
+    }
+
+    this._audio.preload = 'auto';
+    this._audio.addEventListener('canplaythrough', this._onLoad);
+    this._audio.src = src;
+    this._audio.load();
+    return this;
+  }
+
+  _onLoad() {
+    this._duration = this._audio.duration;
+    this._mediaElementAudioSourceNode = this._context.createMediaElementSource(this._audio);
+    this._gainNode = this._context.createGain();
+    this._gainNode.gain.value = this._muted ? 0 : this._volume;
+    this._isLoaded = true;
+    this._state = BuzzState.Ready;
+    this._fire('load', { url: this._src });
   }
 
   /**
@@ -52,7 +95,28 @@ class MediaBuzz extends BaseBuzz {
    * @returns {MediaBuzz}
    */
   play(sound) {
-    throw new Error('Not Implemented');
+    // If the sound is already in "Playing" state then it's not allowed to play again.
+    if (this._state === BuzzState.Playing) {
+      return this;
+    }
+
+    if (!this._isLoaded) {
+      this.on('load', {
+        handler: this.play,
+        target: this,
+        args: [sound],
+        once: true
+      });
+
+      this.load();
+
+      return this;
+    }
+
+    let offset = this._elapsed;
+    let duration = this._duration;
+
+
   }
 
   /**
