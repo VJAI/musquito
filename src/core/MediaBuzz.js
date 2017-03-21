@@ -60,33 +60,32 @@ class MediaBuzz extends BaseBuzz {
     const src = codecAid.getSupportedFile(this._src);
 
     if(!src) {
-      this._feasibleSrc = src;
       this._removePlayHandler();
       this._state = BuzzState.Error;
       this._fire('error', {type: ErrorType.LoadError, error: 'None of the audio format you passed is supported'});
       return this;
     }
 
-    if(this._audio.readyState === 4) {
-      this._onLoad();
-      return this;
-    }
+    this._feasibleSrc = src;
 
-    this._audio.preload = 'auto';
-    this._audio.addEventListener('canplaythrough', this._onLoad);
-    this._audio.src = src;
-    this._audio.load();
+    buzzer.load(this._feasibleSrc, this._cache).then(downloadResult => {
+      if (downloadResult.status === DownloadStatus.Success) {
+        this._audio = downloadResult.value;
+        this._duration = this._audio.duration;
+        this._gainNode = this._context.createGain();
+        this._gainNode.gain.value = this._muted ? 0 : this._volume;
+        this._isLoaded = true;
+        this._state = BuzzState.Ready;
+        this._fire('load', downloadResult);
+        return;
+      }
+
+      this._removePlayHandler();
+      this._state = BuzzState.Error;
+      this._fire('error', {type: ErrorType.LoadError, error: downloadResult.error});
+    });
+
     return this;
-  }
-
-  _onLoad() {
-    this._duration = this._audio.duration;
-    this._mediaElementAudioSourceNode = this._context.createMediaElementSource(this._audio);
-    this._gainNode = this._context.createGain();
-    this._gainNode.gain.value = this._muted ? 0 : this._volume;
-    this._isLoaded = true;
-    this._state = BuzzState.Ready;
-    this._fire('load', new MediaDownloadResult(this._feasibleSrc, this._audio));
   }
 
   /**
@@ -117,7 +116,39 @@ class MediaBuzz extends BaseBuzz {
     let offset = this._elapsed;
     let duration = this._duration;
 
+    // If we are gonna play a sound in sprite calculate the duration and also check if the offset is within that
+    // sound boundaries and if not reset to the starting point.
+    if (sound && this._sprite && this._sprite[sound]) {
+      const startEnd = this._sprite[sound],
+        soundStart = startEnd[0],
+        soundEnd = startEnd[1];
 
+      duration = soundEnd - soundStart;
+      offset = (offset < soundStart || offset > soundEnd) ? soundStart : offset;
+    }
+
+    buzzer._link(this);
+    this._clearEndTimer();
+    this._mediaElementAudioSourceNode = this._context.createMediaElementSource(this._audio);
+    this._mediaElementAudioSourceNode.connect(this._gainNode);
+    this._startedAt = this._context.currentTime;
+    this._endTimer = setTimeout(() => {
+      if (this._loop) {
+        this._startedAt = 0;
+        this._elapsed = 0;
+        this._state = BuzzState.Ready;
+        this._fire('playend');
+        this.play(sound);
+      } else {
+        this._reset();
+        this._state = BuzzState.Ready;
+        this._fire('playend');
+      }
+    }, duration * 1000);
+    this._state = BuzzState.Playing;
+    this._fire('playstart');
+
+    return this;
   }
 
   /**
