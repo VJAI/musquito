@@ -166,10 +166,11 @@ class Buzzer {
   /**
    * Loads single or multiple audio resources into audio buffers.
    * @param {string|string[]} urls
+   * @param {boolean} [cache = false]
    * @return {Promise}
    */
-  load(urls) {
-    return this._bufferLoader.load(urls);
+  load(urls, cache = false) {
+    return this._bufferLoader.load(urls, cache);
   }
 
   /**
@@ -184,7 +185,7 @@ class Buzzer {
 
   /**
    * Adds the buzz to the internal array for controlling the playback and to the audio graph.
-   * @param {Buzz} buzz
+   * @param {BaseBuzz} buzz
    * @returns {Buzzer}
    * @private
    */
@@ -213,7 +214,7 @@ class Buzzer {
 
   /**
    * Removes the buzz from the array and the graph.
-   * @param {Buzz} buzz
+   * @param {BaseBuzz} buzz
    * @returns {Buzzer}
    * @private
    */

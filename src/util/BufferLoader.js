@@ -51,23 +51,25 @@ class BufferLoader {
   /**
    * Loads single or multiple audio resources into audio buffers.
    * @param {string|string[]} urls
+   * @param {boolean} [cache = false]
    * @return {Promise<BufferDownloadResult|Array<BufferDownloadResult>>}
    */
-  load(urls) {
+  load(urls, cache = false) {
     if (typeof urls === 'string') {
-      return this._load(urls);
+      return this._load(urls, cache);
     }
 
-    return Promise.all(urls.map(url => this._load(url)));
+    return Promise.all(urls.map(url => this._load(url, cache)));
   }
 
   /**
    * Loads a single audio resource into audio buffer and cache result if the download is succeeded.
    * @param {string} url
+   * @param {boolean} cache
    * @return {Promise<BufferDownloadResult>}
    * @private
    */
-  _load(url) {
+  _load(url, cache) {
     return new Promise(resolve => {
 
       if (this._bufferCache.hasBuffer(url)) {
@@ -85,7 +87,9 @@ class BufferLoader {
 
       req.addEventListener('load', () => {
         this._context.decodeAudioData(req.response).then(buffer => {
-          this._bufferCache.setBuffer(url, buffer);
+          if(cache) {
+            this._bufferCache.setBuffer(url, buffer);
+          }
           resolve(new BufferDownloadResult(url, buffer));
         }, reject);
       }, false);

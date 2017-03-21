@@ -24,7 +24,11 @@ class MediaLoader {
     this.audioPool = audioPool;
   }
 
-  load(urls) {
+  load(urls, audioNodes) {
+
+  }
+
+  _load(url, audioNode) {
 
   }
 }

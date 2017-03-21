@@ -171,7 +171,7 @@ class BaseBuzz {
   constructor(args) {
     let options = typeof args === 'string' || Array.isArray(args) ? {src: args} : args || {};
 
-    this.validate(options);
+    this._validate(options);
 
     this._id = typeof options.id === 'string' ? options.id : Math.round(Date.now() * Math.random()).toString();
 
@@ -212,7 +212,7 @@ class BaseBuzz {
     }
   }
 
-  validate(options) {
+  _validate(options) {
     return undefined;
   }
 

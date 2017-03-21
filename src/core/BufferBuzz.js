@@ -24,6 +24,13 @@ class BufferBuzz extends BaseBuzz {
   _sprite = null;
 
   /**
+   * Whether to cache the buffer or not.
+   * @type {boolean}
+   * @protected
+   */
+  _cache = false;
+
+  /**
    * Audio Buffer.
    * @type {AudioBuffer|null}
    * @private
@@ -48,6 +55,7 @@ class BufferBuzz extends BaseBuzz {
    * @param {number} [args.loop = false] Whether the sound should play repeatedly.
    * @param {boolean} [args.preload = false] Load the sound initially itself.
    * @param {boolean} [args.autoplay = false] Play automatically once the object is created.
+   * @param {boolean} [args.cache = false] Whether to cache the buffer or not.
    * @param {function=} args.onload Event-handler for the "load" event.
    * @param {function=} args.onerror Event-handler for the "error" event.
    * @param {function=} args.onplaystart Event-handler for the "playstart" event.
@@ -63,14 +71,15 @@ class BufferBuzz extends BaseBuzz {
     super(args);
   }
 
-  validate(options) {
-    if(this._src.length === 0 && !this._dataUri) {
+  _validate(options) {
+    if (this._src.length === 0 && !this._dataUri) {
       throw new Error('You should pass the source for the audio.');
     }
   }
 
   _read(options) {
     typeof options.dataUri === 'string' && (this._dataUri = options.dataUri);
+    typeof options.cache === 'boolean' && (this._cache = options.cache);
   }
 
   /**
@@ -89,15 +98,16 @@ class BufferBuzz extends BaseBuzz {
 
     const src = codecAid.getSupportedFile(this._src);
 
-    if(!src) {
-      this._feasibleSrc = src;
+    if (!src) {
       this._removePlayHandler();
       this._state = BuzzState.Error;
       this._fire('error', {type: ErrorType.LoadError, error: 'None of the audio format you passed is supported'});
       return this;
     }
 
-    buzzer.load(this._feasibleSrc).then(downloadResult => {
+    this._feasibleSrc = src;
+
+    buzzer.load(this._feasibleSrc, this._cache).then(downloadResult => {
       if (downloadResult.status === DownloadStatus.Success) {
         this._buffer = downloadResult.value;
         this._duration = this._buffer.duration;
@@ -164,7 +174,7 @@ class BufferBuzz extends BaseBuzz {
     this._bufferSource.start(0, offset);
     this._startedAt = this._context.currentTime;
     this._endTimer = setTimeout(() => {
-      if(this._loop) {
+      if (this._loop) {
         this._startedAt = 0;
         this._elapsed = 0;
         this._state = BuzzState.Ready;
