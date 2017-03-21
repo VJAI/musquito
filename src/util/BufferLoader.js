@@ -6,6 +6,14 @@ import DownloadStatus from './DownloadStatus';
  */
 class BufferDownloadResult {
 
+  url = null;
+
+  value = null;
+
+  error = null;
+
+  status = null;
+
   /**
    * @param {string} url
    * @param {AudioBuffer=} value

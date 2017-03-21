@@ -3,6 +3,14 @@ import DownloadStatus from './DownloadStatus';
 
 class MediaDownloadResult {
 
+  url = null;
+
+  value = null;
+
+  error = null;
+
+  status = null;
+
   /**
    * @param {string} url
    * @param {Audio=} value
@@ -18,18 +26,30 @@ class MediaDownloadResult {
 
 class MediaLoader {
 
-  audioPool = Html5AudioPool;
+  _audioPool = Html5AudioPool;
 
   constructor(audioPool) {
-    this.audioPool = audioPool;
+    this._audioPool = audioPool;
   }
 
-  load(urls, audioNodes) {
+  load(urls) {
 
   }
 
-  _load(url, audioNode) {
+  allocate(url, id) {
+    return this._audioPool.allocate(url, id);
+  }
 
+  release(url, id) {
+    this._audioPool.release(url, id);
+  }
+
+  _load(url) {
+
+  }
+
+  unload(urls) {
+    this._audioPool.release(urls);
   }
 }
 
