@@ -1,28 +1,5 @@
 import Html5AudioPool from './Html5AudioPool';
-import DownloadStatus from './DownloadStatus';
-
-class MediaDownloadResult {
-
-  url = null;
-
-  value = null;
-
-  error = null;
-
-  status = null;
-
-  /**
-   * @param {string} url
-   * @param {Audio=} value
-   * @param {*=} error
-   */
-  constructor(url, value, error) {
-    this.url = url;
-    value && (this.value = value);
-    error && (this.error = error);
-    this.status = value ? DownloadStatus.Success : DownloadStatus.Failure;
-  }
-}
+import DownloadResult, {DownloadStatus} from './DownloadResult';
 
 class MediaLoader {
 
@@ -53,4 +30,4 @@ class MediaLoader {
   }
 }
 
-export {MediaDownloadResult, DownloadStatus, MediaLoader as default};
+export {DownloadResult, DownloadStatus, MediaLoader as default};

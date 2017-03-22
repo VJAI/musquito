@@ -2,7 +2,7 @@ import codecAid from './CodecAid';
 
 describe('CodecAid', () => {
 
-  beforeAll(() => {
+  beforeEach(() => {
     codecAid._formats = {
       mp3: true
     };

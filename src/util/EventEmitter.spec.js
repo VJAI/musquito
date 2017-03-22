@@ -4,33 +4,30 @@ describe('EventEmitter', () => {
 
   let eventEmitter;
 
-  beforeAll(() => {
+  beforeEach(() => {
     eventEmitter = new EventEmitter(['load', 'error']);
   });
 
-  afterAll(() => {
+  afterEach(() => {
     eventEmitter.clear();
   });
 
   describe('on constructed with passing event names', () => {
 
     it('should initialize an events object with keys as event names', () => {
-      expect(eventEmitter._events).toEqual({ 'load': [], 'error': [] });
+      expect(eventEmitter._events).toEqual({'load': [], 'error': []});
     });
   });
 
   describe('on subscribing to an event', () => {
 
-    const listener = () => {};
+    const listener = () => {
+    };
 
     describe('with that event name not exists', () => {
 
-      beforeAll(() => {
+      beforeEach(() => {
         eventEmitter.on('unload', listener);
-      });
-
-      afterAll(() => {
-        eventEmitter.clear();
       });
 
       it('should not store the listener', () => {
@@ -40,16 +37,12 @@ describe('EventEmitter', () => {
 
     describe('by passing only the handler function', () => {
 
-      beforeAll(() => {
+      beforeEach(() => {
         eventEmitter.on('load', listener);
       });
 
-      afterAll(() => {
-        eventEmitter.clear();
-      });
-
       it('should store the listener', () => {
-        expect(eventEmitter._events['load']).toEqual([{ handler: listener, once: false }]);
+        expect(eventEmitter._events['load']).toEqual([{handler: listener, once: false}]);
       });
     });
 
@@ -57,16 +50,12 @@ describe('EventEmitter', () => {
 
       const target = {}, args = 'test';
 
-      beforeAll(() => {
-        eventEmitter.on('load', { handler: listener, target: target, args: args, once: true });
-      });
-
-      afterAll(() => {
-        eventEmitter.clear();
+      beforeEach(() => {
+        eventEmitter.on('load', {handler: listener, target: target, args: args, once: true});
       });
 
       it('should store the listener along with other parameters', () => {
-        expect(eventEmitter._events['load']).toEqual([{ handler: listener, target: target, args: [args], once: true }]);
+        expect(eventEmitter._events['load']).toEqual([{handler: listener, target: target, args: [args], once: true}]);
       });
     });
   });
@@ -75,16 +64,16 @@ describe('EventEmitter', () => {
 
     describe('by passing only the handler', () => {
 
-      const listener1 = { cb: () => {} }, listener2 = () => {};
+      const listener1 = {
+        cb: () => {
+        }
+      }, listener2 = () => {
+      };
 
-      beforeAll(() => {
+      beforeEach(() => {
         eventEmitter.on('load', listener1.cb);
-        eventEmitter.on('load', { handler: listener1.cb, target: listener1 });
+        eventEmitter.on('load', {handler: listener1.cb, target: listener1});
         eventEmitter.on('load', listener2);
-      });
-
-      afterAll(() => {
-        eventEmitter.clear();
       });
 
       it('should remove the matched listeners from the array', () => {
@@ -96,16 +85,13 @@ describe('EventEmitter', () => {
     describe('by passing both the handler and the target', () => {
 
       const listener = {
-        cb: () => {}
+        cb: () => {
+        }
       };
 
-      beforeAll(() => {
-        eventEmitter.on('load', { handler: listener.cb });
-        eventEmitter.on('load', { handler: listener.cb, target: listener });
-      });
-
-      afterAll(() => {
-        eventEmitter.clear();
+      beforeEach(() => {
+        eventEmitter.on('load', {handler: listener.cb});
+        eventEmitter.on('load', {handler: listener.cb, target: listener});
       });
 
       it('should remove only the handlers that are bound to that target', () => {
@@ -118,18 +104,18 @@ describe('EventEmitter', () => {
   describe('on firing event', () => {
 
     let listener = {
-      cb: (arg) => {}
+      cb: (arg) => {
+      }
     };
 
-    beforeAll(() => {
+    beforeEach(() => {
       spyOn(listener, 'cb').and.callThrough();
-      eventEmitter.on('error', { handler: listener.cb, target: listener, args: 'test' });
-      eventEmitter.on('error', { handler: () => {}, once: true });
+      eventEmitter.on('error', {handler: listener.cb, target: listener, args: 'test'});
+      eventEmitter.on('error', {
+        handler: () => {
+        }, once: true
+      });
       eventEmitter.fire('error', 'test1');
-    });
-
-    afterAll(() => {
-      eventEmitter.clear();
     });
 
     it('the registered listeners should get called with the passed scope and arguments', (done) => {
@@ -141,7 +127,9 @@ describe('EventEmitter', () => {
     });
 
     it('the one-time registered listeners should be removed', () => {
-      expect(eventEmitter._events['error'].length).toBe(1);
+      setTimeout(() => {
+        expect(eventEmitter._events['error'].length).toBe(1);
+      }, 500);
     });
   });
 });

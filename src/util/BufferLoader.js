@@ -1,31 +1,5 @@
 import BufferCache from './BufferCache';
-import DownloadStatus from './DownloadStatus';
-
-/**
- * Represents the success/failure download result of an audio resource.
- */
-class BufferDownloadResult {
-
-  url = null;
-
-  value = null;
-
-  error = null;
-
-  status = null;
-
-  /**
-   * @param {string} url
-   * @param {AudioBuffer=} value
-   * @param {*=} error
-   */
-  constructor(url, value, error) {
-    this.url = url;
-    value && (this.value = value);
-    error && (this.error = error);
-    this.status = value ? DownloadStatus.Success : DownloadStatus.Failure;
-  }
-}
+import DownloadResult, {DownloadStatus} from './DownloadResult';
 
 /**
  * Loads the audio sources into audio buffers and returns them.
@@ -59,10 +33,10 @@ class BufferLoader {
   /**
    * Loads single or multiple audio resources into audio buffers.
    * @param {string|string[]} urls
-   * @param {boolean} [cache = false]
-   * @return {Promise<BufferDownloadResult|Array<BufferDownloadResult>>}
+   * @param {boolean} [cache = true]
+   * @return {Promise<DownloadResult|Array<DownloadResult>>}
    */
-  load(urls, cache = false) {
+  load(urls, cache = true) {
     if (typeof urls === 'string') {
       return this._load(urls, cache);
     }
@@ -74,14 +48,14 @@ class BufferLoader {
    * Loads a single audio resource into audio buffer and cache result if the download is succeeded.
    * @param {string} url
    * @param {boolean} cache
-   * @return {Promise<BufferDownloadResult>}
+   * @return {Promise<DownloadResult>}
    * @private
    */
   _load(url, cache) {
     return new Promise(resolve => {
 
       if (this._bufferCache.hasBuffer(url)) {
-        resolve(new BufferDownloadResult(url, this._bufferCache.getBuffer(url)));
+        resolve(new DownloadResult(url, this._bufferCache.getBuffer(url)));
         return;
       }
 
@@ -90,7 +64,7 @@ class BufferLoader {
       req.responseType = 'arraybuffer';
 
       const reject = err => {
-        resolve(new BufferDownloadResult(url, null, err));
+        resolve(new DownloadResult(url, null, err));
       };
 
       req.addEventListener('load', () => {
@@ -98,7 +72,7 @@ class BufferLoader {
           if(cache) {
             this._bufferCache.setBuffer(url, buffer);
           }
-          resolve(new BufferDownloadResult(url, buffer));
+          resolve(new DownloadResult(url, buffer));
         }, reject);
       }, false);
 
@@ -136,4 +110,4 @@ class BufferLoader {
   }
 }
 
-export {BufferDownloadResult, DownloadStatus, BufferLoader as default};
+export {DownloadResult, DownloadStatus, BufferLoader as default};

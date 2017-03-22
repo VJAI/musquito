@@ -1,28 +1,62 @@
+/**
+ * Represents the different statuses of audio pool.
+ * @enum {number}
+ */
 const AudioPoolState = {
   Idle: 0,
   Monitoring: 1
 };
 
+/**
+ * Manages the pool of HTML5 audio nodes.
+ */
 class Html5AudioPool {
 
-  _freeUpInterval = 1;
+  /**
+   * The duration to run everytime the clean-up process.
+   * @type {number}
+   * @private
+   */
+  _cleanUpInterval = 1;
 
+  /**
+   * Created audio nodes for each resource.
+   * @type {object}
+   * @private
+   */
   _audioNodes = {};
 
+  /**
+   * The clean-up interval timer id.
+   * @type {number|null}
+   * @private
+   */
   _intervalId = null;
 
+  /**
+   * The current state of the pool.
+   * @type {AudioPoolState}
+   * @private
+   */
   _state = AudioPoolState.Idle;
 
+  /**
+   * Initialize the pool properties.
+   * @param {object=} options
+   * @param {number=} options.cleanUpInterval
+   */
   constructor(options = {}) {
-    typeof options.freeUpInterval === 'number' && (this._freeUpInterval = options.freeUpInterval);
+    typeof options.cleanUpInterval === 'number' && (this._cleanUpInterval = options.cleanUpInterval);
   }
 
-  _getNode(src) {
-    return this._audioNodes[src];
-  }
-
+  /**
+   * Allocates an audio node to a particular resource and sound.
+   * @param {string} src
+   * @param {string=} id
+   * @return {Audio}
+   */
   allocate(src, id) {
-    let nodes = this._getNode(src);
+    let nodes = this._audioNodes[src];
 
     if(!nodes) {
       nodes = [];
@@ -32,8 +66,8 @@ class Html5AudioPool {
     const inActiveNode = nodes.find(node => node.id === null);
 
     if(inActiveNode) {
-      inActiveNode.id = id;
-      return inActiveNode;
+      inActiveNode.id;
+      return inActiveNode.audio;
     }
 
     const newNode = {
@@ -43,11 +77,16 @@ class Html5AudioPool {
 
     nodes.push(newNode);
 
-    return newNode;
+    return newNode.audio;
   }
 
+  /**
+   * Release the allocated audio nodes.
+   * @param src
+   * @param id
+   */
   release(src, id) {
-    let nodes = this._getNode(src);
+    let nodes = this._audioNodes[src];
 
     if(!nodes) {
       return;
@@ -65,7 +104,7 @@ class Html5AudioPool {
       return;
     }
 
-    this._intervalId = setInterval(this._freeInActiveNodes, this._freeUpInterval * 60 * 1000);
+    this._intervalId = setInterval(this._freeInActiveNodes, this._cleanUpInterval * 60 * 1000);
     this._state = AudioPoolState.Monitoring;
   }
 
@@ -83,11 +122,7 @@ class Html5AudioPool {
   }
 
   _freeInActiveNodes() {
-
-  }
-
-  free() {
-    this._state = AudioPoolState.Idle;
+    // TODO: Come-up with a better strategy for cleaning up audio nodes.
   }
 }
 

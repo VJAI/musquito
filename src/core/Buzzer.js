@@ -166,10 +166,10 @@ class Buzzer {
   /**
    * Loads single or multiple audio resources into audio buffers.
    * @param {string|string[]} urls
-   * @param {boolean} [cache = false]
+   * @param {boolean} [cache = true]
    * @return {Promise}
    */
-  load(urls, cache = false) {
+  load(urls, cache = true) {
     return this._bufferLoader.load(urls, cache);
   }
 

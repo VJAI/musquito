@@ -6,7 +6,6 @@ describe('BufferLoader', () => {
 
   beforeAll(() => {
     context = new (AudioContext || webkitAudioContext)();
-    bufferLoader = new BufferLoader(context);
   });
 
   afterAll(() => {
@@ -14,8 +13,16 @@ describe('BufferLoader', () => {
       context.close();
       context = null;
     }
+  });
 
-    bufferLoader.dispose();
+  beforeEach(() => {
+    bufferLoader = new BufferLoader(context);
+  });
+
+  afterEach(() => {
+    if(bufferLoader) {
+      bufferLoader.dispose();
+    }
   });
 
   describe('on constructed', () => {
@@ -32,7 +39,7 @@ describe('BufferLoader', () => {
       const url = 'base/sounds/beep.mp3';
       let downloadResult;
 
-      beforeAll((done) => {
+      beforeEach((done) => {
         bufferLoader.load(url)
           .then(result => {
             downloadResult = result;
@@ -40,38 +47,16 @@ describe('BufferLoader', () => {
           });
       });
 
-      afterAll(() => {
-        bufferLoader.unload();
-      });
-
       it('should return an object with url, value, status and empty error', () => {
         expect(downloadResult.status).toBe(DownloadStatus.Success);
         expect(downloadResult.url).toBe(url);
         expect(downloadResult.value).toBeDefined();
-        expect(downloadResult.error).toBeUndefined();
+        expect(downloadResult.error).toBeNull();
       });
 
       it('should have the buffer cached', () => {
         expect(bufferLoader._bufferCache.hasBuffer(url)).toBe(true);
         expect(bufferLoader._bufferCache.getBuffer(url)).toBe(downloadResult.value);
-      });
-
-      describe('and reloading again', () => {
-
-        let downloadResult2;
-
-        beforeAll((done) => {
-          bufferLoader.load(url)
-            .then(result => {
-              downloadResult2 = result;
-              done();
-            });
-        });
-
-        it('should return the already cached result', () => {
-          expect(downloadResult2).toBeDefined();
-          expect(downloadResult2.url).toBe(url);
-        });
       });
     });
 
@@ -80,7 +65,7 @@ describe('BufferLoader', () => {
       const url = 'base/sounds/notexist.mp3';
       let downloadResult;
 
-      beforeAll((done) => {
+      beforeEach((done) => {
         bufferLoader.load(url)
           .then(result => {
             downloadResult = result;
@@ -106,16 +91,12 @@ describe('BufferLoader', () => {
       const urls = ['base/sounds/beep.mp3', 'base/sounds/notexist.mp3'];
       let downloadResults;
 
-      beforeAll((done) => {
+      beforeEach((done) => {
         bufferLoader.load(urls, context)
           .then(result => {
             downloadResults = result;
             done();
           });
-      });
-
-      afterAll(() => {
-        bufferLoader.unload();
       });
 
       it('should return all the results with correct values', () => {
@@ -129,26 +110,6 @@ describe('BufferLoader', () => {
         const failedResults = downloadResults.filter(downloadResult => downloadResult.status === DownloadStatus.Failure);
         expect(failedResults.length).toBe(1);
         expect(failedResults[0].url).toBe(urls[1]);
-      });
-
-      describe('reloading again', () => {
-
-        let downloadResults2;
-
-        beforeAll((done) => {
-          bufferLoader.load(urls, context)
-            .then(result => {
-              downloadResults2 = result;
-              done();
-            });
-        });
-
-        it('should return all the results with correct values', () => {
-          expect(downloadResults).toBeDefined();
-          expect(downloadResults.length).toBe(2);
-          expect(downloadResults.filter(downloadResult => downloadResult.status === DownloadStatus.Success).length).toBe(1);
-          expect(downloadResults.filter(downloadResult => downloadResult.status === DownloadStatus.Failure).length).toBe(1);
-        });
       });
     });
   });
