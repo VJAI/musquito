@@ -94,14 +94,14 @@ class BaseBuzz {
 
   /**
    * AudioContext.
-   * @type {AudioContext|null}
+   * @type {AudioContext}
    * @protected
    */
   _context = null;
 
   /**
    * The gain node to control the volume of the sound.
-   * @type {GainNode|null}
+   * @type {GainNode}
    * @protected
    */
   _gainNode = null;

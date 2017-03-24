@@ -32,14 +32,14 @@ class BufferBuzz extends BaseBuzz {
 
   /**
    * Audio Buffer.
-   * @type {AudioBuffer|null}
+   * @type {AudioBuffer}
    * @private
    */
   _buffer = null;
 
   /**
    * AudioBufferSourceNode.
-   * @type {AudioBufferSourceNode|null}
+   * @type {AudioBufferSourceNode}
    * @private
    */
   _bufferSource = null;

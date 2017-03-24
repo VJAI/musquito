@@ -9,14 +9,14 @@ class BufferLoader {
 
   /**
    * AudioContext.
-   * @type {AudioContext|null}
+   * @type {AudioContext}
    * @private
    */
   _context = null;
 
   /**
    * In-memory audio buffer cache store.
-   * @type {BufferCache|null}
+   * @type {BufferCache}
    * @private
    */
   _bufferCache = null;
@@ -104,7 +104,7 @@ class BufferLoader {
   }
 
   dispose() {
-    this.unload();
+    this._bufferCache.clearBuffers();
     this._bufferCache = null;
     this._context = null;
   }

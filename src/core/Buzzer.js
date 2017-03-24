@@ -30,14 +30,14 @@ class Buzzer {
 
   /**
    * The web audio api's audio context.
-   * @type {AudioContext|null}
+   * @type {AudioContext}
    * @private
    */
   _context = null;
 
   /**
    * BufferLoader.
-   * @type {BufferLoader|null}
+   * @type {BufferLoader}
    * @private
    */
   _bufferLoader = null;

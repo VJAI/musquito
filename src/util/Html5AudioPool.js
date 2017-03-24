@@ -137,6 +137,10 @@ class Html5AudioPool {
   _freeInActiveNodes() {
     // TODO: Come-up with a better strategy for cleaning up audio nodes.
   }
+
+  dispose() {
+
+  }
 }
 
 export default Html5AudioPool;
