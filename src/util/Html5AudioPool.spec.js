@@ -9,14 +9,14 @@ describe('Html5AudioPool', () => {
   });
 
   afterEach(() => {
-
+    // TODO
   });
 
   describe('on allocating a node for a sound', () => {
 
     const src = 'beep.mp3', soundId = '12345';
 
-    beforeAll(() => {
+    beforeEach(() => {
       html5AudioPool.allocate(src, soundId);
     });
 
@@ -30,5 +30,69 @@ describe('Html5AudioPool', () => {
     });
   });
 
+  describe('on allocating a single nodes to a resource', () => {
 
+    const src = 'beep.mp3';
+
+    beforeEach(() => {
+      html5AudioPool.allocate(src);
+    });
+
+    it('should create a new entry in the audio nodes object', () => {
+      const audioNodes = html5AudioPool._audioNodes[src];
+
+      expect(audioNodes).toBeDefined();
+      expect(audioNodes.length).toBe(1);
+    });
+  });
+
+  describe('on allocating multiple audio nodes to a resource', () => {
+
+    const src = 'beep.mp3';
+
+    beforeEach(() => {
+      html5AudioPool.allocate(src);
+      html5AudioPool.allocate(src);
+    });
+
+    it('should create a new entry in the audio nodes object', () => {
+      const audioNodes = html5AudioPool._audioNodes[src];
+
+      expect(audioNodes).toBeDefined();
+      expect(audioNodes.length).toBe(2);
+    });
+  });
+
+  describe('on releasing an allocated audio node of a sound', () => {
+
+    beforeEach(() => {
+      html5AudioPool._audioNodes = {
+        'beep.mp3': [{id: 1, audio: new Audio()}, {id: 2, audio: new Audio()}]
+      };
+
+      html5AudioPool.release('beep.mp3', 1);
+    });
+
+    it('should remove the allocated sound from the node', () => {
+      const audioNodes = html5AudioPool._audioNodes['beep.mp3'];
+
+      expect(audioNodes[0].id).toBeNull();
+    });
+  });
+
+  describe('on releasing all the allocated nodes of a resource', () => {
+
+    beforeEach(() => {
+      html5AudioPool._audioNodes = {
+        'beep.mp3': [{id: 1, audio: new Audio()}, {id: null, audio: new Audio()}]
+      };
+
+      html5AudioPool.release('beep.mp3');
+    });
+
+    it('should remove all the allocated nodes of the resource', () => {
+      const audioNodes = html5AudioPool._audioNodes['beep.mp3'];
+      expect(audioNodes.length).toBe(1);
+    });
+  });
 });

@@ -4,13 +4,15 @@ import MediaBuzz from './src/core/MediaBuzz';
 
 class BuzzerTester {
 
-  constructor() {
-    this._buzzes = [];
-    this._buzzerMuteBtn = null;
-    this._buzzerVolumeSlider = null;
-    this._buzzCreateForm = null;
-    this._buzzesList = null;
-  }
+  _buzzes = [];
+
+  _buzzerMuteBtn = null;
+
+  _buzzerVolumeSlider = null;
+
+  _buzzCreateForm = null;
+
+  _buzzesList = null;
 
   init() {
     this._buzzerMuteBtn = document.getElementById('buzzer-mute');

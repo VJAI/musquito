@@ -92,11 +92,24 @@ class Html5AudioPool {
       return;
     }
 
-    const node = nodes.find(node => node.id === id);
+    if(id) {
+      const node = nodes.find(node => node.id === id);
 
-    if(node) {
-      node.id = null;
+      if(node) {
+        node.id = null;
+      }
+
+      return;
     }
+
+    this._audioNodes[src] = nodes.filter(node => {
+      if(node.id) {
+        return true;
+      }
+
+      node.audio.pause();
+      return false;
+    });
   }
 
   monitor() {
