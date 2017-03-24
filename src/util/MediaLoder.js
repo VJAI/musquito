@@ -45,10 +45,10 @@ class MediaLoader {
       }
 
       audio.addEventListener('canplaythrough', () => {
-        return new DownloadResult(url, audio);
+        resolve(new DownloadResult(url, audio));
       });
       audio.addEventListener('error', err => {
-        return new DownloadResult(url, null, err);
+        reject(new DownloadResult(url, null, err));
       });
       audio.src = url;
       audio.load();
