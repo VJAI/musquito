@@ -72,7 +72,7 @@ class BufferBuzz extends BaseBuzz {
   }
 
   _validate(options) {
-    if (this._src.length === 0 && !this._dataUri) {
+    if((!options.src || (Array.isArray(options.src) && options.src.length === 0)) && !this._dataUri) {
       throw new Error('You should pass the source for the audio.');
     }
   }

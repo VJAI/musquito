@@ -3,10 +3,9 @@ import MediaLoader, {DownloadStatus} from './MediaLoder';
 
 describe('MediaLoader', () => {
 
-  let html5AudioPool, mediaLoder;
+  let mediaLoder;
 
   beforeEach(() => {
-    html5AudioPool = new Html5AudioPool();
     mediaLoder = new MediaLoader(html5AudioPool);
   });
 

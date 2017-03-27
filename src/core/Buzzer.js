@@ -1,5 +1,6 @@
 import codecAid from '../util/CodecAid';
 import BufferLoader from '../util/BufferLoader';
+import MediaLoader from '../util/MediaLoder';
 import EventEmitter from '../util/EventEmitter';
 
 /**
@@ -41,6 +42,13 @@ class Buzzer {
    * @private
    */
   _bufferLoader = null;
+
+  /**
+   * MediaLoader.
+   * @type {MediaLoader}
+   * @private
+   */
+  _mediaLoader = null;
 
   /**
    * EventEmitter.
@@ -156,6 +164,7 @@ class Buzzer {
     typeof options.onbuzzstop === 'function' && this.on('buzzstop', options.onbuzzstop);
 
     this._bufferLoader = new BufferLoader(this._context);
+    this._mediaLoader = new MediaLoader();
     this._gainNode = this._context.createGain();
     this._gainNode.gain.value = this._volume;
     this._gainNode.connect(this._context.destination);
@@ -180,6 +189,27 @@ class Buzzer {
    */
   unload(urls) {
     this._bufferLoader.unload(urls);
+    return this;
+  }
+
+  /**
+   * Pre-loads HTML5 audio nodes with audio files.
+   * @param {string|string[]} urls
+   * @param {string=} id
+   * @return {Promise.<DownloadResult|Array<DownloadResult>>}
+   */
+  loadMedia(urls, id) {
+    return this._mediaLoader.load(urls, id);
+  }
+
+  /**
+   * Release the pre-loaded HTML audio nodes.
+   * @param {string|string[]=} urls
+   * @param {string} id
+   * @return {Buzzer}
+   */
+  unloadMedia(urls, id) {
+    this._mediaLoader.unload(urls, id);
     return this;
   }
 
@@ -338,6 +368,10 @@ class Buzzer {
     // Clear the cache and remove the loader.
     this._bufferLoader.unload();
     this._bufferLoader = null;
+
+    // Dispose the MediaLoader.
+    this._mediaLoader.dispose();
+    this._mediaLoader = null;
 
     // Close the context.
     if (!this._isContextInjected) {

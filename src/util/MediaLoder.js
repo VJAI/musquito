@@ -1,3 +1,4 @@
+import Html5AudioPool from './Html5AudioPool';
 import DownloadResult, {DownloadStatus} from './DownloadResult';
 
 /**
@@ -14,11 +15,10 @@ class MediaLoader {
   _audioPool = null;
 
   /**
-   * Stores the audio pool.
-   * @param {Html5AudioPool} audioPool
+   * Creates the audio pool.
    */
-  constructor(audioPool) {
-    this._audioPool = audioPool;
+  constructor() {
+    this._audioPool = new Html5AudioPool();
   }
 
   /**

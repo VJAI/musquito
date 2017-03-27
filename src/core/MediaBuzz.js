@@ -1,6 +1,7 @@
 import BaseBuzz, {BuzzState, ErrorType} from './BaseBuzz';
 import codecAid from '../util/CodecAid';
-import {MediaDownloadResult} from '../util/MediaLoder';
+import DownloadStatus from '../util/DownloadStatus';
+import buzzer from './Buzzer';
 
 /**
  * Represents a single sound.
@@ -38,13 +39,13 @@ class MediaBuzz extends BaseBuzz {
   }
 
   _validate(options) {
-    if(this._src.length === 0) {
+    if(!options.src || (Array.isArray(options.src) && options.src.length === 0)) {
       throw new Error('You should pass the source for the audio.');
     }
   }
 
   /**
-   * Load the sound into an audio buffer.
+   * Load the sound into an audio node.
    * Fires 'load' event on successful load and 'error' event on failure.
    * @returns {MediaBuzz}
    */
@@ -68,7 +69,7 @@ class MediaBuzz extends BaseBuzz {
 
     this._feasibleSrc = src;
 
-    buzzer.load(this._feasibleSrc, this._cache).then(downloadResult => {
+    buzzer.loadMedia(this._feasibleSrc, this._id).then(downloadResult => {
       if (downloadResult.status === DownloadStatus.Success) {
         this._audio = downloadResult.value;
         this._duration = this._audio.duration;
@@ -113,24 +114,12 @@ class MediaBuzz extends BaseBuzz {
       return this;
     }
 
-    let offset = this._elapsed;
-    let duration = this._duration;
-
-    // If we are gonna play a sound in sprite calculate the duration and also check if the offset is within that
-    // sound boundaries and if not reset to the starting point.
-    if (sound && this._sprite && this._sprite[sound]) {
-      const startEnd = this._sprite[sound],
-        soundStart = startEnd[0],
-        soundEnd = startEnd[1];
-
-      duration = soundEnd - soundStart;
-      offset = (offset < soundStart || offset > soundEnd) ? soundStart : offset;
-    }
-
     buzzer._link(this);
     this._clearEndTimer();
     this._mediaElementAudioSourceNode = this._context.createMediaElementSource(this._audio);
     this._mediaElementAudioSourceNode.connect(this._gainNode);
+    this._audio.currentTime = this._elapsed;
+    this._audio.play();
     this._startedAt = this._context.currentTime;
     this._endTimer = setTimeout(() => {
       if (this._loop) {
@@ -144,7 +133,7 @@ class MediaBuzz extends BaseBuzz {
         this._state = BuzzState.Ready;
         this._fire('playend');
       }
-    }, duration * 1000);
+    }, this._duration * 1000);
     this._state = BuzzState.Playing;
     this._fire('playstart');
 
