@@ -6,7 +6,7 @@ describe('MediaLoader', () => {
   let mediaLoder;
 
   beforeEach(() => {
-    mediaLoder = new MediaLoader(html5AudioPool);
+    mediaLoder = new MediaLoader();
   });
 
   afterEach(() => {
