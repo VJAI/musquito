@@ -116,8 +116,12 @@ class MediaBuzz extends BaseBuzz {
 
     buzzer._link(this);
     this._clearEndTimer();
-    this._mediaElementAudioSourceNode = this._context.createMediaElementSource(this._audio);
-    this._mediaElementAudioSourceNode.connect(this._gainNode);
+
+    if(!this._mediaElementAudioSourceNode) {
+      this._mediaElementAudioSourceNode = this._context.createMediaElementSource(this._audio);
+      this._mediaElementAudioSourceNode.connect(this._gainNode);
+    }
+
     this._audio.currentTime = this._elapsed;
     this._audio.play();
     this._startedAt = this._context.currentTime;
@@ -140,12 +144,38 @@ class MediaBuzz extends BaseBuzz {
     return this;
   }
 
+  _reset() {
+    buzzer._unlink(this);
+
+    if(this._audio) {
+      this._audio.pause();
+    }
+
+    this._startedAt = 0;
+    this._elapsed = 0;
+    this._clearEndTimer();
+  }
+
   /**
    * Pause the playing sound.
    * @returns {MediaBuzz}
    */
   pause() {
-    throw new Error('Not Implemented');
+    // Remove the "play" event handler from queue if there is one.
+    this._removePlayHandler();
+
+    // We can pause the sound only if it is "playing" state.
+    if (this._state !== BuzzState.Playing) {
+      return this;
+    }
+
+    const startedAt = this._startedAt, elapsed = this._elapsed;
+    this._reset();
+    this._elapsed = elapsed + this._context.currentTime - startedAt;
+    this._state = BuzzState.Paused;
+    this._fire('pause');
+
+    return this;
   }
 
   /**
@@ -153,7 +183,19 @@ class MediaBuzz extends BaseBuzz {
    * @returns {MediaBuzz}
    */
   stop() {
-    throw new Error('Not Implemented');
+    // Remove the "play" event handler from queue if there is one.
+    this._removePlayHandler();
+
+    // We can stop the sound either if it "playing" or in "paused" state.
+    if (this._state !== BuzzState.Playing && this._state !== BuzzState.Paused) {
+      return this;
+    }
+
+    this._reset();
+    this._state = BuzzState.Stopped;
+    this._fire('stop');
+
+    return this;
   }
 
   /**

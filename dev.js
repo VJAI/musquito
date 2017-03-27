@@ -38,7 +38,7 @@ class BuzzerTester {
   }
 
   _changeVolumeBuzzer() {
-    var volume = this._buzzerVolumeSlider.value;
+    var volume = parseFloat(this._buzzerVolumeSlider.value);
     buzzer.volume(volume);
   }
 
@@ -92,7 +92,7 @@ class BuzzerTester {
       }
     });
     buzzLi.querySelector('.buzz-stop').addEventListener('click', () => buzz.stop());
-    buzzLi.querySelector('.buzz-volume').addEventListener('change', () => buzz.volume(buzzLi.querySelector('.buzz-volume').value));
+    buzzLi.querySelector('.buzz-volume').addEventListener('change', () => buzz.volume(parseFloat(buzzLi.querySelector('.buzz-volume').value)));
 
     event.preventDefault();
     return false;
