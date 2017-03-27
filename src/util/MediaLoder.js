@@ -22,7 +22,7 @@ class MediaLoader {
   }
 
   /**
-   * Load the audio nodes and return them.
+   * Preload the audio nodes with audio and return them.
    * @param {string|string[]} urls
    * @param {string=} id
    * @return {Promise<DownloadResult|Array<DownloadResult>>}
@@ -47,24 +47,33 @@ class MediaLoader {
       audio.addEventListener('canplaythrough', () => {
         resolve(new DownloadResult(url, audio));
       });
+
       audio.addEventListener('error', err => {
         reject(new DownloadResult(url, null, err));
       });
+
       audio.src = url;
       audio.load();
     });
   }
 
   /**
-   * TODO:
-   * @param {string|string[]} urls
+   * Releases the allocated audio node(s).
+   * @param {string|string[]=} urls
    * @param {string=} id
-   * @return {Promise<DownloadResult>}
    */
   unload(urls, id) {
+    if(Array.isArray(urls)) {
+      urls.forEach(url => this._audioPool.release(url));
+      return;
+    }
+
     this._audioPool.release(urls, id);
   }
 
+  /**
+   * Dispose the pool.
+   */
   dispose() {
     this._audioPool.dispose();
     this._audioPool = null;

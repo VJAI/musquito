@@ -1,23 +1,7 @@
 /**
- * Represents the different statuses of audio pool.
- * @enum {number}
- */
-const AudioPoolState = {
-  Idle: 0,
-  Monitoring: 1
-};
-
-/**
  * Manages the pool of HTML5 audio nodes.
  */
 class Html5AudioPool {
-
-  /**
-   * The duration to run everytime the clean-up process.
-   * @type {number}
-   * @private
-   */
-  _cleanUpInterval = 1;
 
   /**
    * Created audio nodes for each resource.
@@ -27,46 +11,28 @@ class Html5AudioPool {
   _audioNodes = {};
 
   /**
-   * The clean-up interval timer id.
-   * @type {number|null}
-   * @private
-   */
-  _intervalId = null;
-
-  /**
-   * The current state of the pool.
-   * @type {AudioPoolState}
-   * @private
-   */
-  _state = AudioPoolState.Idle;
-
-  /**
-   * Initialize the pool properties.
-   * @param {object=} options
-   * @param {number=} options.cleanUpInterval
-   */
-  constructor(options = {}) {
-    typeof options.cleanUpInterval === 'number' && (this._cleanUpInterval = options.cleanUpInterval);
-  }
-
-  /**
    * Allocates an audio node to a particular resource and sound.
    * @param {string} src
    * @param {string=} id
    * @return {Audio}
    */
   allocate(src, id) {
+    // Retrieve all the allocated nodes for the resource
+    // and check is there are inactive nodes, if there are
+    // assign the sound to the first one.
+    // If there are no inactive nodes, create a new node
+    // and add to the array.
     let nodes = this._audioNodes[src];
 
-    if(!nodes) {
+    if (!nodes) {
       nodes = [];
       this._audioNodes[src] = nodes;
     }
 
     const inActiveNode = nodes.find(node => node.id === null);
 
-    if(inActiveNode) {
-      inActiveNode.id;
+    if (inActiveNode) {
+      inActiveNode.id = id;
       return inActiveNode.audio;
     }
 
@@ -82,64 +48,65 @@ class Html5AudioPool {
 
   /**
    * Release the allocated audio nodes.
-   * @param src
-   * @param id
+   * @param {string=} src
+   * @param {string=} id
    */
   release(src, id) {
-    let nodes = this._audioNodes[src];
-
-    if(!nodes) {
+    // If the user hasn't passed any parameter then release inactive nodes linked to all the sources.
+    // If the user has passed only the source then dispose all the inactive nodes linked to the source.
+    // If id is passed relinquish the audio node from the sound.
+    if (arguments.length === 0) {
+      Object.keys(this._audioNodes).forEach(src => {
+        this._releaseSourceNodes(src);
+      });
       return;
     }
 
-    if(id) {
+    let nodes = this._audioNodes[src];
+
+    if (!nodes) {
+      return;
+    }
+
+    if (id) {
       const node = nodes.find(node => node.id === id);
 
-      if(node) {
+      if (node) {
         node.id = null;
       }
 
       return;
     }
 
-    this._audioNodes[src] = nodes.filter(node => {
-      if(node.id) {
+    this._releaseSourceNodes(src);
+  }
+
+  /**
+   * Release the audio nodes linked to a source.
+   * @param {string} src
+   * @param {boolean=} [onlyFree = true]
+   * @private
+   */
+  _releaseSourceNodes(src, onlyFree = true) {
+    this._audioNodes[src] = this._audioNodes[src].filter(node => {
+      if (onlyFree && node.id) {
         return true;
       }
 
       node.audio.pause();
+      node.audio = null;
       return false;
     });
   }
 
-  monitor() {
-    if(this._state === AudioPoolState.Monitoring) {
-      return;
-    }
-
-    this._intervalId = setInterval(this._freeInActiveNodes, this._cleanUpInterval * 60 * 1000);
-    this._state = AudioPoolState.Monitoring;
-  }
-
-  stop() {
-    if(this._state === AudioPoolState.Idle) {
-      return;
-    }
-
-    if(this._intervalId) {
-      clearInterval(this._intervalId);
-      this._intervalId = null;
-    }
-
-    this._state = AudioPoolState.Idle;
-  }
-
-  _freeInActiveNodes() {
-    // TODO: Come-up with a better strategy for cleaning up audio nodes.
-  }
-
+  /**
+   * Releases all the audio nodes.
+   */
   dispose() {
-
+    Object.keys(this._audioNodes).forEach(src => {
+      this._releaseSourceNodes(src, false);
+      delete this._audioNodes[src];
+    });
   }
 }
 

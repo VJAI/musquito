@@ -9,7 +9,7 @@ describe('Html5AudioPool', () => {
   });
 
   afterEach(() => {
-    // TODO
+    html5AudioPool.dispose();
   });
 
   describe('on allocating a node for a sound', () => {
@@ -80,7 +80,7 @@ describe('Html5AudioPool', () => {
     });
   });
 
-  describe('on releasing all the allocated nodes of a resource', () => {
+  describe('on releasing all the inactive nodes of a resource', () => {
 
     beforeEach(() => {
       html5AudioPool._audioNodes = {
@@ -90,9 +90,26 @@ describe('Html5AudioPool', () => {
       html5AudioPool.release('beep.mp3');
     });
 
-    it('should remove all the allocated nodes of the resource', () => {
+    it('should remove all the inactive nodes of the resource', () => {
       const audioNodes = html5AudioPool._audioNodes['beep.mp3'];
       expect(audioNodes.length).toBe(1);
+    });
+  });
+
+  describe('on releasing all the inactive nodes', () => {
+
+    beforeEach(() => {
+      html5AudioPool._audioNodes = {
+        'beep.mp3': [{id: 1, audio: new Audio()}, {id: null, audio: new Audio()}],
+        'click.mp3': [{id: null, audio: new Audio()}]
+      };
+
+      html5AudioPool.release();
+    });
+
+    it('should remove all of them', () => {
+      expect(html5AudioPool._audioNodes['beep.mp3'].length).toBe(1);
+      expect(html5AudioPool._audioNodes['click.mp3'].length).toBe(0);
     });
   });
 });

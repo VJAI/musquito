@@ -5,7 +5,7 @@ module.exports = function (config) {
     basePath: '.',
     frameworks: ['jasmine-ajax', 'jasmine'],
     files: [
-      'src/**/Html5AudioPool.spec.js',
+      'src/**/*.spec.js',
       {pattern: 'sounds/*.*', included: false}
     ],
     preprocessors: {
