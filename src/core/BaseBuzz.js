@@ -276,6 +276,7 @@ class BaseBuzz {
   }
 
   _load() {
+    throw new Error('Not implemented');
   }
 
   _storeResult(downloadResult) {
@@ -336,6 +337,7 @@ class BaseBuzz {
   }
 
   _setupAndPlayNode(offset) {
+    throw new Error('Not implemented');
   }
 
   _reset() {
