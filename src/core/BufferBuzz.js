@@ -1,6 +1,4 @@
-import BaseBuzz, {BuzzState, ErrorType} from './BaseBuzz';
-import DownloadStatus from '../util/DownloadStatus';
-import codecAid from '../util/CodecAid';
+import BaseBuzz from './BaseBuzz';
 import buzzer from './Buzzer';
 
 /**
@@ -82,78 +80,17 @@ class BufferBuzz extends BaseBuzz {
     typeof options.cache === 'boolean' && (this._cache = options.cache);
   }
 
-  /**
-   * Load the sound into an audio buffer.
-   * Fires 'load' event on successful load and 'error' event on failure.
-   * @returns {BufferBuzz}
-   */
-  load() {
-    // If the buffer is already loaded return without reloading again.
-    if (this._isLoaded) {
-      return this;
-    }
-
-    // Set the state to "Loading" to avoid multiple times loading the buffer.
-    this._state = BuzzState.Loading;
-
-    const src = codecAid.getSupportedFile(this._src);
-
-    if (!src) {
-      this._removePlayHandler();
-      this._state = BuzzState.Error;
-      this._fire('error', {type: ErrorType.LoadError, error: 'None of the audio format you passed is supported'});
-      return this;
-    }
-
-    this._feasibleSrc = src;
-
-    buzzer.load(this._feasibleSrc, this._cache).then(downloadResult => {
-      if (downloadResult.status === DownloadStatus.Success) {
-        this._buffer = downloadResult.value;
-        this._duration = this._buffer.duration;
-        this._gainNode = this._context.createGain();
-        this._gainNode.gain.value = this._muted ? 0 : this._volume;
-        this._isLoaded = true;
-        this._state = BuzzState.Ready;
-        this._fire('load', downloadResult);
-        return;
-      }
-
-      this._removePlayHandler();
-      this._state = BuzzState.Error;
-      this._fire('error', {type: ErrorType.LoadError, error: downloadResult.error});
-    });
-
-    return this;
+  _load() {
+    return buzzer.load(this._feasibleSrc, this._cache);
   }
 
-  /**
-   * Plays the sound.
-   * Fires 'playstart' event before playing and 'playend' event after the sound is played.
-   * @param {string=} sound
-   * @returns {BufferBuzz}
-   */
-  play(sound) {
-    // If the sound is already in "Playing" state then it's not allowed to play again.
-    if (this._state === BuzzState.Playing) {
-      return this;
-    }
+  _storeResult(downloadResult) {
+    this._buffer = downloadResult.value;
+    this._duration = this._buffer.duration;
+  }
 
-    if (!this._isLoaded) {
-      this.on('load', {
-        handler: this.play,
-        target: this,
-        args: [sound],
-        once: true
-      });
-
-      this.load();
-
-      return this;
-    }
-
-    let offset = this._elapsed;
-    let duration = this._duration;
+  _getOffsetAndDuration(sound) {
+    let offset = this._elapsed, duration = this._duration;
 
     // If we are gonna play a sound in sprite calculate the duration and also check if the offset is within that
     // sound boundaries and if not reset to the starting point.
@@ -166,30 +103,14 @@ class BufferBuzz extends BaseBuzz {
       offset = (offset < soundStart || offset > soundEnd) ? soundStart : offset;
     }
 
-    buzzer._link(this);
-    this._clearEndTimer();
+    return [offset, duration];
+  }
+
+  _setupAndPlayNode(offset){
     this._bufferSource = this._context.createBufferSource();
     this._bufferSource.buffer = this._buffer;
     this._bufferSource.connect(this._gainNode);
     this._bufferSource.start(0, offset);
-    this._startedAt = this._context.currentTime;
-    this._endTimer = setTimeout(() => {
-      if (this._loop) {
-        this._startedAt = 0;
-        this._elapsed = 0;
-        this._state = BuzzState.Ready;
-        this._fire('playend');
-        this.play(sound);
-      } else {
-        this._reset();
-        this._state = BuzzState.Ready;
-        this._fire('playend');
-      }
-    }, duration * 1000);
-    this._state = BuzzState.Playing;
-    this._fire('playstart');
-
-    return this;
   }
 
   _reset() {
@@ -206,65 +127,8 @@ class BufferBuzz extends BaseBuzz {
     this._clearEndTimer();
   }
 
-  /**
-   * Pause the playing sound.
-   * @returns {BufferBuzz}
-   */
-  pause() {
-    // Remove the "play" event handler from queue if there is one.
-    this._removePlayHandler();
-
-    // We can pause the sound only if it is "playing" state.
-    if (this._state !== BuzzState.Playing) {
-      return this;
-    }
-
-    const startedAt = this._startedAt, elapsed = this._elapsed;
-    this._reset();
-    this._elapsed = elapsed + this._context.currentTime - startedAt;
-    this._state = BuzzState.Paused;
-    this._fire('pause');
-
-    return this;
-  }
-
-  /**
-   * Stops the sound that is playing or in paused state.
-   * @returns {BufferBuzz}
-   */
-  stop() {
-    // Remove the "play" event handler from queue if there is one.
-    this._removePlayHandler();
-
-    // We can stop the sound either if it "playing" or in "paused" state.
-    if (this._state !== BuzzState.Playing && this._state !== BuzzState.Paused) {
-      return this;
-    }
-
-    this._reset();
-    this._state = BuzzState.Stopped;
-    this._fire('stop');
-
-    return this;
-  }
-
-  /**
-   * Destroys the buzz.
-   */
-  destroy() {
-    // TODO: Conditional check missing!
-
-    this.stop();
-
+  _destroy() {
     this._buffer = null;
-    this._context = null;
-    this._gainNode = null;
-    this._state = BuzzState.Destroyed;
-
-    this._fire('destroy');
-
-    this._emitter.clear();
-    this._emitter = null;
   }
 }
 
