@@ -84,12 +84,12 @@ class BufferBuzz extends BaseBuzz {
     return buzzer.load(this._feasibleSrc, this._cache);
   }
 
-  _storeResult(downloadResult) {
+  _save(downloadResult) {
     this._buffer = downloadResult.value;
     this._duration = this._buffer.duration;
   }
 
-  _getOffsetAndDuration(sound) {
+  _getTimeVars(sound) {
     let offset = this._elapsed, duration = this._duration;
 
     // If we are gonna play a sound in sprite calculate the duration and also check if the offset is within that
@@ -106,25 +106,19 @@ class BufferBuzz extends BaseBuzz {
     return [offset, duration];
   }
 
-  _setupAndPlayNode(offset){
+  _play(offset){
     this._bufferSource = this._context.createBufferSource();
     this._bufferSource.buffer = this._buffer;
     this._bufferSource.connect(this._gainNode);
     this._bufferSource.start(0, offset);
   }
 
-  _reset() {
-    buzzer._unlink(this);
-
+  _stop() {
     if (this._bufferSource) {
       this._bufferSource.disconnect();
       this._bufferSource.stop(0);
       this._bufferSource = null;
     }
-
-    this._startedAt = 0;
-    this._elapsed = 0;
-    this._clearEndTimer();
   }
 
   _destroy() {

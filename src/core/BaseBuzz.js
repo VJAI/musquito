@@ -215,9 +215,11 @@ class BaseBuzz {
   }
 
   _validate(options) {
+    return undefined;
   }
 
   _read(options) {
+    return undefined;
   }
 
   _removePlayHandler() {
@@ -237,7 +239,7 @@ class BaseBuzz {
    * @returns {BaseBuzz}
    */
   load() {
-    // If the buffer is already loaded return without reloading again.
+    // If source is already loaded return without reloading again.
     if (this._isLoaded) {
       return this;
     }
@@ -258,7 +260,7 @@ class BaseBuzz {
 
     this._load().then(downloadResult => {
       if (downloadResult.status === DownloadStatus.Success) {
-        this._storeResult(downloadResult);
+        this._save(downloadResult);
         this._gainNode = this._context.createGain();
         this._gainNode.gain.value = this._muted ? 0 : this._volume;
         this._isLoaded = true;
@@ -279,7 +281,8 @@ class BaseBuzz {
     throw new Error('Not implemented');
   }
 
-  _storeResult(downloadResult) {
+  _save(downloadResult) {
+    return undefined;
   }
 
   /**
@@ -307,11 +310,11 @@ class BaseBuzz {
       return this;
     }
 
-    let [offset, duration] = this._getOffsetAndDuration(sound);
+    let [offset, duration] = this._getTimeVars(sound);
 
     buzzer._link(this);
     this._clearEndTimer();
-    this._setupAndPlayNode(offset);
+    this._play(offset);
     this._startedAt = this._context.currentTime;
     this._endTimer = setTimeout(() => {
       if (this._loop) {
@@ -321,7 +324,7 @@ class BaseBuzz {
         this._fire('playend');
         this.play(sound);
       } else {
-        this._reset();
+        this._resetVars();
         this._state = BuzzState.Ready;
         this._fire('playend');
       }
@@ -332,15 +335,24 @@ class BaseBuzz {
     return this;
   }
 
-  _getOffsetAndDuration(sound) {
+  _getTimeVars(sound) {
     return [this._elapsed, this._duration];
   }
 
-  _setupAndPlayNode(offset) {
+  _play(offset) {
     throw new Error('Not implemented');
   }
 
-  _reset() {
+  _resetVars() {
+    buzzer._unlink(this);
+    this._stop();
+    this._startedAt = 0;
+    this._elapsed = 0;
+    this._clearEndTimer();
+  }
+
+  _stop() {
+    return undefined;
   }
 
   /**
@@ -357,7 +369,7 @@ class BaseBuzz {
     }
 
     const startedAt = this._startedAt, elapsed = this._elapsed;
-    this._reset();
+    this._resetVars();
     this._elapsed = elapsed + this._context.currentTime - startedAt;
     this._state = BuzzState.Paused;
     this._fire('pause');
@@ -378,28 +390,11 @@ class BaseBuzz {
       return this;
     }
 
-    this._reset();
+    this._resetVars();
     this._state = BuzzState.Stopped;
     this._fire('stop');
 
     return this;
-  }
-
-  /**
-   * Destroys the buzz.
-   */
-  destroy() {
-    this.stop();
-    this._context = null;
-    this._gainNode = null;
-    this._destroy();
-    this._state = BuzzState.Destroyed;
-    this._fire('destroy');
-    this._emitter.clear();
-    this._emitter = null;
-  }
-
-  _destroy() {
   }
 
   /**
@@ -516,6 +511,24 @@ class BaseBuzz {
   _fire(event, ...args) {
     this._emitter.fire(event, ...args, this);
     return this;
+  }
+
+  /**
+   * Destroys the buzz.
+   */
+  destroy() {
+    this.stop();
+    this._context = null;
+    this._gainNode = null;
+    this._destroy();
+    this._state = BuzzState.Destroyed;
+    this._fire('destroy');
+    this._emitter.clear();
+    this._emitter = null;
+  }
+
+  _destroy() {
+    return undefined;
   }
 }
 

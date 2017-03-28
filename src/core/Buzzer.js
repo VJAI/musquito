@@ -30,6 +30,20 @@ class Buzzer {
   _saveEnergy = true;
 
   /**
+   * The interval in minutes the auto-suspend process has to run.
+   * @type {number}
+   * @private
+   */
+  _autoSuspendInterval = 5;
+
+  /**
+   * The auto suspend process timer id.
+   * @type {number|null}
+   * @private
+   */
+  _autoSuspendIntervalId = null;
+
+  /**
    * The web audio api's audio context.
    * @type {AudioContext}
    * @private
@@ -118,6 +132,7 @@ class Buzzer {
    * @param {object=} args
    * @param {number=} [args.volume = 1.0]
    * @param {boolean=} [args.saveEnergy = false]
+   * @param {number=} [args.autoSuspendInterval = 5]
    * @param {function=} args.onsuspend Event-handler for the "suspend" event.
    * @param {function=} args.onresume Event-handler for the "resume" event.
    * @param {function=} args.ondone Event-handler for the "done" event.
@@ -151,6 +166,7 @@ class Buzzer {
     }
 
     typeof options.saveEnergy === 'boolean' && (this._saveEnergy = options.saveEnergy);
+    typeof options.autoSuspendInterval === 'number' && (this._autoSuspendInterval = options.autoSuspendInterval);
     this._emitter = new EventEmitter('suspend,resume,done,stop,mute,volume,buzzplaystart,buzzplayend,buzzpause,buzzstop');
     typeof options.onsuspend === 'function' && this.on('suspend', options.onsuspend);
     typeof options.onresume === 'function' && this.on('resume', options.onresume);
@@ -168,6 +184,7 @@ class Buzzer {
     this._gainNode = this._context.createGain();
     this._gainNode.gain.value = this._volume;
     this._gainNode.connect(this._context.destination);
+    this._saveEnergy && setInterval(this.suspend, this._autoSuspendInterval * 60 * 1000);
     this._state = BuzzerState.Ready;
     return this;
   }
@@ -233,16 +250,6 @@ class Buzzer {
   }
 
   /**
-   * Publish the buzz playback events.
-   * @param {string} event
-   * @param {...*} args
-   * @private
-   */
-  _fireBuzzEvent(event, ...args) {
-    this._fire(`buzz${event}`, ...args);
-  }
-
-  /**
    * Removes the buzz from the array and the graph.
    * @param {BaseBuzz} buzz
    * @returns {Buzzer}
@@ -257,6 +264,16 @@ class Buzzer {
 
     delete this._buzzes[buzz.id];
     return this;
+  }
+
+  /**
+   * Publish the buzz playback events.
+   * @param {string} event
+   * @param {...*} args
+   * @private
+   */
+  _fireBuzzEvent(event, ...args) {
+    this._fire(`buzz${event}`, ...args);
   }
 
   /**

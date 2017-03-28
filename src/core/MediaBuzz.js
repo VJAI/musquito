@@ -45,12 +45,12 @@ class MediaBuzz extends BaseBuzz {
     return buzzer.loadMedia(this._feasibleSrc, this._id);
   }
 
-  _storeResult(downloadResult) {
+  _save(downloadResult) {
     this._audio = downloadResult.value;
     this._duration = this._audio.duration;
   }
 
-  _setupAndPlayNode(offset) {
+  _play(offset) {
     if (!this._mediaElementAudioSourceNode) {
       this._mediaElementAudioSourceNode = this._context.createMediaElementSource(this._audio);
       this._mediaElementAudioSourceNode.connect(this._gainNode);
@@ -60,16 +60,8 @@ class MediaBuzz extends BaseBuzz {
     this._audio.play();
   }
 
-  _reset() {
-    buzzer._unlink(this);
-
-    if (this._audio) {
-      this._audio.pause();
-    }
-
-    this._startedAt = 0;
-    this._elapsed = 0;
-    this._clearEndTimer();
+  _stop() {
+    this._audio && this._audio.pause();
   }
 
   _destroy() {
