@@ -480,4 +480,4 @@ class Buzzer {
 
 const buzzer = new Buzzer();
 
-export {BuzzerState, buzzer as default};
+export {BuzzerState, Buzzer, buzzer as default};
