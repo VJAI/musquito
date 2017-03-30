@@ -1,8 +1,7 @@
 import buzzer from './core/Buzzer';
+import BuzzCollection from './core/BuzzCollection';
 
-$buzz.defaults = {
-
-};
+$buzz.defaults = {};
 
 $buzz.config = (options) => {
   buzzer.setup(options);
@@ -31,27 +30,40 @@ $buzz.unmute = () => {
  */
 function $buzz(query) {
 
-  const play = () => {
+  let _buzzes = null;
 
+  _buzzes = new BuzzCollection();
+
+  const play = () => {
+    _buzzes.play();
+    return $buzz;
   };
 
   const pause = () => {
-
+    _buzzes.pause();
+    return $buzz;
   };
 
   const stop = () => {
-
+    _buzzes.stop();
+    return $buzz;
   };
 
-  const volume = () => {
-
+  const volume = (volume) => {
+    _buzzes.volume(volume);
+    return $buzz;
   };
+
+
 
   return {
     play: play,
     pause: pause,
     stop: stop,
-    volume: volume
+    volume: volume,
+    mute: mute,
+    unmute: unmute,
+    destroy: undestroy
   };
 }
 
