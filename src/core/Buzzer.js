@@ -282,7 +282,7 @@ class Buzzer {
    * @returns {Buzzer|number}
    */
   volume(vol) {
-    if (vol == undefined) {
+    if (vol === undefined) {
       return this._volume;
     }
 
@@ -404,6 +404,8 @@ class Buzzer {
         this._emitter = null;
       });
     }
+
+    return this;
   }
 
   /**

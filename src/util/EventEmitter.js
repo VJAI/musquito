@@ -74,10 +74,10 @@ class EventEmitter {
    * @returns {EventEmitter}
    */
   fire(event, ...args) {
-    var eventSubscribers = this._events[event];
+    let eventSubscribers = this._events[event];
 
-    for (var i = 0; i < eventSubscribers.length; i++) {
-      var eventSubscriber = eventSubscribers[i];
+    for (let i = 0; i < eventSubscribers.length; i++) {
+      let eventSubscriber = eventSubscribers[i];
 
       setTimeout(function (subscriber) {
         subscriber.handler.apply(subscriber.target, (subscriber.args || []).concat(args));

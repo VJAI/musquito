@@ -38,19 +38,19 @@ class BuzzerTester {
   }
 
   _changeVolumeBuzzer() {
-    var volume = parseFloat(this._buzzerVolumeSlider.value);
+    let volume = parseFloat(this._buzzerVolumeSlider.value);
     buzzer.volume(volume);
   }
 
   _createNewBuzz(event) {
-    var isSprite = this._buzzCreateForm['buzz-sound'].value === 'sprite',
+    let isSprite = this._buzzCreateForm['buzz-sound'].value === 'sprite',
       src = 'sounds/' + (isSprite ? 'sprite.mp3' : this._buzzCreateForm['buzz-sound'].value),
       volume = parseFloat(this._buzzCreateForm['buzz-volume'].value),
       loop = this._buzzCreateForm['buzz-loop'].checked,
       buffer = this._buzzCreateForm['buzz-buffer'].checked,
       buzzType = buffer ? MediaBuzz : BufferBuzz;
 
-    var buzz = new buzzType({
+    let buzz = new buzzType({
       src: src,
       sprite: isSprite ? {
         beep: [0, 0.48108843537414964],
@@ -62,7 +62,7 @@ class BuzzerTester {
     });
     this._buzzes.push(buzz);
 
-    var buzzLi = document.createElement('li');
+    let buzzLi = document.createElement('li');
     buzzLi.innerHTML = `<p>
                           <em>${src}</em>
                           <select class="buzz-sprite-sound" style="display: ${isSprite ? 'inline' : 'none'}">

@@ -435,7 +435,7 @@ class BaseBuzz {
    * @returns {BaseBuzz|number}
    */
   volume(vol) {
-    if (vol == undefined) {
+    if (vol === undefined) {
       return this._volume;
     }
 

@@ -7,7 +7,51 @@
       "classes": true
     }
   },
+  "env": {
+    "browser": true,
+    "node": true,
+    "jasmine": true
+  },
+  "globals": {
+  },
   "rules": {
-    "semi": 2
+    "no-unexpected-multiline": "error",
+    "valid-jsdoc": ["warn", {
+      "requireReturn": false,
+      "requireReturnDescription": false,
+      "requireParamDescription": true,
+      "prefer": {
+        "return": "returns"
+      }
+    }],
+    "block-scoped-var": "warn",
+    "consistent-return": "error",
+    "curly": "error",
+    "dot-location": ["warn", "property" ],
+    "dot-notation": "warn",
+    "eqeqeq": ["error", "smart"],
+    "guard-for-in": "warn",
+    "default-case": "warn",
+    "no-alert": "error",
+    "no-caller": "error",
+    "no-case-declarations": "warn",
+    "no-div-regex": "warn",
+    "no-else-return": "warn",
+    "no-empty-label": "warn",
+    "no-empty-pattern": "warn",
+    "no-eq-null": "warn",
+    "no-eval": "error",
+    "no-extend-native": "error",
+    "no-extra-bind": "warn",
+    "no-floating-decimal": "warn",
+    "camelcase": "warn",
+    "no-mixed-spaces-and-tabs": "warn",
+    "semi-spacing": "warn",
+    "no-trailing-spaces": "warn",
+    "quotes": ["warn", "single"],
+    "semi":  ["error", "always"],
+    "spaced-comment": "warn",
+    "no-var": "error",
+    "no-cond-assign": ["error", "always"]
   }
 }
