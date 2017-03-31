@@ -1,5 +1,5 @@
 import Html5AudioPool from './Html5AudioPool';
-import DownloadResult, {DownloadStatus} from './DownloadResult';
+import DownloadResult, { DownloadStatus } from './DownloadResult';
 
 /**
  * Loads and the HTML5 audio nodes with resources and return them.
@@ -22,24 +22,31 @@ class MediaLoader {
   }
 
   /**
-   * Preload the audio nodes with audio and return them.
-   * @param {string|string[]} urls
-   * @param {string=} id
+   * Preload the HTML5 audio nodes with audio and return them.
+   * @param {string|string[]} urls Single or array of audio file urls
+   * @param {string=} id The sound id
    * @return {Promise<DownloadResult|Array<DownloadResult>>}
    */
   load(urls, id) {
-    if(typeof urls === 'string') {
+    if (typeof urls === 'string') {
       return this._load(urls, id);
     }
 
     return Promise.all(urls.map(url => this._load(url, id)));
   }
 
+  /**
+   * Preload the HTML5 audio element with the passed audio file and allocate it to the passed sound (if any).
+   * @param {string} url The audio file url
+   * @param {string} id Sound id
+   * @return {Promise}
+   * @private
+   */
   _load(url, id) {
     return new Promise((resolve, reject) => {
       const audio = this._audioPool.allocate(url, id);
 
-      if(audio.readyState === 4) {
+      if (audio.readyState === 4) {
         resolve(new DownloadResult(url, audio));
         return;
       }
@@ -59,11 +66,11 @@ class MediaLoader {
 
   /**
    * Releases the allocated audio node(s).
-   * @param {string|string[]=} urls
-   * @param {string=} id
+   * @param {string|string[]=} urls Single or array of audio file urls
+   * @param {string=} id Sound id
    */
   unload(urls, id) {
-    if(Array.isArray(urls)) {
+    if (Array.isArray(urls)) {
       urls.forEach(url => this._audioPool.release(url));
       return;
     }
@@ -80,4 +87,4 @@ class MediaLoader {
   }
 }
 
-export {DownloadResult, DownloadStatus, MediaLoader as default};
+export { DownloadResult, DownloadStatus, MediaLoader as default };

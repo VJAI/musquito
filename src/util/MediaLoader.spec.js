@@ -1,9 +1,9 @@
 import Html5AudioPool from './Html5AudioPool';
-import MediaLoader, {DownloadStatus} from './MediaLoder';
+import MediaLoader, { DownloadStatus } from './MediaLoder';
 
 describe('MediaLoader', () => {
 
-  let mediaLoder;
+  let mediaLoder = null;
 
   beforeEach(() => {
     mediaLoder = new MediaLoader();
@@ -16,7 +16,7 @@ describe('MediaLoader', () => {
   describe('on loading a single valid audio file', () => {
 
     const url = 'base/sounds/beep.mp3';
-    let downloadResult;
+    let downloadResult = null;
 
     beforeEach((done) => {
       mediaLoder.load(url)
@@ -37,7 +37,7 @@ describe('MediaLoader', () => {
   describe('on loading a single invalid audio file', () => {
 
     const url = 'base/sounds/notexist.mp3';
-    let downloadResult;
+    let downloadResult = null;
 
     beforeEach((done) => {
       mediaLoder.load(url)
@@ -56,7 +56,7 @@ describe('MediaLoader', () => {
   describe('on loading an array of audio files', () => {
 
     const urls = ['base/sounds/beep.mp3', 'base/sounds/click.mp3'];
-    let downloadResults;
+    let downloadResults = [];
 
     beforeEach((done) => {
       mediaLoder.load(urls)

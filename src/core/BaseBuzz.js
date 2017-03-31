@@ -171,7 +171,7 @@ class BaseBuzz {
    * @constructor
    */
   constructor(args) {
-    let options = typeof args === 'string' || Array.isArray(args) ? {src: args} : args || {};
+    let options = typeof args === 'string' || Array.isArray(args) ? { src: args } : args || {};
 
     this._validate(options);
 
@@ -214,18 +214,34 @@ class BaseBuzz {
     }
   }
 
+  /**
+   * Validate the passed options. Should be overridden by the derived classes if required.
+   * @param {object} options The passed options to the buzz
+   * @private
+   */
   _validate(options) {
-    return undefined;
   }
 
+  /**
+   * Read the additional options. Should be overridden by the derived classes if required.
+   * @param {object} options The passed options to the buzz
+   * @private
+   */
   _read(options) {
-    return undefined;
   }
 
+  /**
+   * Removes the "play" handler that is wired-up to the "load" event.
+   * @private
+   */
   _removePlayHandler() {
     this.off('load', this.play);
   }
 
+  /**
+   * Clears the play end timer.
+   * @private
+   */
   _clearEndTimer() {
     if (this._endTimer) {
       clearTimeout(this._endTimer);
@@ -252,7 +268,7 @@ class BaseBuzz {
     if (!src) {
       this._removePlayHandler();
       this._state = BuzzState.Error;
-      this._fire('error', {type: ErrorType.LoadError, error: 'None of the audio format you passed is supported'});
+      this._fire('error', { type: ErrorType.LoadError, error: 'None of the audio format you passed is supported' });
       return this;
     }
 
@@ -271,24 +287,33 @@ class BaseBuzz {
 
       this._removePlayHandler();
       this._state = BuzzState.Error;
-      this._fire('error', {type: ErrorType.LoadError, error: downloadResult.error});
+      this._fire('error', { type: ErrorType.LoadError, error: downloadResult.error });
     });
 
     return this;
   }
 
+  /**
+   * Should be implemented by the derived classes.
+   * @private
+   */
   _load() {
     throw new Error('Not implemented');
   }
 
+  /**
+   * Should be implemented by the derived classes.
+   * @param {DownloadResult} downloadResult The audio download result
+   * @private
+   */
   _save(downloadResult) {
-    return undefined;
+    throw new Error('Not implemented');
   }
 
   /**
    * Plays the sound.
    * Fires 'playstart' event before playing and 'playend' event after the sound is played.
-   * @param {string=} sound
+   * @param {string=} sound The sound name of the sprite
    * @returns {BaseBuzz}
    */
   play(sound) {
@@ -335,14 +360,29 @@ class BaseBuzz {
     return this;
   }
 
+  /**
+   * Returns the elapsed time and the duration of the sound.
+   * @param {string=} sound The sound name (in-case of sprite)
+   * @return {*[]}
+   * @private
+   */
   _getTimeVars(sound) {
     return [this._elapsed, this._duration];
   }
 
+  /**
+   *
+   * @param offset
+   * @private
+   */
   _play(offset) {
     throw new Error('Not implemented');
   }
 
+  /**
+   *
+   * @private
+   */
   _resetVars() {
     buzzer._unlink(this);
     this._stop();
@@ -351,8 +391,12 @@ class BaseBuzz {
     this._clearEndTimer();
   }
 
+  /**
+   * Should be implemented by the derived classes.
+   * @private
+   */
   _stop() {
-    return undefined;
+    throw new Error('Not implemented');
   }
 
   /**
@@ -431,7 +475,7 @@ class BaseBuzz {
 
   /**
    * Set/get the volume.
-   * @param {number=} vol
+   * @param {number=} vol Should be within 0.0 to 1.0.
    * @returns {BaseBuzz|number}
    */
   volume(vol) {
@@ -476,12 +520,12 @@ class BaseBuzz {
 
   /**
    * Method to subscribe to an event.
-   * @param {string} event
-   * @param {function|object} options
-   * @param {function} options.handler
-   * @param {object=} options.target
-   * @param {object|Array=} options.args
-   * @param {boolean=} [options.once = false]
+   * @param {string} event Name of the event
+   * @param {function|object} options Handler function or subscription options
+   * @param {function} options.handler Handler function
+   * @param {object=} options.target Scope the handler should be invoked
+   * @param {object|Array=} options.args Additional arguments that should be passed to the handler
+   * @param {boolean=} [options.once = false] One-time listener or not
    * @returns {BaseBuzz}
    */
   on(event, options) {
@@ -491,9 +535,9 @@ class BaseBuzz {
 
   /**
    * Method to un-subscribe from an event.
-   * @param {string} event
-   * @param {function} handler
-   * @param {object=} target
+   * @param {string} event The event name
+   * @param {function} handler The handler function
+   * @param {object=} target Scope of the handler to be invoked
    * @returns {BaseBuzz}
    */
   off(event, handler, target) {
@@ -502,9 +546,9 @@ class BaseBuzz {
   }
 
   /**
-   * Fires an event passing the sound and other optional arguments.
-   * @param {string} event
-   * @param {...*} args
+   * Fires an event passing the source and other optional arguments.
+   * @param {string} event The event name
+   * @param {...*} args The arguments that to be passed to handler
    * @returns {BaseBuzz}
    * @protected
    */
@@ -527,9 +571,13 @@ class BaseBuzz {
     this._emitter = null;
   }
 
+  /**
+   * Should be overridden by the derived classes.
+   * @private
+   */
   _destroy() {
-    return undefined;
+    throw new Error('Not implemented');
   }
 }
 
-export {BaseBuzz as default, BuzzState, ErrorType};
+export { BaseBuzz as default, BuzzState, ErrorType };
