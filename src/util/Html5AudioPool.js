@@ -1,5 +1,6 @@
 /**
  * Manages the pool of HTML5 audio nodes.
+ * @class
  */
 class Html5AudioPool {
 
@@ -12,8 +13,8 @@ class Html5AudioPool {
 
   /**
    * Allocates an audio node to a particular resource and sound.
-   * @param {string} src
-   * @param {string=} id
+   * @param {string} src The audio url
+   * @param {string=} id The sound id
    * @return {Audio}
    */
   allocate(src, id) {
@@ -48,16 +49,16 @@ class Html5AudioPool {
 
   /**
    * Release the allocated audio nodes.
-   * @param {string=} src
-   * @param {string=} id
+   * @param {string=} src The audio url
+   * @param {string=} id The sound id
    */
   release(src, id) {
     // If the user hasn't passed any parameter then release inactive nodes linked to all the sources.
     // If the user has passed only the source then dispose all the inactive nodes linked to the source.
     // If id is passed relinquish the audio node from the sound.
     if (arguments.length === 0) {
-      Object.keys(this._audioNodes).forEach(src => {
-        this._releaseSourceNodes(src);
+      Object.keys(this._audioNodes).forEach(url => {
+        this._releaseSourceNodes(url);
       });
       return;
     }
@@ -69,7 +70,7 @@ class Html5AudioPool {
     }
 
     if (id) {
-      const node = nodes.find(node => node.id === id);
+      const node = nodes.find(n => n.id === id);
 
       if (node) {
         node.id = null;
@@ -83,8 +84,8 @@ class Html5AudioPool {
 
   /**
    * Release the audio nodes linked to a source.
-   * @param {string} src
-   * @param {boolean=} [onlyFree = true]
+   * @param {string} src The audio url
+   * @param {boolean=} [onlyFree = true] Release only the un-allocated audio nodes?
    * @private
    */
   _releaseSourceNodes(src, onlyFree = true) {

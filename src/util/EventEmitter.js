@@ -1,3 +1,7 @@
+/**
+ * An event emitter.
+ * @class
+ */
 class EventEmitter {
 
   /**
@@ -7,19 +11,25 @@ class EventEmitter {
    */
   _events = {};
 
+  /**
+   * Initialize the private variables.
+   * @param {string|string[]} events Event names that are supported
+   */
   constructor(events) {
     const eventNames = Array.isArray(events) ? events : events.split(',');
-    eventNames.forEach(evt => this._events[evt] = []);
+    eventNames.forEach(evt => {
+      this._events[evt] = [];
+    });
   }
 
   /**
    * Method to subscribe to an event.
-   * @param {string} event
-   * @param {function|object} options
-   * @param {function} options.handler
-   * @param {object=} options.target
-   * @param {object|Array=} options.args
-   * @param {boolean=} [options.once = false]
+   * @param {string} event Name of the event
+   * @param {function|object} options Handler function or subscription options
+   * @param {function} options.handler Handler function
+   * @param {object=} options.target Scope the handler should be invoked
+   * @param {object|Array=} options.args Additional arguments that should be passed to the handler
+   * @param {boolean=} [options.once = false] One-time listener or not
    * @returns {EventEmitter}
    */
   on(event, options) {
@@ -27,11 +37,11 @@ class EventEmitter {
       return this;
     }
 
-    if(typeof options !== 'function' && typeof options !== 'object') {
+    if (typeof options !== 'function' && typeof options !== 'object') {
       return this;
     }
 
-    if(typeof options === 'function') {
+    if (typeof options === 'function') {
       this._events[event].push({
         handler: options,
         once: false
@@ -50,9 +60,9 @@ class EventEmitter {
 
   /**
    * Method to un-subscribe from an event.
-   * @param {string} event
-   * @param {function} handler
-   * @param {object=} target
+   * @param {string} event The event name
+   * @param {function} handler The handler function
+   * @param {object=} target Scope of the handler to be invoked
    * @returns {EventEmitter}
    */
   off(event, handler, target) {
@@ -69,8 +79,8 @@ class EventEmitter {
 
   /**
    * Fires an event passing the source and other optional arguments.
-   * @param {string} event
-   * @param {...*} args
+   * @param {string} event The event name
+   * @param {...*} args The arguments that to be passed to handler
    * @returns {EventEmitter}
    */
   fire(event, ...args) {
@@ -91,8 +101,13 @@ class EventEmitter {
     return this;
   }
 
+  /**
+   * Removes all the event handlers.
+   */
   clear() {
-    Object.keys(this._events).forEach(evt => this._events[evt] = []);
+    Object.keys(this._events).forEach(evt => {
+      this._events[evt] = [];
+    });
   }
 }
 

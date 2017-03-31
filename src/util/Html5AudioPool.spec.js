@@ -2,7 +2,7 @@ import Html5AudioPool from './Html5AudioPool';
 
 describe('Html5AudioPool', () => {
 
-  let html5AudioPool;
+  let html5AudioPool = null;
 
   beforeEach(() => {
     html5AudioPool = new Html5AudioPool();
@@ -67,7 +67,7 @@ describe('Html5AudioPool', () => {
 
     beforeEach(() => {
       html5AudioPool._audioNodes = {
-        'beep.mp3': [{id: 1, audio: new Audio()}, {id: 2, audio: new Audio()}]
+        'beep.mp3': [{ id: 1, audio: new Audio() }, { id: 2, audio: new Audio() }]
       };
 
       html5AudioPool.release('beep.mp3', 1);
@@ -84,7 +84,7 @@ describe('Html5AudioPool', () => {
 
     beforeEach(() => {
       html5AudioPool._audioNodes = {
-        'beep.mp3': [{id: 1, audio: new Audio()}, {id: null, audio: new Audio()}]
+        'beep.mp3': [{ id: 1, audio: new Audio() }, { id: null, audio: new Audio() }]
       };
 
       html5AudioPool.release('beep.mp3');
@@ -100,8 +100,8 @@ describe('Html5AudioPool', () => {
 
     beforeEach(() => {
       html5AudioPool._audioNodes = {
-        'beep.mp3': [{id: 1, audio: new Audio()}, {id: null, audio: new Audio()}],
-        'click.mp3': [{id: null, audio: new Audio()}]
+        'beep.mp3': [{ id: 1, audio: new Audio() }, { id: null, audio: new Audio() }],
+        'click.mp3': [{ id: null, audio: new Audio() }]
       };
 
       html5AudioPool.release();

@@ -40,7 +40,10 @@ describe('CodecAid', () => {
 
   describe('on passing an array of files', () => {
     it('should return the supported file', () => {
-      expect(codecAid.getSupportedFile(['http://soundrepo.org/sounds/beep.wav', 'http://soundrepo.org/sounds/beep.mp3'])).toBe('http://soundrepo.org/sounds/beep.mp3');
+      expect(codecAid.getSupportedFile([
+        'http://soundrepo.org/sounds/beep.wav',
+        'http://soundrepo.org/sounds/beep.mp3'
+      ])).toBe('http://soundrepo.org/sounds/beep.mp3');
     });
   });
 });

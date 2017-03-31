@@ -1,8 +1,8 @@
-import BufferLoader, {DownloadStatus} from './BufferLoader';
+import BufferLoader, { DownloadStatus } from './BufferLoader';
 
 describe('BufferLoader', () => {
 
-  let context, bufferLoader;
+  let context = null, bufferLoader = null;
 
   beforeAll(() => {
     context = new (AudioContext || webkitAudioContext)();
@@ -20,7 +20,7 @@ describe('BufferLoader', () => {
   });
 
   afterEach(() => {
-    if(bufferLoader) {
+    if (bufferLoader) {
       bufferLoader.dispose();
     }
   });
@@ -37,7 +37,7 @@ describe('BufferLoader', () => {
     describe('from a valid source', () => {
 
       const url = 'base/sounds/beep.mp3';
-      let downloadResult;
+      let downloadResult = null;
 
       beforeEach((done) => {
         bufferLoader.load(url)
@@ -63,7 +63,7 @@ describe('BufferLoader', () => {
     describe('from an invalid source', () => {
 
       const url = 'base/sounds/notexist.mp3';
-      let downloadResult;
+      let downloadResult = null;
 
       beforeEach((done) => {
         bufferLoader.load(url)
@@ -88,8 +88,8 @@ describe('BufferLoader', () => {
 
     describe('with valid and invalid sources', () => {
 
-      const urls = ['base/sounds/beep.mp3', 'base/sounds/notexist.mp3'];
-      let downloadResults;
+      const urls = [ 'base/sounds/beep.mp3', 'base/sounds/notexist.mp3' ];
+      let downloadResults = [];
 
       beforeEach((done) => {
         bufferLoader.load(urls, context)

@@ -1,5 +1,6 @@
 /**
  * An in-memory cache to cache audio buffers.
+ * @class
  */
 class BufferCache {
 
@@ -12,7 +13,7 @@ class BufferCache {
 
   /**
    * Returns true if the buffer is available in cache.
-   * @param {string} url
+   * @param {string} url The audio url
    * @return {boolean}
    */
   hasBuffer(url) {
@@ -21,7 +22,7 @@ class BufferCache {
 
   /**
    * Returns the cached buffer.
-   * @param {string} url
+   * @param {string} url The audio url
    * @return {AudioBuffer}
    */
   getBuffer(url) {
@@ -30,8 +31,8 @@ class BufferCache {
 
   /**
    * Stores the buffer.
-   * @param {string} url
-   * @param {AudioBuffer} buffer
+   * @param {string} url The audio url
+   * @param {AudioBuffer} buffer The audio buffer
    */
   setBuffer(url, buffer) {
     this._cache[url] = buffer;
@@ -39,7 +40,7 @@ class BufferCache {
 
   /**
    * Removes the buffer.
-   * @param {string} url
+   * @param {string} url The audio url
    */
   removeBuffer(url) {
     delete this._cache[url];

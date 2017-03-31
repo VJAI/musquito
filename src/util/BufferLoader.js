@@ -1,9 +1,10 @@
 import BufferCache from './BufferCache';
-import DownloadResult, {DownloadStatus} from './DownloadResult';
+import DownloadResult, { DownloadStatus } from './DownloadResult';
 
 /**
  * Loads the audio sources into audio buffers and returns them.
  * The loaded buffers are cached.
+ * @class
  */
 class BufferLoader {
 
@@ -23,7 +24,7 @@ class BufferLoader {
 
   /**
    * Create the cache.
-   * @param {AudioContext} context
+   * @param {AudioContext} context The Audio Context
    */
   constructor(context) {
     this._context = context;
@@ -32,8 +33,8 @@ class BufferLoader {
 
   /**
    * Loads single or multiple audio resources into audio buffers.
-   * @param {string|string[]} urls
-   * @param {boolean} [cache = true]
+   * @param {string|string[]} urls Single or array of audio urls
+   * @param {boolean} [cache = true] Whether to cache the buffer(s) or not
    * @return {Promise<DownloadResult|Array<DownloadResult>>}
    */
   load(urls, cache = true) {
@@ -46,14 +47,13 @@ class BufferLoader {
 
   /**
    * Loads a single audio resource into audio buffer and cache result if the download is succeeded.
-   * @param {string} url
-   * @param {boolean} cache
+   * @param {string} url The Audio url
+   * @param {boolean} cache Whether to cache the buffer or not
    * @return {Promise<DownloadResult>}
    * @private
    */
   _load(url, cache) {
     return new Promise(resolve => {
-
       if (this._bufferCache.hasBuffer(url)) {
         resolve(new DownloadResult(url, this._bufferCache.getBuffer(url)));
         return;
@@ -69,7 +69,7 @@ class BufferLoader {
 
       req.addEventListener('load', () => {
         this._context.decodeAudioData(req.response).then(buffer => {
-          if(cache) {
+          if (cache) {
             this._bufferCache.setBuffer(url, buffer);
           }
           resolve(new DownloadResult(url, buffer));
@@ -83,7 +83,7 @@ class BufferLoader {
 
   /**
    * Removes the cached audio buffers.
-   * @param {string|string[]=} urls
+   * @param {string|string[]=} urls Single or array of audio urls
    */
   unload(urls) {
     if (typeof urls === 'string') {
@@ -99,10 +99,18 @@ class BufferLoader {
     this._bufferCache.clearBuffers();
   }
 
+  /**
+   * Removes the single cached audio buffer.
+   * @param {string} url Audio url
+   * @private
+   */
   _unload(url) {
     this._bufferCache.removeBuffer(url);
   }
 
+  /**
+   * Dispose the loader.
+   */
   dispose() {
     this._bufferCache.clearBuffers();
     this._bufferCache = null;
@@ -110,4 +118,4 @@ class BufferLoader {
   }
 }
 
-export {DownloadResult, DownloadStatus, BufferLoader as default};
+export { DownloadResult, DownloadStatus, BufferLoader as default };
