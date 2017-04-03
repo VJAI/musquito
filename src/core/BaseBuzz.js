@@ -151,7 +151,7 @@ class BaseBuzz {
   _isLoaded = false;
 
   /**
-   * @param {object} args
+   * @param {string|object} args The input parameters of the sound.
    * @param {string=} args.id An unique id for the sound.
    * @param {string|string[]=} args.src The source of the audio file.
    * @param {number} [args.volume = 1.0] The initial volume of the sound.
@@ -313,10 +313,9 @@ class BaseBuzz {
   /**
    * Plays the sound.
    * Fires 'playstart' event before playing and 'playend' event after the sound is played.
-   * @param {string=} sound The sound name of the sprite
    * @returns {BaseBuzz}
    */
-  play(sound) {
+  play() {
     // If the sound is already in "Playing" state then it's not allowed to play again.
     if (this._state === BuzzState.Playing) {
       return this;
@@ -326,7 +325,6 @@ class BaseBuzz {
       this.on('load', {
         handler: this.play,
         target: this,
-        args: [sound],
         once: true
       });
 
@@ -335,7 +333,7 @@ class BaseBuzz {
       return this;
     }
 
-    let [offset, duration] = this._getTimeVars(sound);
+    let offset = this._elapsed, duration = this._duration;
 
     buzzer._link(this);
     this._clearEndTimer();
@@ -347,7 +345,7 @@ class BaseBuzz {
         this._elapsed = 0;
         this._state = BuzzState.Ready;
         this._fire('playend');
-        this.play(sound);
+        this.play();
       } else {
         this._resetVars();
         this._state = BuzzState.Ready;
@@ -361,26 +359,16 @@ class BaseBuzz {
   }
 
   /**
-   * Returns the elapsed time and the duration of the sound.
-   * @param {string=} sound The sound name (in-case of sprite)
-   * @return {*[]}
+   * Plays the sound from the offset. Should be implemented by the derived classes.
+   * @param {number} offset The elapsed duration
    * @private
    */
-  _getTimeVars(sound) {
-    return [this._elapsed, this._duration];
-  }
-
-  /**
-   *
-   * @param offset
-   * @private
-   */
-  _play(offset) {
+  _play(offset) { // eslint-disable-line no-unused-vars
     throw new Error('Not implemented');
   }
 
   /**
-   *
+   * Resets the internal variables.
    * @private
    */
   _resetVars() {

@@ -1,4 +1,4 @@
-import BaseBuzz from './BaseBuzz';
+import BaseBuzz, { BuzzState } from './BaseBuzz';
 import buzzer from './Buzzer';
 
 /**
@@ -43,7 +43,7 @@ class BufferBuzz extends BaseBuzz {
   _bufferSource = null;
 
   /**
-   * @param {object} args
+   * @param {string|object} args The input parameters of the sound.
    * @param {string=} args.id An unique id for the sound.
    * @param {string=} args.src The source of the audio file.
    * @param {string=} args.dataUri The source of the audio in base64 string.
@@ -69,27 +69,71 @@ class BufferBuzz extends BaseBuzz {
     super(args);
   }
 
+  /**
+   * Validate the passed options.
+   * @param {object} options The buzz options.
+   * @private
+   */
   _validate(options) {
-    if((!options.src || (Array.isArray(options.src) && options.src.length === 0)) && !this._dataUri) {
+    if ((!options.src || (Array.isArray(options.src) && options.src.length === 0)) && !this._dataUri) {
       throw new Error('You should pass the source for the audio.');
     }
   }
 
+  /**
+   * Read the parameters that are specific to BufferBuzz.
+   * @param {object} options The buzz options.
+   * @private
+   */
   _read(options) {
     typeof options.dataUri === 'string' && (this._dataUri = options.dataUri);
     typeof options.cache === 'boolean' && (this._cache = options.cache);
   }
 
+  /**
+   * Loads the audio buffer.
+   * @return {Promise<DownloadResult>}
+   * @private
+   */
   _load() {
     return buzzer.load(this._feasibleSrc, this._cache);
   }
 
+  /**
+   * Store the buffer and duration from the download result.
+   * @param {DownloadResult} downloadResult The download result
+   * @private
+   */
   _save(downloadResult) {
     this._buffer = downloadResult.value;
     this._duration = this._buffer.duration;
   }
 
-  _getTimeVars(sound) {
+  /**
+   * Plays the sound.
+   * Fires 'playstart' event before playing and 'playend' event after the sound is played.
+   * @param {string=} sound The sound name of the sprite
+   * @returns {BaseBuzz}
+   */
+  play(sound) {
+    // If the sound is already in "Playing" state then it's not allowed to play again.
+    if (this._state === BuzzState.Playing) {
+      return this;
+    }
+
+    if (!this._isLoaded) {
+      this.on('load', {
+        handler: this.play,
+        target: this,
+        args: [sound],
+        once: true
+      });
+
+      this.load();
+
+      return this;
+    }
+
     let offset = this._elapsed, duration = this._duration;
 
     // If we are gonna play a sound in sprite calculate the duration and also check if the offset is within that
@@ -103,16 +147,36 @@ class BufferBuzz extends BaseBuzz {
       offset = (offset < soundStart || offset > soundEnd) ? soundStart : offset;
     }
 
-    return [offset, duration];
-  }
-
-  _play(offset){
+    buzzer._link(this);
+    this._clearEndTimer();
     this._bufferSource = this._context.createBufferSource();
     this._bufferSource.buffer = this._buffer;
     this._bufferSource.connect(this._gainNode);
     this._bufferSource.start(0, offset);
+    this._startedAt = this._context.currentTime;
+    this._endTimer = setTimeout(() => {
+      if (this._loop) {
+        this._startedAt = 0;
+        this._elapsed = 0;
+        this._state = BuzzState.Ready;
+        this._fire('playend');
+        this.play(sound);
+      } else {
+        this._resetVars();
+        this._state = BuzzState.Ready;
+        this._fire('playend');
+      }
+    }, duration * 1000);
+    this._state = BuzzState.Playing;
+    this._fire('playstart');
+
+    return this;
   }
 
+  /**
+   * Disconnect the buffer source and stop it.
+   * @private
+   */
   _stop() {
     if (this._bufferSource) {
       this._bufferSource.disconnect();
@@ -121,9 +185,13 @@ class BufferBuzz extends BaseBuzz {
     }
   }
 
+  /**
+   * Null the buffer.
+   * @private
+   */
   _destroy() {
     this._buffer = null;
   }
 }
 
-export {BufferBuzz as default};
+export { BufferBuzz as default };

@@ -12,7 +12,7 @@ class MediaBuzz extends BaseBuzz {
   _mediaElementAudioSourceNode = null;
 
   /**
-   * @param {object} args
+   * @param {string|object} args The input parameters of the sound.
    * @param {string=} args.id An unique id for the sound.
    * @param {string=} args.src The source of the audio file.
    * @param {number} [args.volume = 1.0] The initial volume of the sound.
@@ -35,21 +35,41 @@ class MediaBuzz extends BaseBuzz {
     super(args);
   }
 
+  /**
+   * Validate the passed options.
+   * @param {object} options The buzz options.
+   * @private
+   */
   _validate(options) {
     if (!options.src || (Array.isArray(options.src) && options.src.length === 0)) {
       throw new Error('You should pass the source for the audio.');
     }
   }
 
+  /**
+   * Loads the audio buffer.
+   * @return {Promise<DownloadResult>}
+   * @private
+   */
   _load() {
     return buzzer.loadMedia(this._feasibleSrc, this._id);
   }
 
+  /**
+   * Stores the pre-loaded HTML5 Audio element and duration.
+   * @param {DownloadResult} downloadResult
+   * @private
+   */
   _save(downloadResult) {
     this._audio = downloadResult.value;
     this._duration = this._audio.duration;
   }
 
+  /**
+   * Plays the media element source node that is wired-up with the audio element from the offset.
+   * @param {number} offset The elapsed duration
+   * @private
+   */
   _play(offset) {
     if (!this._mediaElementAudioSourceNode) {
       this._mediaElementAudioSourceNode = this._context.createMediaElementSource(this._audio);
@@ -60,10 +80,18 @@ class MediaBuzz extends BaseBuzz {
     this._audio.play();
   }
 
+  /**
+   * Stops the playing audio element.
+   * @private
+   */
   _stop() {
     this._audio && this._audio.pause();
   }
 
+  /**
+   * Relinquish the allocated audio node and clears other objects.
+   * @private
+   */
   _destroy() {
     buzzer.unloadMedia(this._feasibleSrc, this._id);
     this._audio = null;
@@ -71,4 +99,4 @@ class MediaBuzz extends BaseBuzz {
   }
 }
 
-export {MediaBuzz as default};
+export { MediaBuzz as default };
