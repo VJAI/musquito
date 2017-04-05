@@ -33,6 +33,7 @@ class MediaBuzz extends BaseBuzz {
    */
   constructor(args) {
     super(args);
+    this._completeSetup();
   }
 
   /**
@@ -57,7 +58,7 @@ class MediaBuzz extends BaseBuzz {
 
   /**
    * Stores the pre-loaded HTML5 Audio element and duration.
-   * @param {DownloadResult} downloadResult
+   * @param {DownloadResult} downloadResult The download result returned by the loader.
    * @private
    */
   _save(downloadResult) {

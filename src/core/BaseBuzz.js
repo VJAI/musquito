@@ -156,7 +156,7 @@ class BaseBuzz {
    * @param {string|string[]=} args.src The source of the audio file.
    * @param {number} [args.volume = 1.0] The initial volume of the sound.
    * @param {boolean} [args.muted = false] Should be muted initially.
-   * @param {number} [args.loop = false] Whether the sound should play repeatedly.
+   * @param {boolean} [args.loop = false] Whether the sound should play repeatedly.
    * @param {boolean} [args.preload = false] Load the sound initially itself.
    * @param {boolean} [args.autoplay = false] Play automatically once the object is created.
    * @param {function=} args.onload Event-handler for the "load" event.
@@ -198,8 +198,21 @@ class BaseBuzz {
     typeof options.onmute === 'function' && this.on('mute', options.onmute);
     typeof options.onvolume === 'function' && this.on('volume', options.onvolume);
     typeof options.ondestroy === 'function' && this.on('destroy', options.ondestroy);
+  }
 
-    this._read(options);
+  /**
+   * Validate the passed options. Should be overridden by the derived classes if required.
+   * @param {object} options The passed options to the buzz
+   * @private
+   */
+  _validate(options) { // eslint-disable-line no-unused-vars
+  }
+
+  /**
+   * Setup the buzzer if it's not yet ready and auto-play or preload based on the passed option.
+   * @protected
+   */
+  _completeSetup() {
     buzzer.setup(null);
     this._context = buzzer.context();
     this._state = BuzzState.Constructed;
@@ -215,19 +228,11 @@ class BaseBuzz {
   }
 
   /**
-   * Validate the passed options. Should be overridden by the derived classes if required.
-   * @param {object} options The passed options to the buzz
-   * @private
-   */
-  _validate(options) {
-  }
-
-  /**
    * Read the additional options. Should be overridden by the derived classes if required.
    * @param {object} options The passed options to the buzz
    * @private
    */
-  _read(options) {
+  _read(options) { // eslint-disable-line no-unused-vars
   }
 
   /**
@@ -306,7 +311,7 @@ class BaseBuzz {
    * @param {DownloadResult} downloadResult The audio download result
    * @private
    */
-  _save(downloadResult) {
+  _save(downloadResult) { // eslint-disable-line no-unused-vars
     throw new Error('Not implemented');
   }
 
@@ -463,7 +468,7 @@ class BaseBuzz {
 
   /**
    * Set/get the volume.
-   * @param {number=} vol Should be within 0.0 to 1.0.
+   * @param {number=} vol Should be within 0.0 to 1.0
    * @returns {BaseBuzz|number}
    */
   volume(vol) {

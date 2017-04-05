@@ -129,10 +129,10 @@ class Buzzer {
   /**
    * Instantiate audio context and other important objects.
    * Returns true if the setup is success.
-   * @param {object=} args
-   * @param {number=} [args.volume = 1.0]
-   * @param {boolean=} [args.saveEnergy = false]
-   * @param {number=} [args.autoSuspendInterval = 5]
+   * @param {object=} args Input parameters object.
+   * @param {number=} [args.volume = 1.0] The global volume of the sound engine.
+   * @param {boolean=} [args.saveEnergy = false] Whether to auto-suspend the engine to save energy.
+   * @param {number=} [args.autoSuspendInterval = 5] The auto-suspend interval in minutes.
    * @param {function=} args.onsuspend Event-handler for the "suspend" event.
    * @param {function=} args.onresume Event-handler for the "resume" event.
    * @param {function=} args.ondone Event-handler for the "done" event.
@@ -143,7 +143,7 @@ class Buzzer {
    * @param {function=} args.onbuzzplayend Event-handler for the "buzzplayend" event.
    * @param {function=} args.onbuzzpause Event-handler for the "buzzpause" event.
    * @param {function=} args.onbuzzstop Event-handler for the "buzzstop" event.
-   * @param {AudioContext=} args.context
+   * @param {AudioContext=} args.context The Web API audio context.
    * @returns {Buzzer}
    */
   setup(args) {
@@ -158,7 +158,7 @@ class Buzzer {
       throw new Error('Web Audio API is unavailable');
     }
 
-    this._isContextInjected = !!options.context;
+    this._isContextInjected = Boolean(options.context);
     this._context = this._isContextInjected ? options.context : new this._contextType();
 
     if (typeof options.volume === 'number' && options.volume >= 0 && options.volume <= 1.0) {
@@ -191,8 +191,8 @@ class Buzzer {
 
   /**
    * Loads single or multiple audio resources into audio buffers.
-   * @param {string|string[]} urls
-   * @param {boolean} [cache = true]
+   * @param {string|string[]} urls Single or array of audio urls
+   * @param {boolean} [cache = true] Whether to cache the buffer(s) or not
    * @return {Promise}
    */
   load(urls, cache = true) {
@@ -201,7 +201,7 @@ class Buzzer {
 
   /**
    * Unloads single or multiple loaded audio buffers from cache.
-   * @param {string|string[]} urls
+   * @param {string|string[]} urls Single or array of audio urls
    * @return {Buzzer}
    */
   unload(urls) {
@@ -211,8 +211,8 @@ class Buzzer {
 
   /**
    * Pre-loads HTML5 audio nodes with audio files.
-   * @param {string|string[]} urls
-   * @param {string=} id
+   * @param {string|string[]} urls Single or array of audio urls
+   * @param {string=} id Sound id
    * @return {Promise.<DownloadResult|Array<DownloadResult>>}
    */
   loadMedia(urls, id) {
@@ -221,8 +221,8 @@ class Buzzer {
 
   /**
    * Release the pre-loaded HTML audio nodes.
-   * @param {string|string[]=} urls
-   * @param {string} id
+   * @param {string|string[]=} urls Single or array of audio urls
+   * @param {string} id Sound id
    * @return {Buzzer}
    */
   unloadMedia(urls, id) {
@@ -232,7 +232,7 @@ class Buzzer {
 
   /**
    * Adds the buzz to the internal array for controlling the playback and to the audio graph.
-   * @param {BaseBuzz} buzz
+   * @param {BaseBuzz} buzz The buzz object
    * @returns {Buzzer}
    * @private
    */
@@ -251,7 +251,7 @@ class Buzzer {
 
   /**
    * Removes the buzz from the array and the graph.
-   * @param {BaseBuzz} buzz
+   * @param {BaseBuzz} buzz The buzz object
    * @returns {Buzzer}
    * @private
    */
@@ -268,8 +268,8 @@ class Buzzer {
 
   /**
    * Publish the buzz playback events.
-   * @param {string} event
-   * @param {...*} args
+   * @param {string} event Event name
+   * @param {...*} args The arguments that to be passed to handler
    * @private
    */
   _fireBuzzEvent(event, ...args) {
@@ -278,7 +278,7 @@ class Buzzer {
 
   /**
    * Set/get the volume for the audio engine that controls global volume for all sounds.
-   * @param {number=} vol
+   * @param {number=} vol Should be within 0.0 to 1.0
    * @returns {Buzzer|number}
    */
   volume(vol) {
@@ -367,6 +367,7 @@ class Buzzer {
 
   /**
    * Shuts down the engine.
+   * @return {Buzzer}
    */
   tearDown() {
     if (this._state !== BuzzerState.Ready || this._state !== BuzzerState.Suspended) {
@@ -442,12 +443,12 @@ class Buzzer {
 
   /**
    * Method to subscribe to an event.
-   * @param {string} event
-   * @param {function|object} options
-   * @param {function} options.handler
-   * @param {object=} options.target
-   * @param {object|Array=} options.args
-   * @param {boolean=} [options.once = false]
+   * @param {string} event Name of the event
+   * @param {function|object} options Handler function or subscription options
+   * @param {function} options.handler Handler function
+   * @param {object=} options.target Scope the handler should be invoked
+   * @param {object|Array=} options.args Additional arguments that should be passed to the handler
+   * @param {boolean=} [options.once = false] One-time listener or not
    * @returns {Buzzer}
    */
   on(event, options) {
@@ -457,9 +458,9 @@ class Buzzer {
 
   /**
    * Method to un-subscribe from an event.
-   * @param {string} event
-   * @param {function} handler
-   * @param {object=} target
+   * @param {string} event The event name
+   * @param {function} handler The handler function
+   * @param {object=} target Scope of the handler to be invoked
    * @returns {Buzzer}
    */
   off(event, handler, target) {
@@ -468,9 +469,9 @@ class Buzzer {
   }
 
   /**
-   * Fires an event passing the sound and other optional arguments.
-   * @param {string} event
-   * @param {...*} args
+   * Fires an event passing the source and other optional arguments.
+   * @param {string} event The event name
+   * @param {...*} args The arguments that to be passed to handler
    * @returns {Buzzer}
    * @private
    */
@@ -482,4 +483,4 @@ class Buzzer {
 
 const buzzer = new Buzzer();
 
-export {BuzzerState, Buzzer, buzzer as default};
+export { BuzzerState, Buzzer, buzzer as default };

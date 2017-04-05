@@ -2,6 +2,9 @@ import buzzer from './src/core/Buzzer';
 import BufferBuzz from './src/core/BufferBuzz';
 import MediaBuzz from './src/core/MediaBuzz';
 
+/**
+ * Handles all the functionalities related to the test page.
+ */
 class BuzzerTester {
 
   _buzzes = [];
@@ -14,6 +17,9 @@ class BuzzerTester {
 
   _buzzesList = null;
 
+  /**
+   * 
+   */
   init() {
     this._buzzerMuteBtn = document.getElementById('buzzer-mute');
     this._buzzerMuteBtn.addEventListener('click', this._muteBuzzer.bind(this));
@@ -27,6 +33,10 @@ class BuzzerTester {
     this._buzzesList = document.getElementById('buzzes');
   }
 
+  /**
+   *
+   * @private
+   */
   _muteBuzzer() {
     if (buzzer.muted()) {
       buzzer.unmute();
@@ -37,11 +47,21 @@ class BuzzerTester {
     }
   }
 
+  /**
+   *
+   * @private
+   */
   _changeVolumeBuzzer() {
     let volume = parseFloat(this._buzzerVolumeSlider.value);
     buzzer.volume(volume);
   }
 
+  /**
+   *
+   * @param event
+   * @return {boolean}
+   * @private
+   */
   _createNewBuzz(event) {
     let isSprite = this._buzzCreateForm['buzz-sound'].value === 'sprite',
       src = 'sounds/' + (isSprite ? 'sprite.mp3' : this._buzzCreateForm['buzz-sound'].value),
@@ -92,7 +112,9 @@ class BuzzerTester {
       }
     });
     buzzLi.querySelector('.buzz-stop').addEventListener('click', () => buzz.stop());
-    buzzLi.querySelector('.buzz-volume').addEventListener('change', () => buzz.volume(parseFloat(buzzLi.querySelector('.buzz-volume').value)));
+    buzzLi.querySelector('.buzz-volume').addEventListener('change', () => {
+      buzz.volume(parseFloat(buzzLi.querySelector('.buzz-volume').value));
+    });
 
     event.preventDefault();
     return false;

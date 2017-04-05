@@ -50,7 +50,7 @@ class BufferBuzz extends BaseBuzz {
    * @param {object=} args.sprite The sprite definition.
    * @param {number} [args.volume = 1.0] The initial volume of the sound.
    * @param {boolean} [args.muted = false] Should be muted initially.
-   * @param {number} [args.loop = false] Whether the sound should play repeatedly.
+   * @param {boolean} [args.loop = false] Whether the sound should play repeatedly.
    * @param {boolean} [args.preload = false] Load the sound initially itself.
    * @param {boolean} [args.autoplay = false] Play automatically once the object is created.
    * @param {boolean} [args.cache = false] Whether to cache the buffer or not.
@@ -67,6 +67,13 @@ class BufferBuzz extends BaseBuzz {
    */
   constructor(args) {
     super(args);
+
+    if (typeof args === 'object') {
+      typeof args.dataUri === 'string' && (this._dataUri = args.dataUri);
+      typeof args.cache === 'boolean' && (this._cache = args.cache);
+    }
+
+    this._completeSetup();
   }
 
   /**
@@ -75,19 +82,9 @@ class BufferBuzz extends BaseBuzz {
    * @private
    */
   _validate(options) {
-    if ((!options.src || (Array.isArray(options.src) && options.src.length === 0)) && !this._dataUri) {
+    if ((!options.src || (Array.isArray(options.src) && options.src.length === 0)) && !options.dataUri) {
       throw new Error('You should pass the source for the audio.');
     }
-  }
-
-  /**
-   * Read the parameters that are specific to BufferBuzz.
-   * @param {object} options The buzz options.
-   * @private
-   */
-  _read(options) {
-    typeof options.dataUri === 'string' && (this._dataUri = options.dataUri);
-    typeof options.cache === 'boolean' && (this._cache = options.cache);
   }
 
   /**
