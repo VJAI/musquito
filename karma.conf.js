@@ -6,9 +6,10 @@ module.exports = function (config) {
     frameworks: ['jasmine-ajax', 'jasmine'],
     files: [
       'src/**/BufferBuzz.spec.js',
-      {pattern: 'sounds/*.*', included: false}
+      { pattern: 'sounds/*.*', included: false }
     ],
     preprocessors: {
+      'src/**/BufferBuzz.spec.js': ['coverage'],
       'src/**/*.spec.js': ['webpack']
     },
     webpack: {
@@ -18,7 +19,7 @@ module.exports = function (config) {
     coverageReporter: {
       type: 'text'
     },
-    reporters: ['mocha'],
+    reporters: ['mocha', 'coverage'],
     port: 9876,
     colors: true,
     logLevel: config.LOG_INFO,
@@ -28,7 +29,8 @@ module.exports = function (config) {
       'karma-jasmine',
       'karma-jasmine-ajax',
       'karma-webpack',
-      'karma-mocha-reporter'
+      'karma-mocha-reporter',
+      'karma-coverage'
     ],
     browsers: ['Chrome'],
     singleRun: false,
