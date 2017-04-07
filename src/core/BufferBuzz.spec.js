@@ -32,8 +32,8 @@ describe('BufferBuzz', () => {
         expect(bufferBuzz).toBeDefined();
       });
 
-      it('should have the state as ready', () => {
-        expect(bufferBuzz._state).toBe(BuzzState.Ready);
+      it('should have the state as constructed', () => {
+        expect(bufferBuzz._state).toBe(BuzzState.Constructed);
       });
     });
 
@@ -90,18 +90,16 @@ describe('BufferBuzz', () => {
 
   describe('on calling load', () => {
 
-    describe('with not exist source passed', () => {
+    describe('with non-exist source passed', () => {
 
       let bufferBuzz = null;
 
-      beforeEach(() => {
+      beforeEach(done => {
         bufferBuzz = new BufferBuzz({
           src: 'base/sounds/notexist.mp3',
-          onerror: null
+          onerror: done
         });
-      });
 
-      it('should throw error event', () => {
         bufferBuzz.load();
       });
 
@@ -112,43 +110,169 @@ describe('BufferBuzz', () => {
 
     describe('with not-supported source passed', () => {
 
-      it('should throw error event', () => {
+      let bufferBuzz = null;
 
+      beforeEach(done => {
+        bufferBuzz = new BufferBuzz({
+          src: 'base/sounds/beep.unknown',
+          onerror: done
+        });
+
+        bufferBuzz.load();
+      });
+
+      it('should change the state to error', () => {
+        expect(bufferBuzz._state).toBe(BuzzState.Error);
       });
     });
 
     describe('with valid source passed', () => {
 
-      it('should fire the loaded event', () => {
+      let bufferBuzz = null;
 
+      beforeEach(done => {
+        bufferBuzz = new BufferBuzz({
+          src: 'base/sounds/beep.mp3',
+          onload: done
+        });
+
+        bufferBuzz.load();
+      });
+
+      it('should change the state to ready', () => {
+        expect(bufferBuzz._state).toBe(BuzzState.Ready);
       });
 
       it('should store the buffer and duration', () => {
-
+        expect(bufferBuzz._duration).not.toBe(0);
+        expect(bufferBuzz._buffer).not.toBeNull();
       });
-
-      it('')
     });
   });
 
   describe('on calling play', () => {
 
+    describe('when the sound is not loaded', () => {
+
+      it('the sound get loaded', () => {
+
+      });
+
+      it('should fire playstart event', () => {
+
+      });
+
+      it('should fire playend event', () => {
+
+      });
+
+      it('reset the variables after played', () => {
+
+      });
+    });
+
+    describe('when the sound is already loaded', () => {
+
+      it('should fire playstart event', () => {
+
+      });
+
+      it('should fire playend event', () => {
+
+      });
+
+      it('reset the variables after played', () => {
+
+      });
+    });
+
+    describe('when the sound is already playing', () => {
+
+      it('should not play the sound again', () => {
+
+      });
+    });
+
+    describe('when the sound is paused', () => {
+
+      it('should play the sound from the paused position', () => {
+
+      });
+    });
+
+    describe('when the sound is stopped', () => {
+
+      it('should play the sound from start', () => {
+
+      });
+    });
+
+    describe('when the sound is destroyed', () => {
+
+      it('should throw error', () => {
+
+      });
+    });
   });
 
   describe('on calling pause', () => {
 
+    describe('before the sound is loaded', () => {
+
+    });
+
+    describe('when the sound is not in playing state', () => {
+
+    });
+
+    describe('when the sound is in playing state', () => {
+
+    });
+
+    describe('when the sound is destroyed', () => {
+
+    });
   });
 
   describe('on calling stop', () => {
 
+    describe('before the sound is loaded', () => {
+
+    });
+
+    describe('when the sound is not in playing/paused state', () => {
+
+    });
+
+    describe('when the sound is in playing state', () => {
+
+    });
+
+    describe('when the sound is in paused state', () => {
+
+    });
+
+    describe('when the sound is destroyed', () => {
+
+    });
   });
 
   describe('on changing volume', () => {
 
+    describe('before the sound is loaded', () => {
+
+    });
+
+    describe('after the sound is loaded', () => {
+
+    });
   });
 
   describe('on calling mute', () => {
 
+    describe('before the sound is loaded', () => {
+
+    });
   });
 
   describe('on calling unmute', () => {

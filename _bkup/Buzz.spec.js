@@ -61,7 +61,7 @@ describe('Buzz', () => {
 
     describe('with valid source', () => {
 
-      let buzz;
+      let buzz = null;
 
       beforeAll(done => {
         buzz = new Buzz({
@@ -77,13 +77,13 @@ describe('Buzz', () => {
       });
 
       it('The status should be set to ready', () => {
-        expect(buzz._state).toBe(BuzzState.Ready);
+        expect(buzz._state).toBe(BuzzState.Constructed);
       });
     });
 
     describe('with invalid source', () => {
 
-      let buzz;
+      let buzz = null;
 
       beforeAll(done => {
         buzz = new Buzz({
