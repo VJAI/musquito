@@ -48,12 +48,6 @@ describe('BufferBuzz', () => {
         bufferBuzz = new BufferBuzz('base/sounds/beep.mp3');
       });
 
-      afterEach(() => {
-        if (bufferBuzz) {
-          bufferBuzz.destroy();
-        }
-      });
-
       it('should not throw error and the object should get created', () => {
         expect(bufferBuzz).toBeDefined();
       });
@@ -71,12 +65,6 @@ describe('BufferBuzz', () => {
         bufferBuzz = new BufferBuzz({ src: 'base/sounds/beep.mp3' });
       });
 
-      afterEach(() => {
-        if (bufferBuzz) {
-          bufferBuzz.destroy();
-        }
-      });
-
       it('should not throw error and the object should get created', () => {
         expect(bufferBuzz).toBeDefined();
       });
@@ -90,12 +78,6 @@ describe('BufferBuzz', () => {
         bufferBuzz = new BufferBuzz({ dataUri: 'base64-audio' });
       });
 
-      afterEach(() => {
-        if (bufferBuzz) {
-          bufferBuzz.destroy();
-        }
-      });
-
       it('should not throw error and the object should get created', () => {
         expect(bufferBuzz).toBeDefined();
       });
@@ -107,12 +89,6 @@ describe('BufferBuzz', () => {
 
       beforeEach(() => {
         bufferBuzz = new BufferBuzz({ dataUri: 'base64-audio' });
-      });
-
-      afterEach(() => {
-        if (bufferBuzz) {
-          bufferBuzz.destroy();
-        }
       });
 
       it('should initialize the properties with the right values', () => {
@@ -140,12 +116,6 @@ describe('BufferBuzz', () => {
         });
       });
 
-      afterEach(() => {
-        if (bufferBuzz) {
-          bufferBuzz.destroy();
-        }
-      });
-
       it('should initialize the properties with the right values', () => {
         expect(bufferBuzz._id).toBe('12345');
         expect(bufferBuzz._src).toEqual(['base/sounds/beep.mp3']);
@@ -171,12 +141,6 @@ describe('BufferBuzz', () => {
         bufferBuzz.load();
       });
 
-      afterEach(() => {
-        if (bufferBuzz) {
-          bufferBuzz.destroy();
-        }
-      });
-
       it('should change the state to error', () => {
         expect(bufferBuzz._state).toBe(BuzzState.Error);
       });
@@ -193,12 +157,6 @@ describe('BufferBuzz', () => {
         });
 
         bufferBuzz.load();
-      });
-
-      afterEach(() => {
-        if (bufferBuzz) {
-          bufferBuzz.destroy();
-        }
       });
 
       it('should change the state to error', () => {
@@ -219,12 +177,6 @@ describe('BufferBuzz', () => {
         bufferBuzz.load();
       });
 
-      afterEach(() => {
-        if (bufferBuzz) {
-          bufferBuzz.destroy();
-        }
-      });
-
       it('should change the state to ready', () => {
         expect(bufferBuzz._state).toBe(BuzzState.Ready);
       });
@@ -240,52 +192,10 @@ describe('BufferBuzz', () => {
 
     describe('when the sound is not loaded', () => {
 
-      let bufferBuzz = null;
-
-      afterEach(() => {
-        if (bufferBuzz) {
-          bufferBuzz.destroy();
-        }
-      });
-
       it('should get loaded', done => {
-        bufferBuzz = new BufferBuzz({
+        const bufferBuzz = new BufferBuzz({
           src: 'base/sounds/beep.mp3',
           onload: done
-        });
-
-        bufferBuzz.play();
-      });
-
-      it('should fire playstart event', done => {
-        bufferBuzz = new BufferBuzz({
-          src: 'base/sounds/beep.mp3',
-          onplaystart: done
-        });
-
-        bufferBuzz.play();
-      });
-
-      it('should fire playend event', done => {
-        bufferBuzz = new BufferBuzz({
-          src: 'base/sounds/beep.mp3',
-          onplayend: done
-        });
-
-        bufferBuzz.play();
-      });
-
-      it('reset the variables after played', done => {
-        bufferBuzz = new BufferBuzz({
-          src: 'base/sounds/beep.mp3',
-          onplayend: () => {
-            expect(bufferBuzz._startedAt).toBe(0);
-            expect(bufferBuzz._elapsed).toBe(0);
-            expect(bufferBuzz._endTimer).toBeNull();
-            expect(bufferBuzz._bufferSource).toBeNull();
-            expect(bufferBuzz._state).toBe(BuzzState.Ready);
-            done();
-          }
         });
 
         bufferBuzz.play();
@@ -296,44 +206,27 @@ describe('BufferBuzz', () => {
 
       let bufferBuzz = null;
 
-      afterEach(() => {
-        if (bufferBuzz) {
-          bufferBuzz.destroy();
-        }
+      beforeEach(done => {
+        bufferBuzz = new BufferBuzz({
+          src: 'base/sounds/beep.mp3',
+          onload: done
+        }).play();
       });
 
       it('should fire playstart event', done => {
-        bufferBuzz = new BufferBuzz({
-          src: 'base/sounds/beep.mp3',
-          onplaystart: done
-        });
-
-        bufferBuzz.play();
+        bufferBuzz.on('playstart', done);
       });
 
       it('should fire playend event', done => {
-        bufferBuzz = new BufferBuzz({
-          src: 'base/sounds/beep.mp3',
-          onplayend: done
-        });
-
-        bufferBuzz.play();
+        bufferBuzz.on('playend', done);
       });
 
-      it('reset the variables after played', done => {
-        bufferBuzz = new BufferBuzz({
-          src: 'base/sounds/beep.mp3',
-          onplayend: () => {
-            expect(bufferBuzz._startedAt).toBe(0);
-            expect(bufferBuzz._elapsed).toBe(0);
-            expect(bufferBuzz._endTimer).toBeNull();
-            expect(bufferBuzz._bufferSource).toBeNull();
-            expect(bufferBuzz._state).toBe(BuzzState.Ready);
-            done();
-          }
-        });
-
-        bufferBuzz.play();
+      it('reset the variables after played', () => {
+        expect(bufferBuzz._startedAt).toBe(0);
+        expect(bufferBuzz._elapsed).toBe(0);
+        expect(bufferBuzz._endTimer).toBeNull();
+        expect(bufferBuzz._bufferSource).toBeNull();
+        expect(bufferBuzz._state).toBe(BuzzState.Ready);
       });
     });
 
@@ -349,12 +242,6 @@ describe('BufferBuzz', () => {
             done();
           }
         }).play();
-      });
-
-      afterEach(() => {
-        if (bufferBuzz) {
-          bufferBuzz.destroy();
-        }
       });
 
       it('should not play the sound again', () => {
@@ -380,12 +267,6 @@ describe('BufferBuzz', () => {
         }).play();
       });
 
-      afterEach(() => {
-        if (bufferBuzz) {
-          bufferBuzz.destroy();
-        }
-      });
-
       it('should play the sound from the paused position', () => {
         expect(bufferBuzz._play).toHaveBeenCalledWith(bufferBuzz._elapsed);
       });
@@ -409,21 +290,24 @@ describe('BufferBuzz', () => {
         }).play();
       });
 
-      afterEach(() => {
-        if (bufferBuzz) {
-          bufferBuzz.destroy();
-        }
-      });
-
       it('should play the sound from start', () => {
         expect(bufferBuzz._play).toHaveBeenCalledWith(0);
       });
     });
 
-    describe('when the sound is destroyed', () => {
+    describe('after the sound is destroyed', () => {
+
+      let bufferBuzz = null;
+
+      beforeEach(() => {
+        bufferBuzz = new BufferBuzz({
+          src: 'base/sounds/bg.mp3',
+          onplayend: () => bufferBuzz.destroy()
+        }).play();
+      });
 
       it('should throw error', () => {
-
+        expect(bufferBuzz.play).toThrow();
       });
     });
   });
