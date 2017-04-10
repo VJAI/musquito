@@ -1,4 +1,4 @@
-var webpackConfig = require('./webpack.dev.config');
+const webpackConfig = require('./webpack.dev.config');
 
 module.exports = function (config) {
   config.set({
@@ -9,7 +9,7 @@ module.exports = function (config) {
       { pattern: 'sounds/*.*', included: false }
     ],
     preprocessors: {
-      'src/**/BufferBuzz.spec.js': ['coverage'],
+      'src/**/*.js': ['webpack', 'coverage'],
       'src/**/*.spec.js': ['webpack']
     },
     webpack: {

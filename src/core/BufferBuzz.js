@@ -146,10 +146,7 @@ class BufferBuzz extends BaseBuzz {
 
     buzzer._link(this);
     this._clearEndTimer();
-    this._bufferSource = this._context.createBufferSource();
-    this._bufferSource.buffer = this._buffer;
-    this._bufferSource.connect(this._gainNode);
-    this._bufferSource.start(0, offset);
+    this._play(offset);
     this._startedAt = this._context.currentTime;
     this._endTimer = setTimeout(() => {
       if (this._loop) {
@@ -168,6 +165,18 @@ class BufferBuzz extends BaseBuzz {
     this._fire('playstart');
 
     return this;
+  }
+
+  /**
+   * Plays the sound from the offset.
+   * @param {number} offset The elapsed duration
+   * @private
+   */
+  _play(offset) {
+    this._bufferSource = this._context.createBufferSource();
+    this._bufferSource.buffer = this._buffer;
+    this._bufferSource.connect(this._gainNode);
+    this._bufferSource.start(0, offset);
   }
 
   /**

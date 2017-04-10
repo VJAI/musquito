@@ -554,6 +554,10 @@ class BaseBuzz {
    * Destroys the buzz.
    */
   destroy() {
+    if (this._state === BuzzState.Destroyed) {
+      return this;
+    }
+
     this.stop();
     this._context = null;
     this._gainNode = null;
@@ -562,6 +566,7 @@ class BaseBuzz {
     this._fire('destroy');
     this._emitter.clear();
     this._emitter = null;
+    return this;
   }
 
   /**
