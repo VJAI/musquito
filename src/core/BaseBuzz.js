@@ -428,7 +428,7 @@ class BaseBuzz {
     }
 
     this._resetVars();
-    this._state = BuzzState.Stopped;
+    this._state = BuzzState.Ready;
     this._fire('stop');
 
     return this;
@@ -552,6 +552,7 @@ class BaseBuzz {
 
   /**
    * Destroys the buzz.
+   * @return {BaseBuzz}
    */
   destroy() {
     if (this._state === BuzzState.Destroyed) {

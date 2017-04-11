@@ -192,8 +192,10 @@ describe('BufferBuzz', () => {
 
     describe('when the sound is not loaded', () => {
 
+      let bufferBuzz = null;
+
       it('should get loaded', done => {
-        const bufferBuzz = new BufferBuzz({
+        bufferBuzz = new BufferBuzz({
           src: 'base/sounds/beep.mp3',
           onload: done
         });
@@ -210,23 +212,35 @@ describe('BufferBuzz', () => {
         bufferBuzz = new BufferBuzz({
           src: 'base/sounds/beep.mp3',
           onload: done
-        }).play();
+        }).load();
       });
 
       it('should fire playstart event', done => {
-        bufferBuzz.on('playstart', done);
+        bufferBuzz.on('playstart', () => {
+          bufferBuzz.stop();
+          done();
+        });
+        bufferBuzz.play();
       });
 
       it('should fire playend event', done => {
-        bufferBuzz.on('playend', done);
+        bufferBuzz.on('playend', () => {
+          bufferBuzz.stop();
+          done();
+        });
+        bufferBuzz.play();
       });
 
       it('reset the variables after played', () => {
-        expect(bufferBuzz._startedAt).toBe(0);
-        expect(bufferBuzz._elapsed).toBe(0);
-        expect(bufferBuzz._endTimer).toBeNull();
-        expect(bufferBuzz._bufferSource).toBeNull();
-        expect(bufferBuzz._state).toBe(BuzzState.Ready);
+        bufferBuzz.on('playend', () => {
+          expect(bufferBuzz._startedAt).toBe(0);
+          expect(bufferBuzz._elapsed).toBe(0);
+          expect(bufferBuzz._endTimer).toBeNull();
+          expect(bufferBuzz._bufferSource).toBeNull();
+          expect(bufferBuzz._state).toBe(BuzzState.Ready);
+        });
+
+        bufferBuzz.play();
       });
     });
 
@@ -239,6 +253,7 @@ describe('BufferBuzz', () => {
           src: 'base/sounds/beep.mp3',
           onplaystart: () => {
             spyOn(bufferBuzz, '_play');
+            bufferBuzz.play();
             done();
           }
         }).play();
@@ -314,43 +329,116 @@ describe('BufferBuzz', () => {
 
   describe('on calling pause', () => {
 
-    describe('before the sound is loaded', () => {
-
-    });
-
     describe('when the sound is not in playing state', () => {
 
+      let bufferBuzz = null;
+
+      beforeEach(() => {
+        bufferBuzz = new BufferBuzz({
+          src: 'base/sounds/beep.mp3'
+        });
+
+        spyOn(bufferBuzz._emitter, 'off');
+
+        bufferBuzz.pause();
+      });
+
+      it('should remove the play handler', () => {
+        expect(bufferBuzz._emitter.off).toHaveBeenCalledWith('load', bufferBuzz.play, undefined);
+      });
+
+      it('should not change the state of the sound', () => {
+        expect(bufferBuzz._state).not.toBe(BuzzState.Paused);
+      });
     });
 
     describe('when the sound is in playing state', () => {
 
-    });
+      let bufferBuzz = null;
 
-    describe('when the sound is destroyed', () => {
+      beforeEach(done => {
+        bufferBuzz = new BufferBuzz({
+          src: 'base/sounds/bg.mp3',
+          onplaystart: () => {
+            setTimeout(() => {
+              bufferBuzz.pause();
+              done();
+            }, 2000);
+          }
+        }).play();
+      });
 
+      it('should pause the sound', () => {
+        expect(bufferBuzz._elapsed).not.toBe(0);
+        expect(bufferBuzz._state).toBe(BuzzState.Paused);
+      });
     });
   });
 
   describe('on calling stop', () => {
 
-    describe('before the sound is loaded', () => {
-
-    });
-
     describe('when the sound is not in playing/paused state', () => {
 
+      let bufferBuzz = null;
+
+      beforeEach(() => {
+        bufferBuzz = new BufferBuzz({
+          src: 'base/sounds/beep.mp3'
+        });
+
+        spyOn(bufferBuzz._emitter, 'off');
+
+        bufferBuzz.stop();
+      });
+
+      it('should remove the play handler', () => {
+        expect(bufferBuzz._emitter.off).toHaveBeenCalledWith('load', bufferBuzz.play, undefined);
+      });
+
+      it('should not change the state of the sound', () => {
+        expect(bufferBuzz._state).not.toBe(BuzzState.Stopped);
+      });
     });
 
     describe('when the sound is in playing state', () => {
 
+      let bufferBuzz = null;
+
+      beforeEach(done => {
+        bufferBuzz = new BufferBuzz({
+          src: 'base/sounds/bg.mp3',
+          onplaystart: () => {
+            bufferBuzz.stop();
+            done();
+          }
+        }).play();
+      });
+
+      it('should stop the sound', () => {
+        expect(bufferBuzz._state).toBe(BuzzState.Ready);
+        expect(bufferBuzz._startedAt).toBe(0);
+        expect(bufferBuzz._elapsed).toBe(0);
+      });
     });
 
     describe('when the sound is in paused state', () => {
 
-    });
+      let bufferBuzz = null;
 
-    describe('when the sound is destroyed', () => {
+      beforeEach(done => {
+        bufferBuzz = new BufferBuzz({
+          src: 'base/sounds/bg.mp3',
+          onplaystart: () => {
+            bufferBuzz.pause();
+            done();
+          }
+        }).play();
+      });
 
+      it('should stop the sound', () => {
+        bufferBuzz.stop();
+        expect(bufferBuzz._state).toBe(BuzzState.Ready);
+      });
     });
   });
 
@@ -358,10 +446,38 @@ describe('BufferBuzz', () => {
 
     describe('before the sound is loaded', () => {
 
+      let bufferBuzz = null;
+
+      beforeEach(() => {
+        bufferBuzz = new BufferBuzz({
+          src: 'base/sounds/beep.mp3'
+        });
+
+        bufferBuzz.volume(0.5);
+      });
+
+      it('should change the volume', () => {
+        expect(bufferBuzz._volume).toBe(0.5);
+      });
     });
 
     describe('after the sound is loaded', () => {
 
+      let bufferBuzz = null;
+
+      beforeEach(done => {
+        bufferBuzz = new BufferBuzz({
+          src: 'base/sounds/beep.mp3',
+          onload: () => {
+            bufferBuzz.volume(0.5);
+            done();
+          }
+        }).load();
+      });
+
+      it('should change the volume', () => {
+        expect(bufferBuzz._volume).toBe(0.5);
+      });
     });
   });
 
@@ -369,11 +485,97 @@ describe('BufferBuzz', () => {
 
     describe('before the sound is loaded', () => {
 
+      let bufferBuzz = null;
+
+      beforeEach(() => {
+        bufferBuzz = new BufferBuzz({
+          src: 'base/sounds/beep.mp3'
+        });
+
+        bufferBuzz.mute();
+      });
+
+      it('should mute the sound', () => {
+        expect(bufferBuzz._muted).toBe(true);
+      });
+
+      it('once the sound is loaded the gain node\'s value to be set to 0', done => {
+        bufferBuzz.on('load', () => {
+          expect(bufferBuzz._gainNode.gain.value).toBe(0);
+          done();
+        });
+        bufferBuzz.load();
+      });
+    });
+
+    describe('after the sound is loaded', () => {
+
+      let bufferBuzz = null;
+
+      beforeEach(done => {
+        bufferBuzz = new BufferBuzz({
+          src: 'base/sounds/beep.mp3',
+          onload: () => {
+            bufferBuzz.mute();
+            done();
+          }
+        }).load();
+      });
+
+      it('should mute the sound', () => {
+        expect(bufferBuzz._muted).toBe(true);
+      });
     });
   });
 
   describe('on calling unmute', () => {
 
+    describe('before the sound is loaded', () => {
+
+      let bufferBuzz = null;
+
+      beforeEach(() => {
+        bufferBuzz = new BufferBuzz({
+          src: 'base/sounds/beep.mp3'
+        });
+
+        bufferBuzz.mute();
+      });
+
+      it('should unmute the sound', () => {
+        bufferBuzz.unmute();
+        expect(bufferBuzz._muted).toBe(false);
+      });
+
+      it('once the sound is loaded the gain node\'s value to be set to volume', done => {
+        bufferBuzz.on('load', () => {
+          expect(bufferBuzz._gainNode.gain.value).toBe(bufferBuzz._volume);
+          done();
+        });
+        bufferBuzz.load();
+        bufferBuzz.unmute();
+      });
+    });
+
+    describe('after the sound is loaded', () => {
+
+      let bufferBuzz = null;
+
+      beforeEach(done => {
+        bufferBuzz = new BufferBuzz({
+          src: 'base/sounds/beep.mp3',
+          onload: () => {
+            bufferBuzz.mute();
+            bufferBuzz.unmute();
+            done();
+          }
+        }).load();
+      });
+
+      it('should unmute the sound', () => {
+        expect(bufferBuzz._muted).toBe(false);
+      });
+    });
   });
 
   describe('on calling destroy', () => {
