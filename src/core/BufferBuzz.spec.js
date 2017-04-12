@@ -368,8 +368,11 @@ describe('BufferBuzz', () => {
         }).play();
       });
 
-      it('should pause the sound', () => {
+      it('should update the elapsed property', () => {
         expect(bufferBuzz._elapsed).not.toBe(0);
+      });
+
+      it('should set the state to paused', () => {
         expect(bufferBuzz._state).toBe(BuzzState.Paused);
       });
     });
@@ -387,6 +390,7 @@ describe('BufferBuzz', () => {
         });
 
         spyOn(bufferBuzz._emitter, 'off');
+        spyOn(bufferBuzz, '_stop');
 
         bufferBuzz.stop();
       });
@@ -398,6 +402,10 @@ describe('BufferBuzz', () => {
       it('should not change the state of the sound', () => {
         expect(bufferBuzz._state).not.toBe(BuzzState.Stopped);
       });
+
+      it('should not call the stop method', () => {
+        expect(bufferBuzz._stop).not.toHaveBeenCalled();
+      });
     });
 
     describe('when the sound is in playing state', () => {
@@ -408,16 +416,24 @@ describe('BufferBuzz', () => {
         bufferBuzz = new BufferBuzz({
           src: 'base/sounds/bg.mp3',
           onplaystart: () => {
+            spyOn(bufferBuzz, '_stop');
             bufferBuzz.stop();
             done();
           }
         }).play();
       });
 
-      it('should stop the sound', () => {
+      it('should set the state to ready', () => {
         expect(bufferBuzz._state).toBe(BuzzState.Ready);
+      });
+
+      it('should update startedat and elapsed to 0', () => {
         expect(bufferBuzz._startedAt).toBe(0);
         expect(bufferBuzz._elapsed).toBe(0);
+      });
+
+      it('should call the stop method', () => {
+        expect(bufferBuzz._stop).toHaveBeenCalled();
       });
     });
 
@@ -456,8 +472,16 @@ describe('BufferBuzz', () => {
         bufferBuzz.volume(0.5);
       });
 
-      it('should change the volume', () => {
+      it('should update the volume property', () => {
         expect(bufferBuzz._volume).toBe(0.5);
+      });
+
+      it('once the sound is loaded the gain node\'s value to be set to the passed volume', done => {
+        bufferBuzz.on('load', () => {
+          expect(bufferBuzz._gainNode.gain.value).toBe(0.5);
+          done();
+        });
+        bufferBuzz.load();
       });
     });
 
@@ -475,8 +499,12 @@ describe('BufferBuzz', () => {
         }).load();
       });
 
-      it('should change the volume', () => {
+      it('should update the volume property', () => {
         expect(bufferBuzz._volume).toBe(0.5);
+      });
+
+      it('should update the gain node', () => {
+        expect(bufferBuzz._gainNode.gain.value).toBe(0.5);
       });
     });
   });
@@ -495,7 +523,7 @@ describe('BufferBuzz', () => {
         bufferBuzz.mute();
       });
 
-      it('should mute the sound', () => {
+      it('should set the muted flag to true', () => {
         expect(bufferBuzz._muted).toBe(true);
       });
 
@@ -522,8 +550,12 @@ describe('BufferBuzz', () => {
         }).load();
       });
 
-      it('should mute the sound', () => {
+      it('should set the muted flag to true', () => {
         expect(bufferBuzz._muted).toBe(true);
+      });
+
+      it('should set the gain node\'s value to 0', () => {
+        expect(bufferBuzz._gainNode.gain.value).toBe(0);
       });
     });
   });
@@ -539,11 +571,10 @@ describe('BufferBuzz', () => {
           src: 'base/sounds/beep.mp3'
         });
 
-        bufferBuzz.mute();
+        bufferBuzz.unmute();
       });
 
-      it('should unmute the sound', () => {
-        bufferBuzz.unmute();
+      it('should set the muted flag to false', () => {
         expect(bufferBuzz._muted).toBe(false);
       });
 
@@ -553,7 +584,6 @@ describe('BufferBuzz', () => {
           done();
         });
         bufferBuzz.load();
-        bufferBuzz.unmute();
       });
     });
 
@@ -565,15 +595,18 @@ describe('BufferBuzz', () => {
         bufferBuzz = new BufferBuzz({
           src: 'base/sounds/beep.mp3',
           onload: () => {
-            bufferBuzz.mute();
             bufferBuzz.unmute();
             done();
           }
         }).load();
       });
 
-      it('should unmute the sound', () => {
+      it('should set the muted flag to false', () => {
         expect(bufferBuzz._muted).toBe(false);
+      });
+
+      it('should set the gain node\'s value to be volume', () => {
+        expect(bufferBuzz._gainNode.gain.value).toBe(bufferBuzz._volume);
       });
     });
   });

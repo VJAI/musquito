@@ -1,55 +1,17 @@
 import buzzer from './core/Buzzer';
 import BuzzCollection from './core/BuzzCollection';
+import createBuzz from './util/BuzzFactory';
 
-const _api = {};
+function $buzz(...args) {
+  if (args.length === 0) {
+    throw new Error('You should pass at-least one argument');
+  }
 
-/**
- * Friendly API to play with collection of sounds.
- * @param {string} query
- * @return {{play: (function()), pause: (function()), stop: (function()), volume: (function())}}
- */
-function $buzz(query) {
+  if (args.length === 1) {
+    return createBuzz(args[0]);
+  }
 
-  let _buzzes = null;
-
-  _buzzes = new BuzzCollection();
-
-  const _play = () => {
-    _buzzes.play();
-    return $buzz;
-  };
-
-  const _pause = () => {
-    _buzzes.pause();
-    return $buzz;
-  };
-
-  const _stop = () => {
-    _buzzes.stop();
-    return $buzz;
-  };
-
-  const _volume = (volume) => {
-    _buzzes.volume(volume);
-    return $buzz;
-  };
-
-  const _mute = () => {
-    _buzzes.mute();
-    return $buzz;
-  };
-
-  const _unmute = () => {
-    _buzzes.unmute();
-    return $buzz;
-  };
-
-  const _undestroy = () => {
-    _buzzes.destroy();
-    return $buzz;
-  };
-
-  return _api;
+  return new BuzzCollection(args);
 }
 
 $buzz.defaults = {};
@@ -74,23 +36,4 @@ $buzz.unmute = () => {
   return $buzz;
 };
 
-$buzz.register = (name, method) => {
-  if(_api.hasOwnProperty(name)) {
-    throw new Error(`There is already a method registered with this name "${name}"`);
-  }
-
-  _api[name] = method;
-
-  return $buzz;
-};
-
-$buzz.unregister = (name) => {
-  if(!_api.hasOwnProperty(name)) {
-    throw new Error('There is no method registered with this name "${name}"');
-  }
-
-  delete _api[name];
-  return $buzz;
-};
-
-export {$buzz as default};
+export { $buzz as default };
