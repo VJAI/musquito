@@ -1,10 +1,10 @@
-import NodeBase from './NodeBase';
+import BaseNode from './BaseNode';
 
 /**
  * Node that creates a delay.
  * @class
  */
-class DelayNode extends NodeBase {
+class DelayNode extends BaseNode {
 
   /**
    * Delay duration in seconds.

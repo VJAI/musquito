@@ -1,6 +1,6 @@
-import NodeBase from './NodeBase';
+import BaseNode from './BaseNode';
 
-class PlayNode extends NodeBase {
+class PlayNode extends BaseNode {
 
   /**
    * Executed the node's behavior.

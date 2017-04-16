@@ -2,19 +2,19 @@
  * The base class for all types of nodes.
  * @class
  */
-class NodeBase {
+class BaseNode {
 
   /**
    * The array of child nodes.
-   * @type {Array<NodeBase>}
+   * @type {Array<BaseNode>}
    * @private
    */
   _children = [];
 
   /**
    * Connect the node as one of it's child.
-   * @param {NodeBase} node A node
-   * @return {NodeBase}
+   * @param {BaseNode} node A node
+   * @return {BaseNode}
    */
   connect(node) {
     this._children.push(node);
@@ -23,8 +23,8 @@ class NodeBase {
 
   /**
    * Remove the node from it's children collection.
-   * @param {NodeBase} node The connected node
-   * @return {NodeBase}
+   * @param {BaseNode} node The connected node
+   * @return {BaseNode}
    */
   disconnect(node) {
     const index = this._children.indexOf(node);
@@ -56,4 +56,4 @@ class NodeBase {
   }
 }
 
-export { NodeBase as default };
+export { BaseNode as default };
