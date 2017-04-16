@@ -21,6 +21,14 @@ $buzz.config = (options) => {
   return $buzz;
 };
 
+$buzz.register = (...urls) => {
+
+};
+
+$buzz.unregister = (...urls) => {
+
+};
+
 $buzz.volume = (volume) => {
   buzzer.volume(volume);
   return $buzz;
