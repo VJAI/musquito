@@ -1,0 +1,24 @@
+<html>
+<head>
+  <title>Html5 Audio Test</title>
+</head>
+<body>
+<script>
+  var audio = new Audio();
+  audio.addEventListener('seeking', function () {
+    console.log('Seeking listener called');
+  });
+
+  audio.addEventListener('ended', function () {
+    console.log('ended');
+  });
+
+  audio.src = 'http://prideparrot.com/demos/hollywood/assets/theme.mp3';
+  audio.play();
+
+  setTimeout(function () {
+    audio.currentTime = 1.5;
+  }, 3000);
+</script>
+</body>
+</html>

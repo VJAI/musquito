@@ -326,6 +326,8 @@ class BaseBuzz {
       return this;
     }
 
+    // TODO: If the state is "loading" and no event handler attached then we need to subscribe to the load event.
+
     if (!this._isLoaded) {
       this.on('load', {
         handler: this.play,
@@ -527,6 +529,14 @@ class BaseBuzz {
    */
   state() {
     return this._state;
+  }
+
+  /**
+   * Returns true if the sound is loaded.
+   * @return {boolean}
+   */
+  isLoaded() {
+    return this._isLoaded;
   }
 
   /**
