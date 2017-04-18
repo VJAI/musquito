@@ -467,7 +467,7 @@ class BaseBuzz {
   }
 
   /**
-   * Set/get the volume.
+   * Get/set the volume.
    * @param {number=} vol Should be within 0.0 to 1.0
    * @returns {BaseBuzz|number}
    */
@@ -484,6 +484,32 @@ class BaseBuzz {
     this._gainNode && (this._gainNode.gain.value = this._volume);
     this._fire('volume', this._volume);
 
+    return this;
+  }
+
+  /**
+   * Get/set the seek position.
+   * @param {number=} seek The seek position
+   * @return {BaseBuzz}
+   */
+  seek(seek) {
+    return this;
+  }
+
+  /**
+   * Get/set the playback rate.
+   * @param {number=} rate The playback rate
+   * @return {BaseBuzz}
+   */
+  rate(rate) {
+    return this;
+  }
+
+  /**
+   * Get/set the loop parameter of the sound.
+   * @return {BaseBuzz}
+   */
+  loop() {
     return this;
   }
 
