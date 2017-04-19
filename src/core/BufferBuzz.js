@@ -43,6 +43,13 @@ class BufferBuzz extends BaseBuzz {
   _bufferSource = null;
 
   /**
+   * Represents the timer that is used to reset the variables after the playback.
+   * @type {number|null}
+   * @private
+   */
+  _endTimer = null;
+
+  /**
    * @param {string|object} args The input parameters of the sound.
    * @param {string=} args.id An unique id for the sound.
    * @param {string=} args.src The source of the audio file.
@@ -118,7 +125,7 @@ class BufferBuzz extends BaseBuzz {
       return this;
     }
 
-    if (!this._isLoaded) {
+    if (!this._isLoaded && !this._isSubscribedToLoadEvent) {
       this.on('load', {
         handler: this.play,
         target: this,
@@ -126,6 +133,7 @@ class BufferBuzz extends BaseBuzz {
         once: true
       });
 
+      this._isSubscribedToLoadEvent = true;
       this.load();
 
       return this;
@@ -177,6 +185,34 @@ class BufferBuzz extends BaseBuzz {
     this._bufferSource.buffer = this._buffer;
     this._bufferSource.connect(this._gainNode);
     this._bufferSource.start(0, offset);
+  }
+
+  /**
+   * Resets end timer.
+   * @private
+   */
+  _reset() {
+    this._clearEndTimer();
+  }
+
+  /**
+   * Clears the play end timer.
+   * @private
+   */
+  _clearEndTimer() {
+    if (this._endTimer) {
+      clearTimeout(this._endTimer);
+      this._endTimer = null;
+    }
+  }
+
+  /**
+   * Get/set the seek position.
+   * @param {number=} seek The seek position
+   * @return {BufferBuzz}
+   */
+  seek(seek) {
+    return this;
   }
 
   /**

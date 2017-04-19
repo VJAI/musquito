@@ -1,4 +1,4 @@
-import BaseBuzz from './BaseBuzz';
+import BaseBuzz, { BuzzState } from './BaseBuzz';
 import buzzer from './Buzzer';
 
 /**
@@ -64,6 +64,57 @@ class MediaBuzz extends BaseBuzz {
   _save(downloadResult) {
     this._audio = downloadResult.value;
     this._duration = this._audio.duration;
+  }
+
+  /**
+   * Plays the sound.
+   * Fires 'playstart' event before playing and 'playend' event after the sound is played.
+   * @returns {MediaBuzz}
+   */
+  play() {
+    // If the sound is already in "Playing" state then it's not allowed to play again.
+    if (this._state === BuzzState.Playing) {
+      return this;
+    }
+
+    if (!this._isLoaded && !this._isSubscribedToLoadEvent) {
+      this.on('load', {
+        handler: this.play,
+        target: this,
+        once: true
+      });
+
+      this._isSubscribedToLoadEvent = true;
+      this.load();
+
+      return this;
+    }
+
+    buzzer._link(this);
+    this._clearEndTimer();
+    this._play(this._elapsed);
+    this._startedAt = this._context.currentTime;
+
+    const onEnded = () => {
+      this._audio.removeEventListener('ended', onEnded);
+      if (this._loop) {
+        this._startedAt = 0;
+        this._elapsed = 0;
+        this._state = BuzzState.Ready;
+        this._fire('playend');
+        this.play();
+      } else {
+        this._resetVars();
+        this._state = BuzzState.Ready;
+        this._fire('playend');
+      }
+    };
+
+    this._audio.addEventListener('ended', onEnded);
+    this._state = BuzzState.Playing;
+    this._fire('playstart');
+
+    return this;
   }
 
   /**

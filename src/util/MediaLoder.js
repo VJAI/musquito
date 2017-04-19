@@ -51,14 +51,18 @@ class MediaLoader {
         return;
       }
 
-      audio.addEventListener('canplaythrough', () => {
+      const onCanPlayThrough = () => {
+        audio.removeEventListener('canplaythrough', onCanPlayThrough);
         resolve(new DownloadResult(url, audio));
-      });
+      };
 
-      audio.addEventListener('error', err => {
+      const onError = err => {
+        audio.removeEventListener('error', onError);
         reject(new DownloadResult(url, null, err));
-      });
+      };
 
+      audio.addEventListener('canplaythrough', onCanPlayThrough);
+      audio.addEventListener('error', onError);
       audio.src = url;
       audio.load();
     });

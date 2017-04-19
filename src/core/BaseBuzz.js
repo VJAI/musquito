@@ -116,13 +116,6 @@ class BaseBuzz {
   _emitter = new EventEmitter('load,error,playstart,playend,stop,pause,mute,volume');
 
   /**
-   * Represents the timer that is used to reset the variables after the playback.
-   * @type {number|null}
-   * @protected
-   */
-  _endTimer = null;
-
-  /**
    * Duration of the sound.
    * @type {number}
    * @protected
@@ -149,6 +142,13 @@ class BaseBuzz {
    * @protected
    */
   _isLoaded = false;
+
+  /**
+   * Whether we already subscribed to load event for auto-play.
+   * @type {boolean}
+   * @protected
+   */
+  _isSubscribedToLoadEvent = false;
 
   /**
    * @param {string|object} args The input parameters of the sound.
@@ -230,28 +230,18 @@ class BaseBuzz {
   /**
    * Read the additional options. Should be overridden by the derived classes if required.
    * @param {object} options The passed options to the buzz
-   * @private
+   * @protected
    */
   _read(options) { // eslint-disable-line no-unused-vars
   }
 
   /**
    * Removes the "play" handler that is wired-up to the "load" event.
-   * @private
+   * @protected
    */
   _removePlayHandler() {
     this.off('load', this.play);
-  }
-
-  /**
-   * Clears the play end timer.
-   * @private
-   */
-  _clearEndTimer() {
-    if (this._endTimer) {
-      clearTimeout(this._endTimer);
-      this._endTimer = null;
-    }
+    this._isSubscribedToLoadEvent = false;
   }
 
   /**
@@ -300,7 +290,7 @@ class BaseBuzz {
 
   /**
    * Should be implemented by the derived classes.
-   * @private
+   * @protected
    */
   _load() {
     throw new Error('Not implemented');
@@ -309,7 +299,7 @@ class BaseBuzz {
   /**
    * Should be implemented by the derived classes.
    * @param {DownloadResult} downloadResult The audio download result
-   * @private
+   * @protected
    */
   _save(downloadResult) { // eslint-disable-line no-unused-vars
     throw new Error('Not implemented');
@@ -318,77 +308,33 @@ class BaseBuzz {
   /**
    * Plays the sound.
    * Fires 'playstart' event before playing and 'playend' event after the sound is played.
-   * @returns {BaseBuzz}
    */
   play() {
-    // If the sound is already in "Playing" state then it's not allowed to play again.
-    if (this._state === BuzzState.Playing) {
-      return this;
-    }
-
-    // TODO: If the state is "loading" and no event handler attached then we need to subscribe to the load event.
-
-    if (!this._isLoaded) {
-      this.on('load', {
-        handler: this.play,
-        target: this,
-        once: true
-      });
-
-      this.load();
-
-      return this;
-    }
-
-    let offset = this._elapsed, duration = this._duration;
-
-    buzzer._link(this);
-    this._clearEndTimer();
-    this._play(offset);
-    this._startedAt = this._context.currentTime;
-    this._endTimer = setTimeout(() => {
-      if (this._loop) {
-        this._startedAt = 0;
-        this._elapsed = 0;
-        this._state = BuzzState.Ready;
-        this._fire('playend');
-        this.play();
-      } else {
-        this._resetVars();
-        this._state = BuzzState.Ready;
-        this._fire('playend');
-      }
-    }, duration * 1000);
-    this._state = BuzzState.Playing;
-    this._fire('playstart');
-
-    return this;
-  }
-
-  /**
-   * Plays the sound from the offset. Should be implemented by the derived classes.
-   * @param {number} offset The elapsed duration
-   * @private
-   */
-  _play(offset) { // eslint-disable-line no-unused-vars
     throw new Error('Not implemented');
   }
 
   /**
    * Resets the internal variables.
-   * @private
+   * @protected
    */
   _resetVars() {
     buzzer._unlink(this);
     this._stop();
     this._startedAt = 0;
     this._elapsed = 0;
-    this._clearEndTimer();
+    this._reset();
+  }
+
+  /**
+   * Reset any other variables used in derived classes.
+   * @private
+   */
+  _reset() {
   }
 
   /**
    * Should be implemented by the derived classes.
-   * @private
+   * @protected
    */
   _stop() {
     throw new Error('Not implemented');
@@ -492,19 +438,17 @@ class BaseBuzz {
   /**
    * Get/set the seek position.
    * @param {number=} seek The seek position
-   * @return {BaseBuzz}
    */
-  seek(seek) {
-    return this;
+  seek(seek) { // eslint-disable-line no-unused-vars
+    throw new Error('Not implemented');
   }
 
   /**
    * Get/set the playback rate.
    * @param {number=} rate The playback rate
-   * @return {BaseBuzz}
    */
-  rate(rate) {
-    return this;
+  rate(rate) { // eslint-disable-line no-unused-vars
+    throw new Error('Not implemented');
   }
 
   /**
@@ -608,7 +552,7 @@ class BaseBuzz {
 
   /**
    * Should be overridden by the derived classes.
-   * @private
+   * @protected
    */
   _destroy() {
     throw new Error('Not implemented');
