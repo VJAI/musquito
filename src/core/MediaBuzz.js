@@ -166,19 +166,34 @@ class MediaBuzz extends BaseBuzz {
       return this;
     }
 
-    // TODO: Listen to canPlayThrough event.
-
     const isPlaying = this.isPlaying();
     if (isPlaying) {
       this._pause(false);
     }
 
-    this._elapsed = seek;
-    this._fire('seek', seek);
+    let canPlayThroughEventHandled = false;
+    const onCanPlayThrough = () => {
+      if (canPlayThroughEventHandled) {
+        return;
+      }
 
-    if (isPlaying) {
-      this._play(false);
+      canPlayThroughEventHandled = true;
+      this._audio.removeEventListener('canplaythrough');
+      this._fire('loadonseek');
+
+      if (isPlaying) {
+        this._play(false);
+      }
+    };
+    this._audio.addEventListener('canplaythrough', onCanPlayThrough);
+
+    this._elapsed = seek;
+
+    if (this._audio.readyState === 4) {
+      onCanPlayThrough();
     }
+
+    this._fire('seek', seek);
 
     return this;
   }
