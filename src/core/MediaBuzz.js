@@ -49,7 +49,7 @@ class MediaBuzz extends BaseBuzz {
   }
 
   /**
-   * Loads the audio buffer.
+   * Loads the audio node.
    * @return {Promise<DownloadResult>}
    * @private
    */
@@ -73,6 +73,16 @@ class MediaBuzz extends BaseBuzz {
    * @returns {MediaBuzz}
    */
   play() {
+    return this._play();
+  }
+
+  /**
+   * Play sound and fire events.
+   * @param {boolean} [fireEvent = true] True to fire event
+   * @return {MediaBuzz}
+   * @private
+   */
+  _play(fireEvent = true) {
     // If the sound is already in "Playing" state then it's not allowed to play again.
     if (this.isPlaying()) {
       return this;
@@ -93,7 +103,13 @@ class MediaBuzz extends BaseBuzz {
 
     buzzer._link(this);
     this._clearEndTimer();
-    this._play(this._elapsed);
+    if (!this._mediaElementAudioSourceNode) {
+      this._mediaElementAudioSourceNode = this._context.createMediaElementSource(this._audio);
+      this._mediaElementAudioSourceNode.connect(this._gainNode);
+    }
+
+    this._audio.currentTime = this._elapsed;
+    this._audio.play();
     this._startedAt = this._context.currentTime;
 
     const onEnded = () => {
@@ -113,31 +129,65 @@ class MediaBuzz extends BaseBuzz {
 
     this._audio.addEventListener('ended', onEnded);
     this._state = BuzzState.Playing;
-    this._fire('playstart');
+    fireEvent && this._fire('playstart');
 
     return this;
   }
 
   /**
-   * Plays the media element source node that is wired-up with the audio element from the offset.
-   * @param {number} offset The elapsed duration
-   * @private
+   * Get/set the seek position.
+   * @param {number=} seek The seek position
+   * @return {MediaBuzz|number}
    */
-  _play(offset) {
-    if (!this._mediaElementAudioSourceNode) {
-      this._mediaElementAudioSourceNode = this._context.createMediaElementSource(this._audio);
-      this._mediaElementAudioSourceNode.connect(this._gainNode);
+  seek(seek) {
+    if (typeof seek === 'undefined') {
+      return this._audio ? this._audio.currentTime : 0;
     }
 
-    this._audio.currentTime = offset;
-    this._audio.play();
+    if (typeof seek !== 'number' || seek < 0) {
+      return this;
+    }
+
+    if (!this._isLoaded && !this._isSubscribedToSeek) {
+      this.on('load', {
+        handler: this.seek,
+        target: this,
+        args: [seek],
+        once: true
+      });
+
+      this._isSubscribedToSeek = true;
+      this._load();
+
+      return this;
+    }
+
+    if (seek > this._duration) {
+      return this;
+    }
+
+    // TODO: Listen to canPlayThrough event.
+
+    const isPlaying = this.isPlaying();
+    if (isPlaying) {
+      this._pause(false);
+    }
+
+    this._elapsed = seek;
+    this._fire('seek', seek);
+
+    if (isPlaying) {
+      this._play(false);
+    }
+
+    return this;
   }
 
   /**
    * Stops the playing audio element.
    * @private
    */
-  _stop() {
+  _stopNode() {
     this._audio && this._audio.pause();
   }
 

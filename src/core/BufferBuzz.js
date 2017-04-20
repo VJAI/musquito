@@ -121,6 +121,17 @@ class BufferBuzz extends BaseBuzz {
    * @returns {BaseBuzz}
    */
   play(sound) {
+    return this._play(sound);
+  }
+
+  /**
+   * Play the sound and fire events.
+   * @param {string|null=} sound The sound name of the sprite
+   * @param {boolean} [fireEvent = true] True to fire event
+   * @return {BufferBuzz}
+   * @private
+   */
+  _play(sound, fireEvent = true) {
     // If the sound is already in "Playing" state then it's not allowed to play again.
     if (this.isPlaying()) {
       return this;
@@ -155,7 +166,10 @@ class BufferBuzz extends BaseBuzz {
 
     buzzer._link(this);
     this._clearEndTimer();
-    this._play(offset);
+    this._bufferSource = this._context.createBufferSource();
+    this._bufferSource.buffer = this._buffer;
+    this._bufferSource.connect(this._gainNode);
+    this._bufferSource.start(0, offset);
     this._startedAt = this._context.currentTime;
     this._endTimer = setTimeout(() => {
       if (this._loop) {
@@ -171,21 +185,9 @@ class BufferBuzz extends BaseBuzz {
       }
     }, duration * 1000);
     this._state = BuzzState.Playing;
-    this._fire('playstart');
+    fireEvent && this._fire('playstart');
 
     return this;
-  }
-
-  /**
-   * Plays the sound from the offset.
-   * @param {number} offset The elapsed duration
-   * @private
-   */
-  _play(offset) {
-    this._bufferSource = this._context.createBufferSource();
-    this._bufferSource.buffer = this._buffer;
-    this._bufferSource.connect(this._gainNode);
-    this._bufferSource.start(0, offset);
   }
 
   /**
@@ -239,9 +241,17 @@ class BufferBuzz extends BaseBuzz {
       return this;
     }
 
+    const isPlaying = this.isPlaying();
+    if (isPlaying) {
+      this._pause(false);
+    }
+
     this._elapsed = seek;
     this._fire('seek', seek);
-    this._clearEndTimer();
+
+    if (isPlaying) {
+      this._play(null, false);
+    }
 
     return this;
   }
@@ -250,7 +260,7 @@ class BufferBuzz extends BaseBuzz {
    * Disconnect the buffer source and stop it.
    * @private
    */
-  _stop() {
+  _stopNode() {
     if (this._bufferSource) {
       this._bufferSource.disconnect();
       this._bufferSource.stop(0);

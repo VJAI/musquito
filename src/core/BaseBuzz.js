@@ -328,7 +328,7 @@ class BaseBuzz {
    */
   _resetVars() {
     buzzer._unlink(this);
-    this._stop();
+    this._stopNode();
     this._startedAt = 0;
     this._elapsed = 0;
     this._reset();
@@ -345,7 +345,7 @@ class BaseBuzz {
    * Should be implemented by the derived classes.
    * @protected
    */
-  _stop() {
+  _stopNode() {
     throw new Error('Not implemented');
   }
 
@@ -354,6 +354,16 @@ class BaseBuzz {
    * @returns {BaseBuzz}
    */
   pause() {
+    return this._pause();
+  }
+
+  /**
+   * Pause the playing sound and fire event.
+   * @param {boolean=} [fireEvent = true] True to fire event
+   * @return {BaseBuzz}
+   * @protected
+   */
+  _pause(fireEvent = true) {
     // Remove the "play" event handler from queue if there is one.
     this._removePlayHandler();
 
@@ -366,7 +376,7 @@ class BaseBuzz {
     this._resetVars();
     this._elapsed = elapsed + this._context.currentTime - startedAt;
     this._state = BuzzState.Paused;
-    this._fire('pause');
+    fireEvent && this._fire('pause');
 
     return this;
   }
@@ -376,6 +386,16 @@ class BaseBuzz {
    * @returns {BaseBuzz}
    */
   stop() {
+    return this._stop();
+  }
+
+  /**
+   * Stop the sound and fire event.
+   * @param {number=} [fireEvent = true] True to fire event
+   * @return {BaseBuzz}
+   * @private
+   */
+  _stop(fireEvent = true) {
     // Remove the "play" event handler from queue if there is one.
     this._removePlayHandler();
 
@@ -386,7 +406,7 @@ class BaseBuzz {
 
     this._resetVars();
     this._state = BuzzState.Ready;
-    this._fire('stop');
+    fireEvent && this._fire('stop');
 
     return this;
   }
