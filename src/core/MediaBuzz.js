@@ -28,6 +28,7 @@ class MediaBuzz extends BaseBuzz {
    * @param {function=} args.onpause Event-handler for the "pause" event.
    * @param {function=} args.onmute Event-handler for the "mute" event.
    * @param {function=} args.onvolume Event-handler for the "volume" event.
+   * @param {function=} args.onseek Event-handler for the "seek" event.
    * @param {function=} args.ondestroy Event-handler for the "destroy" event.
    * @constructor
    */
@@ -73,18 +74,18 @@ class MediaBuzz extends BaseBuzz {
    */
   play() {
     // If the sound is already in "Playing" state then it's not allowed to play again.
-    if (this._state === BuzzState.Playing) {
+    if (this.isPlaying()) {
       return this;
     }
 
-    if (!this._isLoaded && !this._isSubscribedToLoadEvent) {
+    if (!this._isLoaded && !this._isSubscribedToPlay) {
       this.on('load', {
         handler: this.play,
         target: this,
         once: true
       });
 
-      this._isSubscribedToLoadEvent = true;
+      this._isSubscribedToPlay = true;
       this.load();
 
       return this;

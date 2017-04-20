@@ -69,6 +69,7 @@ class BufferBuzz extends BaseBuzz {
    * @param {function=} args.onpause Event-handler for the "pause" event.
    * @param {function=} args.onmute Event-handler for the "mute" event.
    * @param {function=} args.onvolume Event-handler for the "volume" event.
+   * @param {function=} args.onseek Event-handler for the "seek" event.
    * @param {function=} args.ondestroy Event-handler for the "destroy" event.
    * @constructor
    */
@@ -121,11 +122,11 @@ class BufferBuzz extends BaseBuzz {
    */
   play(sound) {
     // If the sound is already in "Playing" state then it's not allowed to play again.
-    if (this._state === BuzzState.Playing) {
+    if (this.isPlaying()) {
       return this;
     }
 
-    if (!this._isLoaded && !this._isSubscribedToLoadEvent) {
+    if (!this._isLoaded && !this._isSubscribedToPlay) {
       this.on('load', {
         handler: this.play,
         target: this,
@@ -133,7 +134,7 @@ class BufferBuzz extends BaseBuzz {
         once: true
       });
 
-      this._isSubscribedToLoadEvent = true;
+      this._isSubscribedToPlay = true;
       this.load();
 
       return this;
@@ -209,9 +210,39 @@ class BufferBuzz extends BaseBuzz {
   /**
    * Get/set the seek position.
    * @param {number=} seek The seek position
-   * @return {BufferBuzz}
+   * @return {BufferBuzz|number}
    */
   seek(seek) {
+    if (typeof seek === 'undefined') {
+      throw new Error('Implement this');
+    }
+
+    if (typeof seek !== 'number' || seek < 0) {
+      return this;
+    }
+
+    if (!this._isLoaded && !this._isSubscribedToSeek) {
+      this.on('load', {
+        handler: this.seek,
+        target: this,
+        args: [seek],
+        once: true
+      });
+
+      this._isSubscribedToSeek = true;
+      this._load();
+
+      return this;
+    }
+
+    if (seek > this._duration) {
+      return this;
+    }
+
+    this._elapsed = seek;
+    this._fire('seek', seek);
+    this._clearEndTimer();
+
     return this;
   }
 

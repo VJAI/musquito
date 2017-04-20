@@ -148,7 +148,14 @@ class BaseBuzz {
    * @type {boolean}
    * @protected
    */
-  _isSubscribedToLoadEvent = false;
+  _isSubscribedToPlay = false;
+
+  /**
+   * Whether we already subscribed to load event for seek.
+   * @type {boolean}
+   * @protected
+   */
+  _isSubscribedToSeek = false;
 
   /**
    * @param {string|object} args The input parameters of the sound.
@@ -167,6 +174,7 @@ class BaseBuzz {
    * @param {function=} args.onpause Event-handler for the "pause" event.
    * @param {function=} args.onmute Event-handler for the "mute" event.
    * @param {function=} args.onvolume Event-handler for the "volume" event.
+   * @param {function=} args.onseek Event-handler for the "seek" event.
    * @param {function=} args.ondestroy Event-handler for the "destroy" event.
    * @constructor
    */
@@ -197,6 +205,7 @@ class BaseBuzz {
     typeof options.onpause === 'function' && this.on('pause', options.onpause);
     typeof options.onmute === 'function' && this.on('mute', options.onmute);
     typeof options.onvolume === 'function' && this.on('volume', options.onvolume);
+    typeof options.onseek === 'function' && this.on('seek', options.onseek);
     typeof options.ondestroy === 'function' && this.on('destroy', options.ondestroy);
   }
 
@@ -241,7 +250,7 @@ class BaseBuzz {
    */
   _removePlayHandler() {
     this.off('load', this.play);
-    this._isSubscribedToLoadEvent = false;
+    this._isSubscribedToPlay = false;
   }
 
   /**
@@ -349,7 +358,7 @@ class BaseBuzz {
     this._removePlayHandler();
 
     // We can pause the sound only if it is "playing" state.
-    if (this._state !== BuzzState.Playing) {
+    if (!this.isPlaying()) {
       return this;
     }
 
@@ -371,7 +380,7 @@ class BaseBuzz {
     this._removePlayHandler();
 
     // We can stop the sound either if it "playing" or in "paused" state.
-    if (this._state !== BuzzState.Playing && this._state !== BuzzState.Paused) {
+    if (!this.isPlaying() && !this.isPaused()) {
       return this;
     }
 
@@ -489,6 +498,22 @@ class BaseBuzz {
    */
   duration() {
     return this._duration;
+  }
+
+  /**
+   * Returns true if the buzz is in playing state.
+   * @return {boolean}
+   */
+  isPlaying() {
+    return this._state === BuzzState.Playing;
+  }
+
+  /**
+   * Returns true if buzz is in paused state.
+   * @return {boolean}
+   */
+  isPaused() {
+    return this._state === BuzzState.Paused;
   }
 
   /**
