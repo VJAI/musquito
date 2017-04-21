@@ -144,20 +144,6 @@ class BaseBuzz {
   _isLoaded = false;
 
   /**
-   * Whether we already subscribed to load event for auto-play.
-   * @type {boolean}
-   * @protected
-   */
-  _isSubscribedToPlay = false;
-
-  /**
-   * Whether we already subscribed to load event for seek.
-   * @type {boolean}
-   * @protected
-   */
-  _isSubscribedToSeek = false;
-
-  /**
    * @param {string|object} args The input parameters of the sound.
    * @param {string=} args.id An unique id for the sound.
    * @param {string|string[]=} args.src The source of the audio file.
@@ -250,7 +236,6 @@ class BaseBuzz {
    */
   _removePlayHandler() {
     this.off('load', this.play);
-    this._isSubscribedToPlay = false;
   }
 
   /**
@@ -465,18 +450,18 @@ class BaseBuzz {
   }
 
   /**
-   * Get/set the seek position.
-   * @param {number=} seek The seek position
-   */
-  seek(seek) { // eslint-disable-line no-unused-vars
-    throw new Error('Not implemented');
-  }
-
-  /**
    * Get/set the playback rate.
    * @param {number=} rate The playback rate
    */
   rate(rate) { // eslint-disable-line no-unused-vars
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * Get/set the seek position.
+   * @param {number=} seek The seek position
+   */
+  seek(seek) { // eslint-disable-line no-unused-vars
     throw new Error('Not implemented');
   }
 
@@ -561,6 +546,25 @@ class BaseBuzz {
   off(event, handler, target) {
     this._emitter.off(event, handler, target);
     return this;
+  }
+
+  _onLoad(handler, priority, ...args) {
+    this.on('load', {
+      key: this._id,
+      handler: handler,
+      target: this,
+      args: args,
+      priority: priority,
+      once: true
+    });
+  }
+
+  _offLoad(handler) {
+    this.off('load', handler, this._id);
+  }
+
+  _isSubscribedToLoad(handler) {
+    return this._emitter.isSubscribed('load', handler, this._id);
   }
 
   /**

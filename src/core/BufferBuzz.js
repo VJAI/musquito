@@ -22,6 +22,13 @@ class BufferBuzz extends BaseBuzz {
   _sprite = null;
 
   /**
+   * Current playing name of the sound in a sprite.
+   * @type {string|null}
+   * @private
+   */
+  _spriteSound = null;
+
+  /**
    * Whether to cache the buffer or not.
    * @type {boolean}
    * @protected
@@ -137,17 +144,15 @@ class BufferBuzz extends BaseBuzz {
       return this;
     }
 
-    if (!this._isLoaded && !this._isSubscribedToPlay) {
-      this.on('load', {
-        handler: this.play,
-        target: this,
-        args: [sound],
-        once: true
-      });
+    // If the sound is not yet loaded, subscribe to the "load" event for play once the sound is loaded.
+    if (!this._isLoaded) {
+      // If we are already subscribed then return.
+      if (this._isSubscribedToLoad(this.play)) {
+        return this;
+      }
 
-      this._isSubscribedToPlay = true;
+      this._onLoad(this.play, 100, sound);
       this.load();
-
       return this;
     }
 
@@ -156,12 +161,16 @@ class BufferBuzz extends BaseBuzz {
     // If we are gonna play a sound in sprite calculate the duration and also check if the offset is within that
     // sound boundaries and if not reset to the starting point.
     if (sound && this._sprite && this._sprite[sound]) {
-      const startEnd = this._sprite[sound],
+      this._spriteSound = sound;
+
+      const startEnd = this._sprite[this._spriteSound],
         soundStart = startEnd[0],
         soundEnd = startEnd[1];
 
       duration = soundEnd - soundStart;
       offset = (offset < soundStart || offset > soundEnd) ? soundStart : offset;
+    } else {
+      this._spriteSound = null;
     }
 
     buzzer._link(this);
@@ -210,6 +219,15 @@ class BufferBuzz extends BaseBuzz {
   }
 
   /**
+   * Get/set the playback rate.
+   * @param {number=} rate The playback rate
+   * @return {BufferBuzz}
+   */
+  rate(rate) {
+    return this;
+  }
+
+  /**
    * Get/set the seek position.
    * @param {number=} seek The seek position
    * @return {BufferBuzz|number}
@@ -223,17 +241,13 @@ class BufferBuzz extends BaseBuzz {
       return this;
     }
 
-    if (!this._isLoaded && !this._isSubscribedToSeek) {
-      this.on('load', {
-        handler: this.seek,
-        target: this,
-        args: [seek],
-        once: true
-      });
+    if (!this._isLoaded) {
+      if (this._isSubscribedToLoad(this.seek)) {
+        return this;
+      }
 
-      this._isSubscribedToSeek = true;
+      this._onLoad(this.seek, 100, seek);
       this._load();
-
       return this;
     }
 

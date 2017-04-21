@@ -88,21 +88,20 @@ class MediaBuzz extends BaseBuzz {
       return this;
     }
 
-    if (!this._isLoaded && !this._isSubscribedToPlay) {
-      this.on('load', {
-        handler: this.play,
-        target: this,
-        once: true
-      });
+    // If the sound is not yet loaded, subscribe to the "load" event for play once the sound is loaded.
+    if (!this._isLoaded) {
+      // If we are already subscribed then return.
+      if (this._isSubscribedToLoad(this.play)) {
+        return this;
+      }
 
-      this._isSubscribedToPlay = true;
+      this._onLoad(this.play, 100);
       this.load();
-
       return this;
     }
 
     buzzer._link(this);
-    this._clearEndTimer();
+
     if (!this._mediaElementAudioSourceNode) {
       this._mediaElementAudioSourceNode = this._context.createMediaElementSource(this._audio);
       this._mediaElementAudioSourceNode.connect(this._gainNode);
@@ -148,17 +147,13 @@ class MediaBuzz extends BaseBuzz {
       return this;
     }
 
-    if (!this._isLoaded && !this._isSubscribedToSeek) {
-      this.on('load', {
-        handler: this.seek,
-        target: this,
-        args: [seek],
-        once: true
-      });
+    if (!this._isLoaded) {
+      if (this._isSubscribedToLoad(this.seek)) {
+        return this;
+      }
 
-      this._isSubscribedToSeek = true;
+      this._onLoad(this.seek, 100, seek);
       this._load();
-
       return this;
     }
 
