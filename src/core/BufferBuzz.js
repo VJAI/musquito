@@ -237,12 +237,8 @@ class BufferBuzz extends BaseBuzz {
       return this;
     }
 
-    if (!this._isLoaded) {
-      if (this._isSubscribedToLoad(this.seek)) {
-        return this;
-      }
-
-      this._onLoad(this.seek, 100, seek);
+    if (!this.isLoaded()) {
+      this._actionQueue.add('seek', () => this.seek(seek));
       this._load();
       return this;
     }

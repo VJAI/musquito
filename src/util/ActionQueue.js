@@ -15,7 +15,7 @@ class ActionQueue {
   }
 
   run() {
-    for(const action in this.actions) {
+    for (const action in this.actions) {
       this.actions[action]();
       this.remove(action);
     }

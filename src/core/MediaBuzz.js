@@ -143,12 +143,8 @@ class MediaBuzz extends BaseBuzz {
       return this;
     }
 
-    if (!this._isLoaded) {
-      if (this._isSubscribedToLoad(this.seek)) {
-        return this;
-      }
-
-      this._onLoad(this.seek, 100, seek);
+    if (!this.isLoaded()) {
+      this._actionQueue.add('seek', () => this.seek(seek));
       this._load();
       return this;
     }
@@ -170,7 +166,7 @@ class MediaBuzz extends BaseBuzz {
 
       canPlayThroughEventHandled = true;
       this._audio.removeEventListener('canplaythrough');
-      this._fire('loadonseek');
+      this._fire('seek', seek);
 
       if (isPlaying) {
         this._play(false);
@@ -183,8 +179,6 @@ class MediaBuzz extends BaseBuzz {
     if (this._audio.readyState === 4) {
       onCanPlayThrough();
     }
-
-    this._fire('seek', seek);
 
     return this;
   }
