@@ -26,10 +26,8 @@ class EventEmitter {
    * Method to subscribe to an event.
    * @param {string} event Name of the event
    * @param {function|object} options Handler function or subscription options
-   * @param {string=} options.key An unique key to sign the subscription
    * @param {function} options.handler Handler function
    * @param {object=} options.target Scope the handler should be invoked
-   * @param {number=} options.priority Priority
    * @param {object|Array=} options.args Additional arguments that should be passed to the handler
    * @param {boolean=} [options.once = false] One-time listener or not
    * @returns {EventEmitter}
@@ -50,11 +48,9 @@ class EventEmitter {
       });
     } else {
       this._events[event].push({
-        key: options.key || null,
         handler: options.handler,
         target: options.target,
         args: options.args ? (Array.isArray(options.args) ? options.args : [options.args]) : [],
-        priority: typeof options.priority === 'number' ? options.priority : 0,
         once: options.once || false
       });
     }
@@ -66,26 +62,19 @@ class EventEmitter {
    * Method to un-subscribe from an event.
    * @param {string} event The event name
    * @param {function} handler The handler function
-   * @param {string=} key The subscription key
    * @param {object=} target Scope of the handler to be invoked
    * @returns {EventEmitter}
    */
-  off(event, handler, key, target) {
-    if (!this._events.hasOwnProperty(event) || (typeof keyOrHandler !== 'string' && typeof keyOrHandler !== 'function')) {
+  off(event, handler, target) {
+    if (!this._events.hasOwnProperty(event) || typeof handler !== 'function') {
       return this;
     }
 
     this._events[event] = this._events[event].filter(eventSubscriber => {
-      return eventSubscriber.handler !== handler ||
-        (key ? eventSubscriber.key !== key : false) ||
-        (target ? eventSubscriber.target !== target : false);
+      return eventSubscriber.handler !== handler || (target ? eventSubscriber.target !== target : false);
     });
 
     return this;
-  }
-
-  isSubscribed(event, handler, key, target) {
-    return true;
   }
 
   /**
@@ -95,7 +84,7 @@ class EventEmitter {
    * @returns {EventEmitter}
    */
   fire(event, ...args) {
-    let eventSubscribers = this._events[event].sort((event1, event2) => event2.priority - event1.priority);
+    let eventSubscribers = this._events[event];
 
     for (let i = 0; i < eventSubscribers.length; i++) {
       let eventSubscriber = eventSubscribers[i];

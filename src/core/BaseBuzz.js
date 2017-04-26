@@ -2,19 +2,28 @@ import buzzer from './Buzzer';
 import codecAid from '../util/CodecAid';
 import DownloadStatus from '../util/DownloadStatus';
 import EventEmitter from '../util/EventEmitter';
+import ActionQueue from '../util/ActionQueue';
+
+/**
+ * Enum that represents the different states in loading a sound.
+ * @enum {string}
+ */
+const LoadState = {
+  NotLoaded: 'notloaded',
+  Loading: 'loading',
+  Loaded: 'loaded',
+  UnLoaded: 'unloaded'
+};
 
 /**
  * Enum that represents the different states of a sound.
- * @enum {number}
+ * @enum {string}
  */
 const BuzzState = {
-  Constructed: 0,
-  Loading: 1,
-  Ready: 2,
-  Playing: 3,
-  Paused: 4,
-  Error: 5,
-  Destroyed: 6
+  Idle: 'idle',
+  Playing: 'playing',
+  Paused: 'paused',
+  Destroyed: 'destroyed'
 };
 
 /**
@@ -22,7 +31,7 @@ const BuzzState = {
  * @enum {number}
  */
 const ErrorType = {
-  LoadError: 1
+  LoadError: 'load'
 };
 
 /**
@@ -32,25 +41,25 @@ const ErrorType = {
 class BaseBuzz {
 
   /**
-   * Unique id of the sound.
+   * Unique id.
    * @type {string|null}
    * @protected
    */
   _id = null;
 
   /**
-   * The source of the audio file.
+   * The array of audio urls.
    * @type {string[]}
    * @protected
    */
   _src = [];
 
   /**
-   * The supported source in the array of audio files.
+   * The supported source in the passed array of urls.
    * @type {string|null}
    * @protected
    */
-  _feasibleSrc = null;
+  _compatibleSrc = null;
 
   /**
    * The current volume of the sound. The value should be between 0.0 and 1.0.
@@ -67,14 +76,14 @@ class BaseBuzz {
   _muted = false;
 
   /**
-   * Represents whether the sound should keep playing repeatedly or not.
+   * Represents whether the sound should play repeatedly or not.
    * @type {boolean}
    * @protected
    */
   _loop = false;
 
   /**
-   * Represents whether the sound should be preloaded on construction.
+   * Represents whether the sound should be pre-loaded on construction.
    * @type {boolean}
    * @protected
    */
@@ -89,10 +98,17 @@ class BaseBuzz {
 
   /**
    * Represents the current state (playing, paused etc.) of the sound.
-   * @type {BuzzState|null}
+   * @type {BuzzState}
    * @protected
    */
-  _state = null;
+  _state = BuzzState.Idle;
+
+  /**
+   * Represents the different states that occurs while the sound is loading.
+   * @type {LoadState|null}
+   * @private
+   */
+  _loadState = null;
 
   /**
    * AudioContext.
@@ -109,11 +125,18 @@ class BaseBuzz {
   _gainNode = null;
 
   /**
-   * Event emitter.
+   * Event emitter that takes care of all event-related mundane jobs.
    * @type {EventEmitter}
    * @protected
    */
-  _emitter = new EventEmitter('load,error,playstart,playend,stop,pause,mute,volume');
+  _emitter = null;
+
+  /**
+   * Action queue to store actions invoked by user when the sound is in loading state.
+   * @type {ActionQueue}
+   * @protected
+   */
+  _actionQueue = null;
 
   /**
    * Duration of the sound.
@@ -130,28 +153,21 @@ class BaseBuzz {
   _startedAt = 0;
 
   /**
-   * Represents the total time elapsed after started playing.
+   * Represents the time elapsed after started playing.
    * @type {number}
    * @protected
    */
   _elapsed = 0;
 
   /**
-   * Whether the source of the sound is loaded or not.
-   * @type {boolean}
-   * @protected
-   */
-  _isLoaded = false;
-
-  /**
    * @param {string|object} args The input parameters of the sound.
-   * @param {string=} args.id An unique id for the sound.
-   * @param {string|string[]=} args.src The source of the audio file.
+   * @param {string=} args.id The unique id of the sound.
+   * @param {string|string[]=} args.src The array of audio urls.
    * @param {number} [args.volume = 1.0] The initial volume of the sound.
-   * @param {boolean} [args.muted = false] Should be muted initially.
-   * @param {boolean} [args.loop = false] Whether the sound should play repeatedly.
-   * @param {boolean} [args.preload = false] Load the sound initially itself.
-   * @param {boolean} [args.autoplay = false] Play automatically once the object is created.
+   * @param {boolean} [args.muted = false] True to be muted initially.
+   * @param {boolean} [args.loop = false] True to play the sound repeatedly.
+   * @param {boolean} [args.preload = false] True to pre-load the sound after construction.
+   * @param {boolean} [args.autoplay = false] True to play automatically after construction.
    * @param {function=} args.onload Event-handler for the "load" event.
    * @param {function=} args.onerror Event-handler for the "error" event.
    * @param {function=} args.onplaystart Event-handler for the "playstart" event.
@@ -160,6 +176,7 @@ class BaseBuzz {
    * @param {function=} args.onpause Event-handler for the "pause" event.
    * @param {function=} args.onmute Event-handler for the "mute" event.
    * @param {function=} args.onvolume Event-handler for the "volume" event.
+   * @param {function=} args.onrate Event-handler for the "rate" event.
    * @param {function=} args.onseek Event-handler for the "seek" event.
    * @param {function=} args.ondestroy Event-handler for the "destroy" event.
    * @constructor
@@ -168,6 +185,9 @@ class BaseBuzz {
     let options = typeof args === 'string' || Array.isArray(args) ? { src: args } : args || {};
 
     this._validate(options);
+
+    this._emitter = new EventEmitter('load,error,playstart,playend,stop,pause,mute,volume');
+    this._actionQueue = new ActionQueue();
 
     this._id = typeof options.id === 'string' ? options.id : Math.round(Date.now() * Math.random()).toString();
 
@@ -192,15 +212,26 @@ class BaseBuzz {
     typeof options.onmute === 'function' && this.on('mute', options.onmute);
     typeof options.onvolume === 'function' && this.on('volume', options.onvolume);
     typeof options.onseek === 'function' && this.on('seek', options.onseek);
+    typeof options.onrate === 'function' && this.on('rate', options.onrate);
     typeof options.ondestroy === 'function' && this.on('destroy', options.ondestroy);
+
+    this._loadState = LoadState.NotLoaded;
   }
 
   /**
-   * Validate the passed options. Should be overridden by the derived classes if required.
+   * Validate the passed options. Will be overridden by the derived classes.
    * @param {object} options The passed options to the buzz
    * @private
    */
   _validate(options) { // eslint-disable-line no-unused-vars
+  }
+
+  /**
+   * Read the additional options. Will be overridden by the derived classes.
+   * @param {object} options The passed options to the buzz.
+   * @protected
+   */
+  _read(options) { // eslint-disable-line no-unused-vars
   }
 
   /**
@@ -210,7 +241,6 @@ class BaseBuzz {
   _completeSetup() {
     buzzer.setup(null);
     this._context = buzzer.context();
-    this._state = BuzzState.Constructed;
 
     if (this._autoplay) {
       this.play();
@@ -223,59 +253,41 @@ class BaseBuzz {
   }
 
   /**
-   * Read the additional options. Should be overridden by the derived classes if required.
-   * @param {object} options The passed options to the buzz
-   * @protected
-   */
-  _read(options) { // eslint-disable-line no-unused-vars
-  }
-
-  /**
-   * Removes the "play" handler that is wired-up to the "load" event.
-   * @protected
-   */
-  _removePlayHandler() {
-    this.off('load', this.play);
-  }
-
-  /**
-   * Load the sound into an audio buffer.
-   * Fires 'load' event on successful load and 'error' event on failure.
+   * Loads the sound.
    * @returns {BaseBuzz}
    */
   load() {
     // If source is already loaded return without reloading again.
-    if (this._isLoaded) {
+    if (this.isLoaded()) {
       return this;
     }
 
     // Set the state to "Loading" to avoid multiple times loading the buffer.
-    this._state = BuzzState.Loading;
+    this._loadState = LoadState.Loading;
 
     const src = codecAid.getSupportedFile(this._src);
 
     if (!src) {
-      this._removePlayHandler();
-      this._state = BuzzState.Error;
+      this._actionQueue.clear();
+      this._loadState = LoadState.NotLoaded;
       this._fire('error', { type: ErrorType.LoadError, error: 'None of the audio format you passed is supported' });
       return this;
     }
 
-    this._feasibleSrc = src;
+    this._compatibleSrc = src;
 
     this._load().then(downloadResult => {
       if (downloadResult.status === DownloadStatus.Success) {
         this._save(downloadResult);
         this._gainNode = this._context.createGain();
         this._gainNode.gain.value = this._muted ? 0 : this._volume;
-        this._isLoaded = true;
-        this._state = BuzzState.Ready;
+        this._loadState = LoadState.Loaded;
         this._fire('load', downloadResult);
+        this._actionQueue.run();
         return;
       }
 
-      this._removePlayHandler();
-      this._state = BuzzState.Error;
+      this._actionQueue.clear();
       this._fire('error', { type: ErrorType.LoadError, error: downloadResult.error });
     });
 
@@ -300,8 +312,7 @@ class BaseBuzz {
   }
 
   /**
-   * Plays the sound.
-   * Fires 'playstart' event before playing and 'playend' event after the sound is played.
+   * Plays the sound. Should be implemented by the derived classes.
    */
   play() {
     throw new Error('Not implemented');
@@ -321,7 +332,7 @@ class BaseBuzz {
 
   /**
    * Reset any other variables used in derived classes.
-   * @private
+   * @protected
    */
   _reset() {
   }
@@ -349,8 +360,8 @@ class BaseBuzz {
    * @protected
    */
   _pause(fireEvent = true) {
-    // Remove the "play" event handler from queue if there is one.
-    this._removePlayHandler();
+    // Remove the "play" action from queue if there is one.
+    this._actionQueue.remove('play');
 
     // We can pause the sound only if it is "playing" state.
     if (!this.isPlaying()) {
@@ -376,13 +387,13 @@ class BaseBuzz {
 
   /**
    * Stop the sound and fire event.
-   * @param {number=} [fireEvent = true] True to fire event
+   * @param {boolean=} [fireEvent = true] True to fire event
    * @return {BaseBuzz}
    * @private
    */
   _stop(fireEvent = true) {
-    // Remove the "play" event handler from queue if there is one.
-    this._removePlayHandler();
+    // Remove the "play" action from the queue if there is one.
+    this._actionQueue.remove('play');
 
     // We can stop the sound either if it "playing" or in "paused" state.
     if (!this.isPlaying() && !this.isPaused()) {
@@ -390,7 +401,7 @@ class BaseBuzz {
     }
 
     this._resetVars();
-    this._state = BuzzState.Ready;
+    this._state = BuzzState.Idle;
     fireEvent && this._fire('stop');
 
     return this;
@@ -494,7 +505,7 @@ class BaseBuzz {
    * @return {boolean}
    */
   isLoaded() {
-    return this._isLoaded;
+    return this._loadState === LoadState.Loaded;
   }
 
   /**
@@ -546,25 +557,6 @@ class BaseBuzz {
   off(event, handler, target) {
     this._emitter.off(event, handler, target);
     return this;
-  }
-
-  _onLoad(handler, priority, ...args) {
-    this.on('load', {
-      key: this._id,
-      handler: handler,
-      target: this,
-      args: args,
-      priority: priority,
-      once: true
-    });
-  }
-
-  _offLoad(handler) {
-    this.off('load', handler, this._id);
-  }
-
-  _isSubscribedToLoad(handler) {
-    return this._emitter.isSubscribed('load', handler, this._id);
   }
 
   /**

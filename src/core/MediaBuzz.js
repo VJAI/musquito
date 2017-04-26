@@ -2,7 +2,7 @@ import BaseBuzz, { BuzzState } from './BaseBuzz';
 import buzzer from './Buzzer';
 
 /**
- * Represents a single sound.
+ * Represents the sound that is played underneath using HTML5 audio element.
  * @class
  */
 class MediaBuzz extends BaseBuzz {
@@ -13,13 +13,13 @@ class MediaBuzz extends BaseBuzz {
 
   /**
    * @param {string|object} args The input parameters of the sound.
-   * @param {string=} args.id An unique id for the sound.
-   * @param {string=} args.src The source of the audio file.
+   * @param {string=} args.id The unique id of the sound.
+   * @param {string=} args.src The array of audio urls.
    * @param {number} [args.volume = 1.0] The initial volume of the sound.
-   * @param {boolean} [args.muted = false] Should be muted initially.
-   * @param {number} [args.loop = false] Whether the sound should play repeatedly.
-   * @param {boolean} [args.preload = false] Load the sound initially itself.
-   * @param {boolean} [args.autoplay = false] Play automatically once the object is created.
+   * @param {boolean} [args.muted = false] True to be muted initially.
+   * @param {boolean} [args.loop = false] True to play the sound repeatedly.
+   * @param {boolean} [args.preload = false] True to pre-load the sound after construction.
+   * @param {boolean} [args.autoplay = false] True to play automatically after construction.
    * @param {function=} args.onload Event-handler for the "load" event.
    * @param {function=} args.onerror Event-handler for the "error" event.
    * @param {function=} args.onplaystart Event-handler for the "playstart" event.
@@ -28,6 +28,7 @@ class MediaBuzz extends BaseBuzz {
    * @param {function=} args.onpause Event-handler for the "pause" event.
    * @param {function=} args.onmute Event-handler for the "mute" event.
    * @param {function=} args.onvolume Event-handler for the "volume" event.
+   * @param {function=} args.onrate Event-handler for the "rate" event.
    * @param {function=} args.onseek Event-handler for the "seek" event.
    * @param {function=} args.ondestroy Event-handler for the "destroy" event.
    * @constructor
@@ -54,7 +55,7 @@ class MediaBuzz extends BaseBuzz {
    * @private
    */
   _load() {
-    return buzzer.loadMedia(this._feasibleSrc, this._id);
+    return buzzer.loadMedia(this._compatibleSrc, this._id);
   }
 
   /**
@@ -88,14 +89,9 @@ class MediaBuzz extends BaseBuzz {
       return this;
     }
 
-    // If the sound is not yet loaded, subscribe to the "load" event for play once the sound is loaded.
-    if (!this._isLoaded) {
-      // If we are already subscribed then return.
-      if (this._isSubscribedToLoad(this.play)) {
-        return this;
-      }
-
-      this._onLoad(this.play, 100);
+    // If the sound is not yet loaded push the play action to the load queue.
+    if (!this.isLoaded()) {
+      this._actionQueue.add('play', () => this._play(fireEvent));
       this.load();
       return this;
     }
@@ -116,12 +112,12 @@ class MediaBuzz extends BaseBuzz {
       if (this._loop) {
         this._startedAt = 0;
         this._elapsed = 0;
-        this._state = BuzzState.Ready;
+        this._state = BuzzState.Idle;
         this._fire('playend');
         this.play();
       } else {
         this._resetVars();
-        this._state = BuzzState.Ready;
+        this._state = BuzzState.Idle;
         this._fire('playend');
       }
     };
@@ -206,7 +202,7 @@ class MediaBuzz extends BaseBuzz {
    * @private
    */
   _destroy() {
-    buzzer.unloadMedia(this._feasibleSrc, this._id);
+    buzzer.unloadMedia(this._compatibleSrc, this._id);
     this._audio = null;
     this._mediaElementAudioSourceNode = null;
   }
