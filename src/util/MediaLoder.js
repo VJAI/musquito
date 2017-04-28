@@ -46,9 +46,7 @@ class MediaLoader {
     return new Promise((resolve, reject) => {
       const audio = this._audioPool.allocate(url, id);
 
-      let canPlayThroughEventHandled = false;
-      let onCanPlayThrough; // eslint-disable init-declarations
-      let onError; // eslint-disable init-declarations
+      let canPlayThroughEventHandled = false, onCanPlayThrough = null, onError = null;
 
       onCanPlayThrough = function() {
         if (canPlayThroughEventHandled) {

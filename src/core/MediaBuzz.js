@@ -106,28 +106,58 @@ class MediaBuzz extends BaseBuzz {
     this._audio.playbackRate = this._rate;
     this._audio.play();
     this._startedAt = this._context.currentTime;
-
-    const onEnded = () => {
-      this._audio.removeEventListener('ended', onEnded);
-      if (this._loop) {
-        this._startedAt = 0;
-        this._elapsed = 0;
-        this._state = BuzzState.Idle;
-        this._fire('playend');
-        this.play();
-      } else {
-        this._reset();
-        this._state = BuzzState.Idle;
-        this._fire('playend');
-      }
-    };
-
-    this._audio.addEventListener('ended', onEnded);
+    this._audio.addEventListener('ended', this._onEnded);
     this._state = BuzzState.Playing;
     fireEvent && this._fire('playstart');
 
     return this;
   }
+
+  /**
+   * Called after the playback ends.
+   * @private
+   */
+  _onEnded() {
+    this._audio.removeEventListener('ended', this._onEnded);
+
+    if (this._loop) {
+      this._startedAt = 0;
+      this._elapsed = 0;
+      this._state = BuzzState.Idle;
+      this._fire('playend');
+      this.play();
+    } else {
+      this._reset();
+      this._state = BuzzState.Idle;
+      this._fire('playend');
+    }
+  }
+
+  /**
+   * Get/set the playback rate.
+   * @param {number=} rate The playback rate
+   * @return {MediaBuzz|number}
+   */
+  rate(rate) {
+    if (typeof rate === 'undefined') {
+      return this._rate;
+    }
+
+    if (typeof rate !== 'number' || rate < 0 || rate > 5) {
+      return this;
+    }
+
+    this._startedAt = this._context.currentTime; // TODO: do we need this?
+    this._rate = rate;
+
+    if (this._audio) {
+      this._audio.playbackRate.value = this._rate;
+    }
+
+    this._fire('rate', this._rate);
+    return this;
+  }
+
 
   /**
    * Get/set the seek position.

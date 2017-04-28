@@ -88,7 +88,7 @@
     "wrap-iife": [ "error", "outside" ],
     "yoda": "error",
     "strict": [ "error", "never" ],
-    "init-declarations": [ "warn" ],
+    "init-declarations": [ "error", "always" ],
     "no-catch-shadow": "warn",
     "no-delete-var": "error",
     "no-label-var": "error",

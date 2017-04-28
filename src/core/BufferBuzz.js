@@ -159,25 +159,7 @@ class BufferBuzz extends BaseBuzz {
       return this;
     }
 
-    let offset = this._elapsed, duration = this._duration;
-
-    // If we are gonna play a sound in sprite calculate the duration and also check if the offset is within that
-    // sound boundaries and if not reset to the starting point.
-    if (sound && this._sprite && this._sprite[sound]) {
-      this._spriteSound = sound;
-
-      const startEnd = this._sprite[this._spriteSound],
-        soundStart = startEnd[0],
-        soundEnd = startEnd[1];
-
-      duration = (soundEnd - soundStart);
-      offset = (offset < soundStart || offset > soundEnd) ? soundStart : offset;
-    } else {
-      this._spriteSound = null;
-    }
-
-    duration = (duration / this._rate);
-
+    let [offset, duration] = this._getTimeVars(sound);
     buzzer._link(this);
     this._clearEndTimer();
     this._bufferSource = this._context.createBufferSource();
@@ -193,8 +175,25 @@ class BufferBuzz extends BaseBuzz {
     return this;
   }
 
-  _getPlayDuration(sound) {
+  _getTimeVars(sound) {
+    let offset = 0, duration = 0;
 
+    if (sound && this._sprite && this._sprite[sound]) {
+      this._spriteSound = sound;
+
+      const startEnd = this._sprite[this._spriteSound], soundStart = startEnd[0], soundEnd = startEnd[1];
+      offset = (this._elapsed < soundStart || this._elapsed > soundEnd) ? soundStart : this._elapsed;
+      duration = (soundEnd - soundStart) - this._elapsed;
+    } else {
+      this._spriteSound = null;
+
+      offset = this._elapsed;
+      duration = this._duration - this._elapsed;
+    }
+
+    duration = (duration / this._rate);
+
+    return [offset, duration];
   }
 
   /**
@@ -249,15 +248,19 @@ class BufferBuzz extends BaseBuzz {
       return this;
     }
 
-    this._rateElapsed = this.seek();
+    this._rateElapsed = this.seek(); // TODO: reset this variable at the places required
     this._startedAt = this._context.currentTime;
     this._rate = rate;
 
     if (this.isPlaying()) {
       this._bufferSource.playbackRate.value = this._rate;
       this._clearEndTimer();
-      this._endTimer = setTimeout(this._onEnded,);
+      let [, duration] = this._getTimeVars(this._spriteSound);
+      this._endTimer = setTimeout(this._onEnded, duration * 1000);
     }
+
+    this._fire('rate', this._rate);
+    return this;
   }
 
   /**
