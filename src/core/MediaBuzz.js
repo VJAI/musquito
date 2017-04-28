@@ -70,7 +70,6 @@ class MediaBuzz extends BaseBuzz {
 
   /**
    * Plays the sound.
-   * Fires 'playstart' event before playing and 'playend' event after the sound is played.
    * @returns {MediaBuzz}
    */
   play() {
@@ -104,6 +103,7 @@ class MediaBuzz extends BaseBuzz {
     }
 
     this._audio.currentTime = this._elapsed;
+    this._audio.playbackRate = this._rate;
     this._audio.play();
     this._startedAt = this._context.currentTime;
 
@@ -116,7 +116,7 @@ class MediaBuzz extends BaseBuzz {
         this._fire('playend');
         this.play();
       } else {
-        this._resetVars();
+        this._reset();
         this._state = BuzzState.Idle;
         this._fire('playend');
       }

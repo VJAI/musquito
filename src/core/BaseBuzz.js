@@ -69,6 +69,13 @@ class BaseBuzz {
   _volume = 1.0;
 
   /**
+   * The playback rate of the sound.
+   * @type {number}
+   * @protected
+   */
+  _rate = 1;
+
+  /**
    * Represents whether the sound is currently muted or not.
    * @type {boolean}
    * @protected
@@ -160,10 +167,18 @@ class BaseBuzz {
   _elapsed = 0;
 
   /**
+   * TODO: add description
+   * @type {number}
+   * @protected
+   */
+  _rateElapsed = 0;
+
+  /**
    * @param {string|object} args The input parameters of the sound.
    * @param {string=} args.id The unique id of the sound.
    * @param {string|string[]=} args.src The array of audio urls.
    * @param {number} [args.volume = 1.0] The initial volume of the sound.
+   * @param {number} [args.rate = 1] The initial playback rate of the sound.
    * @param {boolean} [args.muted = false] True to be muted initially.
    * @param {boolean} [args.loop = false] True to play the sound repeatedly.
    * @param {boolean} [args.preload = false] True to pre-load the sound after construction.
@@ -199,6 +214,10 @@ class BaseBuzz {
       this._volume = options.volume;
     }
 
+    if (typeof options.rate === 'number' && options.rate > 0 && options.rate <= 5) {
+      this._rate = options.rate;
+    }
+
     typeof options.muted === 'boolean' && (this._muted = options.muted);
     typeof options.loop === 'boolean' && (this._loop = options.loop);
     typeof options.preload === 'boolean' && (this._preload = options.preload);
@@ -214,8 +233,6 @@ class BaseBuzz {
     typeof options.onseek === 'function' && this.on('seek', options.onseek);
     typeof options.onrate === 'function' && this.on('rate', options.onrate);
     typeof options.ondestroy === 'function' && this.on('destroy', options.ondestroy);
-
-    this._loadState = LoadState.NotLoaded;
   }
 
   /**
@@ -224,23 +241,17 @@ class BaseBuzz {
    * @private
    */
   _validate(options) { // eslint-disable-line no-unused-vars
-  }
-
-  /**
-   * Read the additional options. Will be overridden by the derived classes.
-   * @param {object} options The passed options to the buzz.
-   * @protected
-   */
-  _read(options) { // eslint-disable-line no-unused-vars
+    return;
   }
 
   /**
    * Setup the buzzer if it's not yet ready and auto-play or preload based on the passed option.
    * @protected
    */
-  _completeSetup() {
+  _setup() {
     buzzer.setup(null);
     this._context = buzzer.context();
+    this._loadState = LoadState.NotLoaded;
 
     if (this._autoplay) {
       this.play();
@@ -322,19 +333,11 @@ class BaseBuzz {
    * Resets the internal variables.
    * @protected
    */
-  _resetVars() {
+  _reset() {
     buzzer._unlink(this);
     this._stopNode();
     this._startedAt = 0;
     this._elapsed = 0;
-    this._reset();
-  }
-
-  /**
-   * Reset any other variables used in derived classes.
-   * @protected
-   */
-  _reset() {
   }
 
   /**
@@ -369,7 +372,7 @@ class BaseBuzz {
     }
 
     const startedAt = this._startedAt, elapsed = this._elapsed;
-    this._resetVars();
+    this._reset();
     this._elapsed = elapsed + this._context.currentTime - startedAt;
     this._state = BuzzState.Paused;
     fireEvent && this._fire('pause');
@@ -400,7 +403,7 @@ class BaseBuzz {
       return this;
     }
 
-    this._resetVars();
+    this._reset();
     this._state = BuzzState.Idle;
     fireEvent && this._fire('stop');
 

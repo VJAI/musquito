@@ -46,25 +46,43 @@ class MediaLoader {
     return new Promise((resolve, reject) => {
       const audio = this._audioPool.allocate(url, id);
 
-      if (audio.readyState === 4) {
-        resolve(new DownloadResult(url, audio));
-        return;
-      }
+      let canPlayThroughEventHandled = false;
+      let onCanPlayThrough; // eslint-disable init-declarations
+      let onError; // eslint-disable init-declarations
 
-      const onCanPlayThrough = () => {
+      onCanPlayThrough = function() {
+        if (canPlayThroughEventHandled) {
+          resolve(new DownloadResult(url, audio));
+          return;
+        }
+
+        canPlayThroughEventHandled = true;
         audio.removeEventListener('canplaythrough', onCanPlayThrough);
+        audio.removeEventListener('error', onError);
         resolve(new DownloadResult(url, audio));
       };
 
-      const onError = err => {
+      onError = function (err) {
+        audio.removeEventListener('canplaythrough', onCanPlayThrough);
         audio.removeEventListener('error', onError);
         reject(new DownloadResult(url, null, err));
       };
 
       audio.addEventListener('canplaythrough', onCanPlayThrough);
       audio.addEventListener('error', onError);
-      audio.src = url;
-      audio.load();
+
+      if (!audio.src) { // new audio element?
+        audio.src = url;
+        audio.load();
+        return;
+      }
+
+      audio.currentTime = 0;
+      audio.playbackRate = 1;
+
+      if (audio.readyState === 4) {
+        onCanPlayThrough();
+      }
     });
   }
 

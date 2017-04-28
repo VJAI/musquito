@@ -89,7 +89,7 @@ class BufferBuzz extends BaseBuzz {
       typeof args.cache === 'boolean' && (this._cache = args.cache);
     }
 
-    this._completeSetup();
+    this._setup();
   }
 
   /**
@@ -124,11 +124,18 @@ class BufferBuzz extends BaseBuzz {
 
   /**
    * Plays the sound.
-   * Fires 'playstart' event before playing and 'playend' event after the sound is played.
-   * @param {string=} sound The sound name of the sprite
-   * @returns {BaseBuzz}
+   * @return {BufferBuzz}
    */
-  play(sound) {
+  play() {
+    return this.playSprite();
+  }
+
+  /**
+   * Plays the sound.
+   * @param {string=} sound The sound name of the sprite
+   * @returns {BufferBuzz}
+   */
+  playSprite(sound) {
     return this._play(sound);
   }
 
@@ -163,43 +170,57 @@ class BufferBuzz extends BaseBuzz {
         soundStart = startEnd[0],
         soundEnd = startEnd[1];
 
-      duration = soundEnd - soundStart;
+      duration = (soundEnd - soundStart);
       offset = (offset < soundStart || offset > soundEnd) ? soundStart : offset;
     } else {
       this._spriteSound = null;
     }
 
+    duration = (duration / this._rate);
+
     buzzer._link(this);
     this._clearEndTimer();
     this._bufferSource = this._context.createBufferSource();
     this._bufferSource.buffer = this._buffer;
+    this._bufferSource.playbackRate.value = this._rate;
     this._bufferSource.connect(this._gainNode);
-    this._bufferSource.start(0, offset);
+    this._bufferSource.start(0, offset, duration);
     this._startedAt = this._context.currentTime;
-    this._endTimer = setTimeout(() => {
-      if (this._loop) {
-        this._startedAt = 0;
-        this._elapsed = 0;
-        this._state = BuzzState.Idle;
-        this._fire('playend');
-        this.play(sound);
-      } else {
-        this._resetVars();
-        this._state = BuzzState.Idle;
-        this._fire('playend');
-      }
-    }, duration * 1000);
+    this._endTimer = setTimeout(this._onEnded, duration * 1000);
     this._state = BuzzState.Playing;
     fireEvent && this._fire('playstart');
 
     return this;
   }
 
+  _getPlayDuration(sound) {
+
+  }
+
   /**
-   * Resets end timer.
+   * Called after the playback ends.
+   * @private
+   */
+  _onEnded() {
+    if (this._loop) {
+      this._startedAt = 0;
+      this._elapsed = 0;
+      this._state = BuzzState.Idle;
+      this._fire('playend');
+      this.play(this._spriteSound);
+    } else {
+      this._reset();
+      this._state = BuzzState.Idle;
+      this._fire('playend');
+    }
+  }
+
+  /**
+   * Resets the internal variables and end timer.
    * @private
    */
   _reset() {
+    super._reset();
     this._clearEndTimer();
   }
 
@@ -217,10 +238,26 @@ class BufferBuzz extends BaseBuzz {
   /**
    * Get/set the playback rate.
    * @param {number=} rate The playback rate
-   * @return {BufferBuzz}
+   * @return {BufferBuzz|number}
    */
   rate(rate) {
-    return this;
+    if (typeof rate === 'undefined') {
+      return this._rate;
+    }
+
+    if (typeof rate !== 'number' || rate < 0 || rate > 5) {
+      return this;
+    }
+
+    this._rateElapsed = this.seek();
+    this._startedAt = this._context.currentTime;
+    this._rate = rate;
+
+    if (this.isPlaying()) {
+      this._bufferSource.playbackRate.value = this._rate;
+      this._clearEndTimer();
+      this._endTimer = setTimeout(this._onEnded,);
+    }
   }
 
   /**
@@ -230,7 +267,10 @@ class BufferBuzz extends BaseBuzz {
    */
   seek(seek) {
     if (typeof seek === 'undefined') {
-      throw new Error('Implement this');
+      const realTime = this.isPlaying() ? this._context.currentTime - this._startedAt : 0;
+      const rateElapsed = this._rateElapsed ? this._rateElapsed - this._elapsed : 0;
+
+      return this._elapsed + (rateElapsed + realTime * this._rate);
     }
 
     if (typeof seek !== 'number' || seek < 0) {
@@ -260,6 +300,25 @@ class BufferBuzz extends BaseBuzz {
     }
 
     return this;
+  }
+
+  /**
+   * Returns the total duration of the sound or the piece of sound in sprite.
+   * @param {string=} sound The sound name in the sprite.
+   * @return {number}
+   */
+  spriteDuration(sound) {
+    if (typeof sound === 'undefined') {
+      return this.duration();
+    }
+
+    const times = this._sprite[sound];
+
+    if (!times) {
+      return 0;
+    }
+
+    return times[1] - times[0];
   }
 
   /**
