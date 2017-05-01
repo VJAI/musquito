@@ -1,0 +1,40 @@
+<html>
+<head>
+  <title>
+    AudioBufferSourceNode Experimentation
+  </title>
+</head>
+<body>
+<h1>AudioBufferSourceNode Experimentation</h1>
+<div>Status: <span id="status"></span></div>
+<button onclick="play()">Play</button>
+<button onclick="pause()">Pause</button>
+<script src="bufferloader.js"></script>
+<script>
+  var audioContext = new AudioContext();
+  var bufferSourceNode, buffer;
+  var st = document.getElementById('status');
+
+  loadBuffer(audioContext, '../sounds/bg.mp3', function (b) {
+    buffer = b;
+    st.innerText = "Ready";
+  });
+
+  function play() {
+    bufferSourceNode = audioContext.createBufferSource();
+
+    bufferSourceNode.addEventListener('ended', function () {
+      console.log('ended');
+    });
+
+    bufferSourceNode.connect(audioContext.destination);
+    bufferSourceNode.buffer = buffer;
+    bufferSourceNode.start();
+  }
+
+  function pause() {
+    bufferSourceNode.paused = true;
+  }
+</script>
+</body>
+</html>
