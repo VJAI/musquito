@@ -25,35 +25,23 @@ class EventEmitter {
   /**
    * Method to subscribe to an event.
    * @param {string} event Name of the event
-   * @param {function|object} options Handler function or subscription options
-   * @param {function} options.handler Handler function
-   * @param {object=} options.target Scope the handler should be invoked
-   * @param {object|Array=} options.args Additional arguments that should be passed to the handler
-   * @param {boolean=} [options.once = false] One-time listener or not
+   * @param {function} handler The event-handler function
+   * @param {boolean=} [once = false] One-time listener or not
    * @returns {EventEmitter}
    */
-  on(event, options) {
+  on(event, handler, once = false) {
     if (!this._events.hasOwnProperty(event)) {
       return this;
     }
 
-    if (typeof options !== 'function' && typeof options !== 'object') {
+    if (typeof handler !== 'function') {
       return this;
     }
 
-    if (typeof options === 'function') {
-      this._events[event].push({
-        handler: options,
-        once: false
-      });
-    } else {
-      this._events[event].push({
-        handler: options.handler,
-        target: options.target,
-        args: options.args ? (Array.isArray(options.args) ? options.args : [options.args]) : [],
-        once: options.once || false
-      });
-    }
+    this._events[event].push({
+      handler: handler,
+      once: once
+    });
 
     return this;
   }
@@ -62,16 +50,15 @@ class EventEmitter {
    * Method to un-subscribe from an event.
    * @param {string} event The event name
    * @param {function} handler The handler function
-   * @param {object=} target Scope of the handler to be invoked
    * @returns {EventEmitter}
    */
-  off(event, handler, target) {
+  off(event, handler) {
     if (!this._events.hasOwnProperty(event) || typeof handler !== 'function') {
       return this;
     }
 
     this._events[event] = this._events[event].filter(eventSubscriber => {
-      return eventSubscriber.handler !== handler || (target ? eventSubscriber.target !== target : false);
+      return eventSubscriber.handler !== handler;
     });
 
     return this;
@@ -90,10 +77,10 @@ class EventEmitter {
       let eventSubscriber = eventSubscribers[i];
 
       setTimeout(function (subscriber) {
-        subscriber.handler.apply(subscriber.target, (subscriber.args || []).concat(args));
+        subscriber.handler(args);
 
         if (subscriber.once) {
-          this.off(event, subscriber.handler, subscriber.target);
+          this.off(event, subscriber.handler);
         }
       }.bind(this, eventSubscriber), 0);
     }

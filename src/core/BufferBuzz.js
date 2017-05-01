@@ -1,5 +1,6 @@
 import BaseBuzz, { BuzzState } from './BaseBuzz';
 import buzzer from './Buzzer';
+import BuzzBufferNode from '../elements/BuzzBufferNode';
 
 /**
  * Represents a class that used Web Audio API's AudioBufferSourceNode for playing sounds.
@@ -48,6 +49,13 @@ class BufferBuzz extends BaseBuzz {
    * @private
    */
   _bufferSource = null;
+
+  /**
+   * BuzzBufferNode.
+   * @type {BuzzBufferNode}
+   * @private
+   */
+  _buzzBufferNode = null;
 
   /**
    * Represents the timer that is used to reset the variables after the playback.
@@ -119,6 +127,7 @@ class BufferBuzz extends BaseBuzz {
    */
   _save(downloadResult) {
     this._buffer = downloadResult.value;
+    this._buzzBufferNode = new BuzzBufferNode(this._context, this._buffer);
     this._duration = this._buffer.duration;
   }
 
@@ -162,11 +171,23 @@ class BufferBuzz extends BaseBuzz {
     let [offset, duration] = this._getTimeVars(sound);
     buzzer._link(this);
     this._clearEndTimer();
+
+    this._buzzBufferNode.play({
+      time: this._context.currentTime,
+      offset: offset,
+      duration: duration,
+      rate: this._rate,
+      loop: this._loop
+    });
+
+    // TODO: More clean-up
+
     this._bufferSource = this._context.createBufferSource();
     this._bufferSource.buffer = this._buffer;
     this._bufferSource.playbackRate.value = this._rate;
     this._bufferSource.connect(this._gainNode);
     this._bufferSource.start(0, offset, duration);
+
     this._startedAt = this._context.currentTime;
     this._endTimer = setTimeout(this._onEnded, duration * 1000);
     this._state = BuzzState.Playing;
