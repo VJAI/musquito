@@ -13,7 +13,7 @@ class EventEmitter {
 
   /**
    * Initialize the private variables.
-   * @param {string|string[]} events Event names that are supported
+   * @param {string|string[]} events Events that are supported
    */
   constructor(events) {
     const eventNames = Array.isArray(events) ? events : events.split(',');
@@ -26,15 +26,11 @@ class EventEmitter {
    * Method to subscribe to an event.
    * @param {string} event Name of the event
    * @param {function} handler The event-handler function
-   * @param {boolean=} [once = false] One-time listener or not
+   * @param {boolean=} [once = false] Is it one-time subscription or not
    * @returns {EventEmitter}
    */
   on(event, handler, once = false) {
-    if (!this._events.hasOwnProperty(event)) {
-      return this;
-    }
-
-    if (typeof handler !== 'function') {
+    if (!this._events.hasOwnProperty(event) || typeof handler !== 'function') {
       return this;
     }
 

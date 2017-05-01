@@ -149,19 +149,19 @@ class BufferBuzz extends BaseBuzz {
   }
 
   /**
-   * Play the sound and fire events.
-   * @param {string|null=} sound The sound name of the sprite
+   * Plays the sound and fire events based on the passed flag.
+   * @param {string|null=} sound The name of a sound in the sprite definition
    * @param {boolean} [fireEvent = true] True to fire event
    * @return {BufferBuzz}
    * @private
    */
   _play(sound, fireEvent = true) {
-    // If the sound is already in "Playing" state then it's not allowed to play again.
+    // If the sound is already playing then return immediately.
     if (this.isPlaying()) {
       return this;
     }
 
-    // If the sound is not yet loaded push the play action to the load queue.
+    // If the sound is not yet loaded push an action to the queue to play the sound once it's loaded.
     if (!this.isLoaded()) {
       this._actionQueue.add('play', () => this._play(sound, fireEvent));
       this.load();

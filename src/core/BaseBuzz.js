@@ -538,15 +538,12 @@ class BaseBuzz {
   /**
    * Method to subscribe to an event.
    * @param {string} event Name of the event
-   * @param {function|object} options Handler function or subscription options
-   * @param {function} options.handler Handler function
-   * @param {object=} options.target Scope the handler should be invoked
-   * @param {object|Array=} options.args Additional arguments that should be passed to the handler
-   * @param {boolean=} [options.once = false] One-time listener or not
+   * @param {function} handler The event-handler function
+   * @param {boolean=} [once = false] Is it one-time subscription or not
    * @returns {BaseBuzz}
    */
-  on(event, options) {
-    this._emitter.on(event, options);
+  on(event, handler, once = false) {
+    this._emitter.on(event, handler, once);
     return this;
   }
 
@@ -554,11 +551,10 @@ class BaseBuzz {
    * Method to un-subscribe from an event.
    * @param {string} event The event name
    * @param {function} handler The handler function
-   * @param {object=} target Scope of the handler to be invoked
    * @returns {BaseBuzz}
    */
-  off(event, handler, target) {
-    this._emitter.off(event, handler, target);
+  off(event, handler) {
+    this._emitter.off(event, handler);
     return this;
   }
 

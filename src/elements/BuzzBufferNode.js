@@ -1,5 +1,17 @@
+import EventEmitter from '../util/EventEmitter';
+
 /**
- * A simple wrapper over Web Audio API's AudioBufferSourceNode.
+ * Represents the different states of the BuzzBufferNode.
+ * @enum
+ * @type {string}
+ */
+const BuzzBufferNodeState = {
+  Playing: 'playing',
+  Stopped: 'stopped'
+};
+
+/**
+ * A simple wrapper over Web Audio's AudioBufferSourceNode.
  */
 class BuzzBufferNode {
 
@@ -16,6 +28,13 @@ class BuzzBufferNode {
    * @private
    */
   _buffer = null;
+
+  /**
+   * Event emitter.
+   * @type {EventEmitter|null}
+   * @private
+   */
+  _emitter = null;
 
   /**
    * Audio buffer source node.
@@ -53,11 +72,11 @@ class BuzzBufferNode {
   _loopEnd = 0;
 
   /**
-   * Returns whether the node is playing or not.
-   * @type {string}
+   * Returns whether the node is playing or stopped.
+   * @type {BuzzBufferNodeState}
    * @private
    */
-  _state = 'stopped';
+  _state = BuzzBufferNodeState.Stopped;
 
   /**
    * Set the audio context.
@@ -67,6 +86,7 @@ class BuzzBufferNode {
   constructor(context, buffer) {
     this._context = context;
     this._buffer = buffer;
+    this._emitter = new EventEmitter('ended');
   }
 
   /**
@@ -96,9 +116,9 @@ class BuzzBufferNode {
 
   /**
    * Get/set the loop parameters for the buffer source node.
-   * @param {boolean=} loop True to loop the playing
-   * @param {number=} loopStart The start position of the buffer
-   * @param {number=} loopEnd The end position of the buffer
+   * @param {boolean=} loop True to loop the sound
+   * @param {number=} loopStart The start position of the loop
+   * @param {number=} loopEnd The end position of the loop
    * @return {boolean}
    */
   loop(loop, loopStart, loopEnd) {
@@ -119,9 +139,9 @@ class BuzzBufferNode {
 
   /**
    * Plays the node with the passed options.
-   * @param {object} options The play options
+   * @param {object} options The playback options
    * @param {number=} options.time The time to start playback
-   * @param {number=} options.offset The elapsed time
+   * @param {number=} options.offset The offset
    * @param {number=} options.duration The duration to play
    * @param {number=} options.rate The playback rate
    * @param {boolean=} options.loop True to loop the sound
@@ -133,10 +153,7 @@ class BuzzBufferNode {
 
     this._bufferSourceNode = new this._context.createBufferSource();
     this._bufferSourceNode.buffer = this._buffer;
-    /*this._bufferSourceNode.addEventListener('ended', () => {
-      this._state = 'stopped';
-      this.stop();
-    });*/
+    this._bufferSourceNode.addEventListener('ended', this._onEnded.bind(this));
 
     this.rate(options.rate);
     this.loop(options.loop, options.loopStart, options.loopEnd);
@@ -152,7 +169,17 @@ class BuzzBufferNode {
       this._bufferSourceNode.noteGrainOn(time, offset, duration);
     }
 
-    this._state = 'playing';
+    this._state = BuzzBufferNodeState.Playing;
+  }
+
+  /**
+   * The "ended" event callback.
+   * @private
+   */
+  _onEnded() {
+    this._state = BuzzBufferNodeState.Stopped;
+    this.stop();
+    this._fire('ended', this);
   }
 
   /**
@@ -160,16 +187,18 @@ class BuzzBufferNode {
    */
   stop() {
     if (this._bufferSourceNode) {
-      if (this._state === 'playing') {
+      if (this._state === BuzzBufferNodeState.Playing) {
         if (typeof this._bufferSourceNode.stop !== 'undefined') {
           this._bufferSourceNode.stop();
         }
         else {
           this._bufferSourceNode.noteGrainOff();
         }
+
+        this._state = BuzzBufferNodeState.Stopped;
       }
 
-      this._bufferSourceNode.onended = null;
+      this._bufferSourceNode.addEventListener('ended', this._onEnded);
       this._bufferSourceNode.disconnect();
       this._bufferSourceNode = null;
     }
@@ -182,6 +211,36 @@ class BuzzBufferNode {
     this.stop();
     this._buffer = null;
     this._context = null;
+    this._emitter = null;
+  }
+
+  /**
+   * Method to subscribe to an event.
+   * @param {string} event Name of the event
+   * @param {function} handler The event-handler function
+   * @param {boolean=} [once = false] Is it one-time subscription or not
+   */
+  on(event, handler, once = false) {
+    this._emitter.on(event, handler, once);
+  }
+
+  /**
+   * Method to un-subscribe from an event.
+   * @param {string} event The event name
+   * @param {function} handler The handler function
+   */
+  off(event, handler) {
+    this._emitter.off(event, handler);
+  }
+
+  /**
+   * Fires an event passing the source and other optional arguments.
+   * @param {string} event The event name
+   * @param {...*} args The arguments that to be passed to handler
+   * @protected
+   */
+  _fire(event, ...args) {
+    this._emitter.fire(event, ...args, this);
   }
 }
 
