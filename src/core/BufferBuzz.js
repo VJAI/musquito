@@ -1,15 +1,14 @@
 import BaseBuzz, { BuzzState } from './BaseBuzz';
 import buzzer from './Buzzer';
-import BuzzBufferNode from '../elements/BuzzBufferNode';
 
 /**
- * Represents a class that used Web Audio API's AudioBufferSourceNode for playing sounds.
+ * Employs Web Audio's AudioBufferSourceNode for playing sounds.
  * @class
  */
 class BufferBuzz extends BaseBuzz {
 
   /**
-   * Base64 string of the audio.
+   * Base64 string of an audio.
    * @type {string}
    * @private
    */
@@ -23,7 +22,7 @@ class BufferBuzz extends BaseBuzz {
   _sprite = null;
 
   /**
-   * Current playing name of the sound in a sprite.
+   * Current playing sound name in a sprite.
    * @type {string|null}
    * @private
    */
@@ -37,28 +36,21 @@ class BufferBuzz extends BaseBuzz {
   _cache = false;
 
   /**
-   * Audio Buffer.
+   * The audio buffer.
    * @type {AudioBuffer}
    * @private
    */
   _buffer = null;
 
   /**
-   * AudioBufferSourceNode.
+   * The underlying node that plays the audio.
    * @type {AudioBufferSourceNode}
    * @private
    */
-  _bufferSource = null;
+  _bufferSourceNode = null;
 
   /**
-   * BuzzBufferNode.
-   * @type {BuzzBufferNode}
-   * @private
-   */
-  _buzzBufferNode = null;
-
-  /**
-   * Represents the timer that is used to reset the variables after the playback.
+   * Represents the timer that is used to reset the variables once the playback is ended.
    * @type {number|null}
    * @private
    */
@@ -68,7 +60,7 @@ class BufferBuzz extends BaseBuzz {
    * @param {string|object} args The input parameters of the sound.
    * @param {string=} args.id The unique id of the sound.
    * @param {string=} args.src The array of audio urls.
-   * @param {string=} args.dataUri The source of the audio in base64 string.
+   * @param {string=} args.dataUri The source of the audio as base64 string.
    * @param {object=} args.sprite The sprite definition.
    * @param {number} [args.volume = 1.0] The initial volume of the sound.
    * @param {boolean} [args.muted = false] True to be muted initially.
@@ -112,7 +104,7 @@ class BufferBuzz extends BaseBuzz {
   }
 
   /**
-   * Loads the audio buffer.
+   * Download the audio file and loads into an audio buffer.
    * @return {Promise<DownloadResult>}
    * @private
    */
@@ -127,7 +119,6 @@ class BufferBuzz extends BaseBuzz {
    */
   _save(downloadResult) {
     this._buffer = downloadResult.value;
-    this._buzzBufferNode = new BuzzBufferNode(this._context, this._buffer);
     this._duration = this._buffer.duration;
   }
 
@@ -136,12 +127,12 @@ class BufferBuzz extends BaseBuzz {
    * @return {BufferBuzz}
    */
   play() {
-    return this.playSprite();
+    return this._play();
   }
 
   /**
-   * Plays the sound.
-   * @param {string=} sound The sound name of the sprite
+   * Plays the passed sound that is defined in the sprite.
+   * @param {string=} sound The sound name
    * @returns {BufferBuzz}
    */
   playSprite(sound) {
@@ -150,13 +141,14 @@ class BufferBuzz extends BaseBuzz {
 
   /**
    * Plays the sound and fire events based on the passed flag.
-   * @param {string|null=} sound The name of a sound in the sprite definition
+   * @param {string|null=} sound The sound name
    * @param {boolean} [fireEvent = true] True to fire event
    * @return {BufferBuzz}
    * @private
    */
   _play(sound, fireEvent = true) {
-    // If the sound is already playing then return immediately.
+
+    // If the sound is already playing return immediately.
     if (this.isPlaying()) {
       return this;
     }
@@ -168,46 +160,34 @@ class BufferBuzz extends BaseBuzz {
       return this;
     }
 
-    let [offset, duration] = this._getTimeVars(sound);
+    this._spriteSound = sound;
     buzzer._link(this);
     this._clearEndTimer();
-
-    this._buzzBufferNode.play({
-      time: this._context.currentTime,
-      offset: offset,
-      duration: duration,
-      rate: this._rate,
-      loop: this._loop
-    });
-
-    // TODO: More clean-up
-
-    this._bufferSource = this._context.createBufferSource();
-    this._bufferSource.buffer = this._buffer;
-    this._bufferSource.playbackRate.value = this._rate;
-    this._bufferSource.connect(this._gainNode);
-    this._bufferSource.start(0, offset, duration);
-
+    let [offset, duration] = this._getTimeVars(sound);
+    this._playNode(offset, duration);
     this._startedAt = this._context.currentTime;
     this._endTimer = setTimeout(this._onEnded, duration * 1000);
     this._state = BuzzState.Playing;
+
     fireEvent && this._fire('playstart');
 
     return this;
   }
 
+  /**
+   * Returns the offset and duration of the playback.
+   * @param {string} sound The sound name
+   * @return {[number, number]}
+   * @private
+   */
   _getTimeVars(sound) {
     let offset = 0, duration = 0;
 
     if (sound && this._sprite && this._sprite[sound]) {
-      this._spriteSound = sound;
-
       const startEnd = this._sprite[this._spriteSound], soundStart = startEnd[0], soundEnd = startEnd[1];
       offset = (this._elapsed < soundStart || this._elapsed > soundEnd) ? soundStart : this._elapsed;
       duration = (soundEnd - soundStart) - this._elapsed;
     } else {
-      this._spriteSound = null;
-
       offset = this._elapsed;
       duration = this._duration - this._elapsed;
     }
@@ -215,6 +195,35 @@ class BufferBuzz extends BaseBuzz {
     duration = (duration / this._rate);
 
     return [offset, duration];
+  }
+
+  /**
+   * Creates a new AudioBufferSourceNode and set it's playback properties.
+   * @private
+   */
+  _createNode() {
+    this._bufferSourceNode = this._context.createBufferSource();
+
+    this._bufferSourceNode.buffer = this._buffer;
+    this._bufferSourceNode.playbackRate.value = this._rate;
+    this._bufferSourceNode.connect(this._gainNode);
+  }
+
+  /**
+   * Creates a new AudioBufferSourceNode and plays it with the passed offset and duration.
+   * @param {number} offset The time offset
+   * @param {number} duration The duration to play
+   * @private
+   */
+  _playNode(offset, duration) {
+    this._createNode();
+
+    if (typeof this._bufferSourceNode.start !== 'undefined') {
+      this._bufferSourceNode.start(this._context.currentTime, offset, duration);
+    }
+    else {
+      this._bufferSourceNode.noteGrainOn(this._context.currentTime, offset, duration);
+    }
   }
 
   /**
@@ -274,7 +283,7 @@ class BufferBuzz extends BaseBuzz {
     this._rate = rate;
 
     if (this.isPlaying()) {
-      this._bufferSource.playbackRate.value = this._rate;
+      this._bufferSourceNode.playbackRate.value = this._rate;
       this._clearEndTimer();
       let [, duration] = this._getTimeVars(this._spriteSound);
       this._endTimer = setTimeout(this._onEnded, duration * 1000);
@@ -346,14 +355,38 @@ class BufferBuzz extends BaseBuzz {
   }
 
   /**
-   * Disconnect the buffer source and stop it.
+   * Destroys the buffer source node.
+   * @private
+   */
+  _cleanNode() {
+    if (!this._bufferSourceNode) {
+      return;
+    }
+
+    this._bufferSourceNode.disconnect();
+    this._bufferSourceNode.onended = null;
+    try {
+      this._bufferSourceNode.buffer = buzzer.scratchBuffer();
+    }
+    catch (e) {
+    }
+    this._bufferSourceNode = null;
+  }
+
+  /**
+   * Stops the playing buffer source node and destroys it.
    * @private
    */
   _stopNode() {
-    if (this._bufferSource) {
-      this._bufferSource.disconnect();
-      this._bufferSource.stop(0);
-      this._bufferSource = null;
+    if (this._bufferSourceNode) {
+      if (typeof this._bufferSourceNode.stop !== 'undefined') {
+        this._bufferSourceNode.stop();
+      }
+      else {
+        this._bufferSourceNode.noteGrainOff();
+      }
+
+      this._cleanNode();
     }
   }
 

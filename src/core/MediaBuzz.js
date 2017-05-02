@@ -2,7 +2,7 @@ import BaseBuzz, { BuzzState } from './BaseBuzz';
 import buzzer from './Buzzer';
 
 /**
- * Represents the sound that is played underneath using HTML5 audio element.
+ * Employs HTML5 audio element for playing sounds.
  * @class
  */
 class MediaBuzz extends BaseBuzz {
@@ -35,7 +35,7 @@ class MediaBuzz extends BaseBuzz {
    */
   constructor(args) {
     super(args);
-    this._completeSetup();
+    this._setup();
   }
 
   /**

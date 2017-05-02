@@ -126,6 +126,8 @@ class Buzzer {
    */
   _isContextInjected = false;
 
+  _scratchBuffer = null;
+
   /**
    * Instantiate audio context and other important objects.
    * Returns true if the setup is success.
@@ -185,6 +187,7 @@ class Buzzer {
     this._gainNode.gain.value = this._volume;
     this._gainNode.connect(this._context.destination);
     this._saveEnergy && setInterval(this.suspend, this._autoSuspendInterval * 60 * 1000);
+    this._scratchBuffer = this._context.createBuffer(1, 1, 22050);
     this._state = BuzzerState.Ready;
     return this;
   }
@@ -441,18 +444,19 @@ class Buzzer {
     return codecAid.supportedFormats();
   }
 
+  scratchBuffer() {
+    return this._scratchBuffer;
+  }
+
   /**
    * Method to subscribe to an event.
    * @param {string} event Name of the event
-   * @param {function|object} options Handler function or subscription options
-   * @param {function} options.handler Handler function
-   * @param {object=} options.target Scope the handler should be invoked
-   * @param {object|Array=} options.args Additional arguments that should be passed to the handler
-   * @param {boolean=} [options.once = false] One-time listener or not
+   * @param {function} handler The event-handler function
+   * @param {boolean=} [once = false] Is it one-time subscription or not
    * @returns {Buzzer}
    */
-  on(event, options) {
-    this._emitter.on(event, options);
+  on(event, handler) {
+    this._emitter.on(event, handler);
     return this;
   }
 
@@ -460,11 +464,10 @@ class Buzzer {
    * Method to un-subscribe from an event.
    * @param {string} event The event name
    * @param {function} handler The handler function
-   * @param {object=} target Scope of the handler to be invoked
    * @returns {Buzzer}
    */
-  off(event, handler, target) {
-    this._emitter.off(event, handler, target);
+  off(event, handler) {
+    this._emitter.off(event, handler);
     return this;
   }
 

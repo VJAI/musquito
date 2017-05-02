@@ -236,7 +236,7 @@ describe('BufferBuzz', () => {
           expect(bufferBuzz._startedAt).toBe(0);
           expect(bufferBuzz._elapsed).toBe(0);
           expect(bufferBuzz._endTimer).toBeNull();
-          expect(bufferBuzz._bufferSource).toBeNull();
+          expect(bufferBuzz._bufferSourceNode).toBeNull();
           expect(bufferBuzz._state).toBe(BuzzState.Ready);
         });
 
