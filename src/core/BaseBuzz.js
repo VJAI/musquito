@@ -381,6 +381,13 @@ class BaseBuzz {
   }
 
   /**
+   * Resume the paused sound.
+   */
+  resume() {
+    throw new Error('Not implemented');
+  }
+
+  /**
    * Stops the sound that is playing or in paused state.
    * @returns {BaseBuzz}
    */

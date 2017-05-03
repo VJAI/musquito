@@ -198,18 +198,6 @@ class BufferBuzz extends BaseBuzz {
   }
 
   /**
-   * Creates a new AudioBufferSourceNode and set it's playback properties.
-   * @private
-   */
-  _createNode() {
-    this._bufferSourceNode = this._context.createBufferSource();
-
-    this._bufferSourceNode.buffer = this._buffer;
-    this._bufferSourceNode.playbackRate.value = this._rate;
-    this._bufferSourceNode.connect(this._gainNode);
-  }
-
-  /**
    * Creates a new AudioBufferSourceNode and plays it with the passed offset and duration.
    * @param {number} offset The time offset
    * @param {number} duration The duration to play
@@ -224,6 +212,18 @@ class BufferBuzz extends BaseBuzz {
     else {
       this._bufferSourceNode.noteGrainOn(this._context.currentTime, offset, duration);
     }
+  }
+
+  /**
+   * Creates a new AudioBufferSourceNode and set it's playback properties.
+   * @private
+   */
+  _createNode() {
+    this._bufferSourceNode = this._context.createBufferSource();
+
+    this._bufferSourceNode.buffer = this._buffer;
+    this._bufferSourceNode.playbackRate.value = this._rate;
+    this._bufferSourceNode.connect(this._gainNode);
   }
 
   /**
@@ -262,6 +262,14 @@ class BufferBuzz extends BaseBuzz {
       clearTimeout(this._endTimer);
       this._endTimer = null;
     }
+  }
+
+  resume() {
+    if (!this._state === BuzzState.Paused) {
+      return this;
+    }
+
+    // TODO:
   }
 
   /**
@@ -355,6 +363,23 @@ class BufferBuzz extends BaseBuzz {
   }
 
   /**
+   * Stops the playing buffer source node and destroys it.
+   * @private
+   */
+  _stopNode() {
+    if (this._bufferSourceNode) {
+      if (typeof this._bufferSourceNode.stop !== 'undefined') {
+        this._bufferSourceNode.stop();
+      }
+      else {
+        this._bufferSourceNode.noteGrainOff();
+      }
+
+      this._cleanNode();
+    }
+  }
+
+  /**
    * Destroys the buffer source node.
    * @private
    */
@@ -371,23 +396,6 @@ class BufferBuzz extends BaseBuzz {
     catch (e) {
     }
     this._bufferSourceNode = null;
-  }
-
-  /**
-   * Stops the playing buffer source node and destroys it.
-   * @private
-   */
-  _stopNode() {
-    if (this._bufferSourceNode) {
-      if (typeof this._bufferSourceNode.stop !== 'undefined') {
-        this._bufferSourceNode.stop();
-      }
-      else {
-        this._bufferSourceNode.noteGrainOff();
-      }
-
-      this._cleanNode();
-    }
   }
 
   /**

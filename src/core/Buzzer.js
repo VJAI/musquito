@@ -51,6 +51,27 @@ class Buzzer {
   _context = null;
 
   /**
+   * True if either Web Audio API or HTML5 audio is available.
+   * @type {boolean}
+   * @private
+   */
+  _isAudioAvailable = false;
+
+  /**
+   * True if Web Audio API is available.
+   * @type {boolean}
+   * @private
+   */
+  _isWebAudioAvailable = false;
+
+  /**
+   * True if MediaElementAudioSourceNode is available.
+   * @type {boolean}
+   * @private
+   */
+  _isMediaSourceAvailable = false;
+
+  /**
    * BufferLoader.
    * @type {BufferLoader}
    * @private
@@ -437,6 +458,30 @@ class Buzzer {
   }
 
   /**
+   * Returns true if audio is available.
+   * @return {boolean}
+   */
+  isAudioAvailable() {
+    return this._isAudioAvailable;
+  }
+
+  /**
+   * Returns true if Web Audio API is available.
+   * @return {boolean}
+   */
+  isWebAudioAvailable() {
+    return this._isWebAudioAvailable;
+  }
+
+  /**
+   * Returns true if MediaElementAudioSource is available.
+   * @return {boolean}
+   */
+  isMediaSourceAvailable() {
+    return this._isMediaSourceAvailable;
+  }
+
+  /**
    * Returns the supported audio formats.
    * @return {object}
    */
@@ -444,6 +489,10 @@ class Buzzer {
     return codecAid.supportedFormats();
   }
 
+  /**
+   * Returns a small buffer that can be used to dispose AudioBufferSourceNodes.
+   * @return {AudioBuffer}
+   */
   scratchBuffer() {
     return this._scratchBuffer;
   }
@@ -455,8 +504,8 @@ class Buzzer {
    * @param {boolean=} [once = false] Is it one-time subscription or not
    * @returns {Buzzer}
    */
-  on(event, handler) {
-    this._emitter.on(event, handler);
+  on(event, handler, once = false) {
+    this._emitter.on(event, handler, once);
     return this;
   }
 
