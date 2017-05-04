@@ -160,30 +160,49 @@ class BufferBuzz extends BaseBuzz {
       return this;
     }
 
-    this._spriteSound = sound;
+    if (sound && this._sprite && this._sprite[sound]) {
+      this._spriteSound = sound;
+    } else {
+      this._spriteSound = null;
+    }
+
+    this._elapsed = 0;
+
+    return this._playOrResume(fireEvent);
+  }
+
+  _playOrResume(fireEvent = true, resume = false) {
     buzzer._link(this);
     this._clearEndTimer();
-    let [offset, duration] = this._getTimeVars(sound);
+    let [offset, duration] = this._getTimeVars();
     this._playNode(offset, duration);
     this._startedAt = this._context.currentTime;
-    this._endTimer = setTimeout(this._onEnded, duration * 1000);
+
+    if (!this._loop) {
+      if (this._spriteSound) {
+        this._endTimer = setTimeout(this._onEnded, duration * 1000);
+      }
+      else {
+        this._bufferSourceNode.addEventListener('ended', this._onEnded.bind(this));
+      }
+    }
+
     this._state = BuzzState.Playing;
 
-    fireEvent && this._fire('playstart');
+    fireEvent && this._fire(resume ? 'resume' : 'playstart');
 
     return this;
   }
 
   /**
    * Returns the offset and duration of the playback.
-   * @param {string} sound The sound name
    * @return {[number, number]}
    * @private
    */
-  _getTimeVars(sound) {
+  _getTimeVars() {
     let offset = 0, duration = 0;
 
-    if (sound && this._sprite && this._sprite[sound]) {
+    if (this._spriteSound) {
       const startEnd = this._sprite[this._spriteSound], soundStart = startEnd[0], soundEnd = startEnd[1];
       offset = (this._elapsed < soundStart || this._elapsed > soundEnd) ? soundStart : this._elapsed;
       duration = (soundEnd - soundStart) - this._elapsed;
@@ -223,6 +242,14 @@ class BufferBuzz extends BaseBuzz {
 
     this._bufferSourceNode.buffer = this._buffer;
     this._bufferSourceNode.playbackRate.value = this._rate;
+    this._bufferSourceNode.loop = this._loop;
+
+    if (this._spriteSound) {
+      const startEnd = this._sprite[this._spriteSound];
+      this._bufferSourceNode.loopStart = startEnd[0];
+      this._bufferSourceNode.loopEnd = startEnd[1];
+    }
+
     this._bufferSourceNode.connect(this._gainNode);
   }
 
@@ -231,7 +258,11 @@ class BufferBuzz extends BaseBuzz {
    * @private
    */
   _onEnded() {
-    if (this._loop) {
+    this._reset();
+    this._state = BuzzState.Idle;
+    this._fire('playend');
+
+    /*if (this._loop) {
       this._startedAt = 0;
       this._elapsed = 0;
       this._state = BuzzState.Idle;
@@ -241,7 +272,7 @@ class BufferBuzz extends BaseBuzz {
       this._reset();
       this._state = BuzzState.Idle;
       this._fire('playend');
-    }
+    }*/
   }
 
   /**
@@ -265,11 +296,15 @@ class BufferBuzz extends BaseBuzz {
   }
 
   resume() {
+    return this._resume();
+  }
+
+  _resume(fireEvent = true) {
     if (!this._state === BuzzState.Paused) {
       return this;
     }
 
-    // TODO:
+    return this._playOrResume(fireEvent, true);
   }
 
   /**
@@ -337,7 +372,7 @@ class BufferBuzz extends BaseBuzz {
     this._fire('seek', seek);
 
     if (isPlaying) {
-      this._play(null, false);
+      this._resume(false);
     }
 
     return this;
