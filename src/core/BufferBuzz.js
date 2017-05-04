@@ -70,7 +70,7 @@ class BufferBuzz extends BaseBuzz {
    * @param {boolean} [args.cache = false] Whether to cache the buffer or not.
    * @param {function=} args.onload Event-handler for the "load" event.
    * @param {function=} args.onerror Event-handler for the "error" event.
-   * @param {function=} args.onplaystart Event-handler for the "playstart" event.
+   * @param {function=} args.onplay Event-handler for the "play" event.
    * @param {function=} args.onplayend Event-handler for the "playend" event.
    * @param {function=} args.onstop Event-handler for the "stop" event.
    * @param {function=} args.onpause Event-handler for the "pause" event.
@@ -127,7 +127,7 @@ class BufferBuzz extends BaseBuzz {
    * @return {BufferBuzz}
    */
   play() {
-    return this._play();
+    return this._playOrResume();
   }
 
   /**
@@ -136,42 +136,40 @@ class BufferBuzz extends BaseBuzz {
    * @returns {BufferBuzz}
    */
   playSprite(sound) {
-    return this._play(sound);
+    return this._playOrResume(sound);
   }
 
   /**
-   * Plays the sound and fire events based on the passed flag.
+   * Plays the sound from start or resume it from the paused state.
    * @param {string|null=} sound The sound name
+   * @param {boolean} [resume = false] True to resume the sound from the paused position
    * @param {boolean} [fireEvent = true] True to fire event
    * @return {BufferBuzz}
    * @private
    */
-  _play(sound, fireEvent = true) {
+  _playOrResume(sound, resume = false, fireEvent = true) {
+    if (!resume) {
+      // If the sound is already playing return immediately.
+      if (this.isPlaying()) {
+        return this;
+      }
 
-    // If the sound is already playing return immediately.
-    if (this.isPlaying()) {
-      return this;
+      // If the sound is not yet loaded push an action to the queue to play the sound once it's loaded.
+      if (!this.isLoaded()) {
+        this._actionQueue.add('play', () => this._playOrResume(sound, resume, fireEvent));
+        this.load();
+        return this;
+      }
+
+      if (sound && this._sprite && this._sprite[sound]) {
+        this._spriteSound = sound;
+      } else {
+        this._spriteSound = null;
+      }
+
+      this._elapsed = 0;
     }
 
-    // If the sound is not yet loaded push an action to the queue to play the sound once it's loaded.
-    if (!this.isLoaded()) {
-      this._actionQueue.add('play', () => this._play(sound, fireEvent));
-      this.load();
-      return this;
-    }
-
-    if (sound && this._sprite && this._sprite[sound]) {
-      this._spriteSound = sound;
-    } else {
-      this._spriteSound = null;
-    }
-
-    this._elapsed = 0;
-
-    return this._playOrResume(fireEvent);
-  }
-
-  _playOrResume(fireEvent = true, resume = false) {
     buzzer._link(this);
     this._clearEndTimer();
     let [offset, duration] = this._getTimeVars();
@@ -189,7 +187,7 @@ class BufferBuzz extends BaseBuzz {
 
     this._state = BuzzState.Playing;
 
-    fireEvent && this._fire(resume ? 'resume' : 'playstart');
+    fireEvent && this._fire(resume ? 'resume' : 'play');
 
     return this;
   }
