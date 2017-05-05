@@ -587,6 +587,8 @@ class BaseBuzz {
     this._fire('destroy');
     this._emitter.clear();
     this._emitter = null;
+    this._actionQueue.clear();
+    this._actionQueue = null;
     return this;
   }
 

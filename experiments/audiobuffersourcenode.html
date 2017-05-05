@@ -29,11 +29,14 @@
 
     bufferSourceNode.connect(audioContext.destination);
     bufferSourceNode.buffer = buffer;
+    bufferSourceNode.loop = true;
+    bufferSourceNode.loopStart = 1.5;
+    bufferSourceNode.loopEnd = 2.5;
     bufferSourceNode.start();
   }
 
   function pause() {
-    bufferSourceNode.paused = true;
+    bufferSourceNode.stop();
   }
 </script>
 </body>

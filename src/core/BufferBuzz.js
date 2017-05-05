@@ -153,16 +153,18 @@ class BufferBuzz extends BaseBuzz {
       return this;
     }
 
+    // If the sound is not yet loaded push an action to the queue to play the sound once it's loaded.
+    if (!this.isLoaded()) {
+      this._actionQueue.add('play', () => this._play(sound, fireEvent));
+      this.load();
+      return this;
+    }
+
+    // If the sound is paused and a new sound name is passed to play then play that sound
+    // from the start or resume the previous sound from the paused position.
     const isResume = this.isPaused() && this._spriteSound !== sound;
 
     if (!isResume) {
-      // If the sound is not yet loaded push an action to the queue to play the sound once it's loaded.
-      if (!this.isLoaded()) {
-        this._actionQueue.add('play', () => this._play(sound, fireEvent));
-        this.load();
-        return this;
-      }
-
       if (sound && this._sprite && this._sprite[sound]) {
         this._spriteSound = sound;
       } else {
@@ -177,16 +179,7 @@ class BufferBuzz extends BaseBuzz {
     let [offset, duration] = this._getTimeVars();
     this._playNode(offset, duration);
     this._startedAt = this._context.currentTime;
-
-    if (!this._loop) {
-      if (this._spriteSound) {
-        this._endTimer = setTimeout(this._onEnded, duration * 1000);
-      }
-      else {
-        this._bufferSourceNode.addEventListener('ended', this._onEnded.bind(this));
-      }
-    }
-
+    this._endTimer = setTimeout(this._onEnded, duration * 1000) / Math.abs(this._rate);
     this._state = BuzzState.Playing;
 
     fireEvent && this._fire('play');
@@ -202,6 +195,7 @@ class BufferBuzz extends BaseBuzz {
   _getTimeVars() {
     let offset = 0, duration = 0;
 
+    // if it's a sound in sprite then calculate the offset and duration accordingly.
     if (this._spriteSound) {
       const startEnd = this._sprite[this._spriteSound], soundStart = startEnd[0], soundEnd = startEnd[1];
       offset = (this._elapsed < soundStart || this._elapsed > soundEnd) ? soundStart : this._elapsed;
@@ -258,21 +252,14 @@ class BufferBuzz extends BaseBuzz {
    * @private
    */
   _onEnded() {
+    if (this._loop) {
+      this._fire('playend');
+      this._fire('playstart');
+    }
+
     this._reset();
     this._state = BuzzState.Idle;
     this._fire('playend');
-
-    /*if (this._loop) {
-      this._startedAt = 0;
-      this._elapsed = 0;
-      this._state = BuzzState.Idle;
-      this._fire('playend');
-      this.play(this._spriteSound);
-    } else {
-      this._reset();
-      this._state = BuzzState.Idle;
-      this._fire('playend');
-    }*/
   }
 
   /**
@@ -316,8 +303,8 @@ class BufferBuzz extends BaseBuzz {
     if (this.isPlaying()) {
       this._bufferSourceNode.playbackRate.value = this._rate;
       this._clearEndTimer();
-      let [, duration] = this._getTimeVars(this._spriteSound);
-      this._endTimer = setTimeout(this._onEnded, duration * 1000);
+      let [, duration] = this._getTimeVars();
+      this._endTimer = setTimeout(this._onEnded, (duration * 1000) / Math.abs(this._rate));
     }
 
     this._fire('rate', this._rate);
