@@ -123,11 +123,11 @@ class BufferBuzz extends BaseBuzz {
   }
 
   /**
-   * Plays the sound.
+   * Plays the sound or resume it from the paused state.
    * @return {BufferBuzz}
    */
   play() {
-    return this._playOrResume();
+    return this._play();
   }
 
   /**
@@ -136,27 +136,29 @@ class BufferBuzz extends BaseBuzz {
    * @returns {BufferBuzz}
    */
   playSprite(sound) {
-    return this._playOrResume(sound);
+    return this._play(sound);
   }
 
   /**
    * Plays the sound from start or resume it from the paused state.
    * @param {string|null=} sound The sound name
-   * @param {boolean} [resume = false] True to resume the sound from the paused position
    * @param {boolean} [fireEvent = true] True to fire event
    * @return {BufferBuzz}
    * @private
    */
-  _playOrResume(sound, resume = false, fireEvent = true) {
-    if (!resume) {
-      // If the sound is already playing return immediately.
-      if (this.isPlaying()) {
-        return this;
-      }
+  _play(sound, fireEvent = true) {
 
+    // If the sound is already playing return immediately.
+    if (this.isPlaying()) {
+      return this;
+    }
+
+    const isResume = this.isPaused() && this._spriteSound !== sound;
+
+    if (!isResume) {
       // If the sound is not yet loaded push an action to the queue to play the sound once it's loaded.
       if (!this.isLoaded()) {
-        this._actionQueue.add('play', () => this._playOrResume(sound, resume, fireEvent));
+        this._actionQueue.add('play', () => this._play(sound, fireEvent));
         this.load();
         return this;
       }
@@ -187,7 +189,7 @@ class BufferBuzz extends BaseBuzz {
 
     this._state = BuzzState.Playing;
 
-    fireEvent && this._fire(resume ? 'resume' : 'play');
+    fireEvent && this._fire('play');
 
     return this;
   }
@@ -293,18 +295,6 @@ class BufferBuzz extends BaseBuzz {
     }
   }
 
-  resume() {
-    return this._resume();
-  }
-
-  _resume(fireEvent = true) {
-    if (!this._state === BuzzState.Paused) {
-      return this;
-    }
-
-    return this._playOrResume(fireEvent, true);
-  }
-
   /**
    * Get/set the playback rate.
    * @param {number=} rate The playback rate
@@ -370,7 +360,7 @@ class BufferBuzz extends BaseBuzz {
     this._fire('seek', seek);
 
     if (isPlaying) {
-      this._resume(false);
+      this._play(null, false);
     }
 
     return this;

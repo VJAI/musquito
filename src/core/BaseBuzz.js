@@ -323,7 +323,7 @@ class BaseBuzz {
   }
 
   /**
-   * Plays the sound. Should be implemented by the derived classes.
+   * Plays the sound or resume it from the paused state. Should be implemented by the derived classes.
    */
   play() {
     throw new Error('Not implemented');
@@ -378,13 +378,6 @@ class BaseBuzz {
     fireEvent && this._fire('pause');
 
     return this;
-  }
-
-  /**
-   * Resume the paused sound.
-   */
-  resume() {
-    throw new Error('Not implemented');
   }
 
   /**
