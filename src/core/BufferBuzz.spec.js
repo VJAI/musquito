@@ -233,7 +233,7 @@ describe('BufferBuzz', () => {
 
       it('reset the variables after played', () => {
         bufferBuzz.on('playend', () => {
-          expect(bufferBuzz._startedAt).toBe(0);
+          expect(bufferBuzz._startTime).toBe(0);
           expect(bufferBuzz._elapsed).toBe(0);
           expect(bufferBuzz._endTimer).toBeNull();
           expect(bufferBuzz._bufferSourceNode).toBeNull();
@@ -428,7 +428,7 @@ describe('BufferBuzz', () => {
       });
 
       it('should update startedat and elapsed to 0', () => {
-        expect(bufferBuzz._startedAt).toBe(0);
+        expect(bufferBuzz._startTime).toBe(0);
         expect(bufferBuzz._elapsed).toBe(0);
       });
 

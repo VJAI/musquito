@@ -153,25 +153,39 @@ class BaseBuzz {
   _duration = 0;
 
   /**
-   * Represents the time sound started playing relative to context's current time.
+   * The sound start position.
    * @type {number}
    * @protected
    */
-  _startedAt = 0;
+  _startPos = 0;
 
   /**
-   * Represents the time elapsed after started playing.
+   * The sound end position.
    * @type {number}
    * @protected
    */
-  _elapsed = 0;
+  _endPos = 0;
 
   /**
-   * TODO: add description
+   * The time at which the playback started.
    * @type {number}
    * @protected
    */
-  _rateElapsed = 0;
+  _startTime = 0;
+
+  /**
+   * The current position of the playback.
+   * @type {number}
+   * @protected
+   */
+  _seek = 0;
+
+  /**
+   * The position of the playback during rate change.
+   * @type {number}
+   * @protected
+   */
+  _rateSeek = 0;
 
   /**
    * @param {string|object} args The input parameters of the sound.
@@ -330,25 +344,6 @@ class BaseBuzz {
   }
 
   /**
-   * Resets the internal variables.
-   * @protected
-   */
-  _reset() {
-    buzzer._unlink(this);
-    this._stopNode();
-    this._startedAt = 0;
-    this._elapsed = 0;
-  }
-
-  /**
-   * Should be implemented by the derived classes.
-   * @protected
-   */
-  _stopNode() {
-    throw new Error('Not implemented');
-  }
-
-  /**
    * Pause the playing sound.
    * @returns {BaseBuzz}
    */
@@ -363,6 +358,7 @@ class BaseBuzz {
    * @protected
    */
   _pause(fireEvent = true) {
+
     // Remove the "play" action from queue if there is one.
     this._actionQueue.remove('play');
 
@@ -371,13 +367,26 @@ class BaseBuzz {
       return this;
     }
 
-    const startedAt = this._startedAt, elapsed = this._elapsed;
+    // Save the current position and reset rateSeek.
+    this._seek = this.seek();
+    this._rateSeek = 0;
+
+    // Disconnect from graph.
+    buzzer._unlink(this);
     this._reset();
-    this._elapsed = elapsed + this._context.currentTime - startedAt;
+
     this._state = BuzzState.Paused;
     fireEvent && this._fire('pause');
 
     return this;
+  }
+
+  /**
+   * Should be implemented by the derived classes.
+   * @protected
+   */
+  _reset() {
+    throw new Error('Not implemented');
   }
 
   /**
@@ -403,7 +412,11 @@ class BaseBuzz {
       return this;
     }
 
+    // Reset the variables
+    this._seek = 0;
+    this._rateSeek = 0;
     this._reset();
+
     this._state = BuzzState.Idle;
     fireEvent && this._fire('stop');
 

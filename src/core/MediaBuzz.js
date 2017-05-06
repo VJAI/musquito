@@ -105,7 +105,7 @@ class MediaBuzz extends BaseBuzz {
     this._audio.currentTime = this._elapsed;
     this._audio.playbackRate = this._rate;
     this._audio.play();
-    this._startedAt = this._context.currentTime;
+    this._startTime = this._context.currentTime;
     this._audio.addEventListener('ended', this._onEnded);
     this._state = BuzzState.Playing;
     fireEvent && this._fire('playstart');
@@ -121,7 +121,7 @@ class MediaBuzz extends BaseBuzz {
     this._audio.removeEventListener('ended', this._onEnded);
 
     if (this._loop) {
-      this._startedAt = 0;
+      this._startTime = 0;
       this._elapsed = 0;
       this._state = BuzzState.Idle;
       this._fire('playend');
@@ -147,7 +147,7 @@ class MediaBuzz extends BaseBuzz {
       return this;
     }
 
-    this._startedAt = this._context.currentTime; // TODO: do we need this?
+    this._startTime = this._context.currentTime; // TODO: do we need this?
     this._rate = rate;
 
     if (this._audio) {

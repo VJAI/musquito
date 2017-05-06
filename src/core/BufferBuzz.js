@@ -160,26 +160,34 @@ class BufferBuzz extends BaseBuzz {
       return this;
     }
 
-    // If the sound is paused and a new sound name is passed to play then play that sound
-    // from the start or resume the previous sound from the paused position.
-    const isResume = this.isPaused() && this._spriteSound !== sound;
-
-    if (!isResume) {
-      if (sound && this._sprite && this._sprite[sound]) {
-        this._spriteSound = sound;
-      } else {
-        this._spriteSound = null;
-      }
-
-      this._elapsed = 0;
+    const prevSound = this._spriteSound;
+    if (sound && this._sprite && this._sprite[sound]) {
+      this._spriteSound = sound;
+    } else {
+      this._spriteSound = null;
     }
 
-    buzzer._link(this);
-    this._clearEndTimer();
-    let [offset, duration] = this._getTimeVars();
-    this._playNode(offset, duration);
-    this._startedAt = this._context.currentTime;
-    this._endTimer = setTimeout(this._onEnded, duration * 1000) / Math.abs(this._rate);
+    // If the sound is not paused and the passed sound name is different
+    // from the last one then start the playback from the start position.
+    if (!this.isPaused() && this._spriteSound !== prevSound) {
+      this._seek = 0;
+    }
+
+    // Store the sound start and end positions.
+    if (this._spriteSound) {
+      const soundTimeVars = this._sprite[this._spriteSound];
+      this._startPos = soundTimeVars[0];
+      this._endPos = soundTimeVars[1];
+    } else {
+      this._startPos = 0;
+      this._endPos = this._duration;
+    }
+
+    let [seek, duration, timeout] = this._getTimeVars();
+    buzzer._link(this); // TODO: Need to figure out a better way for this
+    this._playNode(seek, duration);
+    this._startTime = this._context.currentTime;
+    this._endTimer = setTimeout(this._onEnded, timeout);
     this._state = BuzzState.Playing;
 
     fireEvent && this._fire('play');
@@ -188,37 +196,40 @@ class BufferBuzz extends BaseBuzz {
   }
 
   /**
-   * Returns the offset and duration of the playback.
-   * @return {[number, number]}
+   * Returns the seek, duration and timeout for the playback.
+   * @return {[number, number, number]}
    * @private
    */
   _getTimeVars() {
-    let offset = 0, duration = 0;
+    let seek = Math.max(0, this._seek > 0 ? this._seek : this._startPos),
+      duration = this._endPos - this._startPos,
+      timeout = (duration * 1000) / this._rate;
 
-    // if it's a sound in sprite then calculate the offset and duration accordingly.
-    if (this._spriteSound) {
-      const startEnd = this._sprite[this._spriteSound], soundStart = startEnd[0], soundEnd = startEnd[1];
-      offset = (this._elapsed < soundStart || this._elapsed > soundEnd) ? soundStart : this._elapsed;
-      duration = (soundEnd - soundStart) - this._elapsed;
-    } else {
-      offset = this._elapsed;
-      duration = this._duration - this._elapsed;
-    }
-
-    duration = (duration / this._rate);
-
-    return [offset, duration];
+    return [seek, duration, timeout];
   }
 
   /**
-   * Creates a new AudioBufferSourceNode and plays it with the passed offset and duration.
+   * Creates a new AudioBufferSourceNode, set it's properties and play it.
    * @param {number} offset The time offset
    * @param {number} duration The duration to play
    * @private
    */
   _playNode(offset, duration) {
-    this._createNode();
 
+    // Create a new node
+    this._bufferSourceNode = this._context.createBufferSource();
+
+    // Set the buffer, playback rate and loop parameters
+    this._bufferSourceNode.buffer = this._buffer;
+    this._bufferSourceNode.playbackRate.value = this._rate;
+    this._bufferSourceNode.loop = this._loop;
+    this._bufferSourceNode.loopStart = this._startPos;
+    this._bufferSourceNode.loopEnd = this._endPos;
+
+    // Connect the node to the audio graph.
+    this._bufferSourceNode.connect(this._gainNode);
+
+    // Call the supported method to play the sound
     if (typeof this._bufferSourceNode.start !== 'undefined') {
       this._bufferSourceNode.start(this._context.currentTime, offset, duration);
     }
@@ -228,47 +239,43 @@ class BufferBuzz extends BaseBuzz {
   }
 
   /**
-   * Creates a new AudioBufferSourceNode and set it's playback properties.
-   * @private
-   */
-  _createNode() {
-    this._bufferSourceNode = this._context.createBufferSource();
-
-    this._bufferSourceNode.buffer = this._buffer;
-    this._bufferSourceNode.playbackRate.value = this._rate;
-    this._bufferSourceNode.loop = this._loop;
-
-    if (this._spriteSound) {
-      const startEnd = this._sprite[this._spriteSound];
-      this._bufferSourceNode.loopStart = startEnd[0];
-      this._bufferSourceNode.loopEnd = startEnd[1];
-    }
-
-    this._bufferSourceNode.connect(this._gainNode);
-  }
-
-  /**
    * Called after the playback ends.
    * @private
    */
   _onEnded() {
     if (this._loop) {
       this._fire('playend');
-      this._fire('playstart');
-    }
 
-    this._reset();
-    this._state = BuzzState.Idle;
-    this._fire('playend');
+      // Reset the seek positions
+      this._seek = this._startPos;
+      this._rateSeek = 0;
+
+      // Reset the play start time
+      this._startTime = this._context.currentTime;
+
+      // Create a new timer
+      let [, duration] = this._getTimeVars();
+      this._endTimer = setTimeout(this._onEnded, duration);
+
+      this._fire('playstart');
+    } else {
+      this._seek = 0;
+      this._rateSeek = 0;
+      this._clearEndTimer();
+      this._cleanNode();
+      this._state = BuzzState.Idle;
+      this._fire('playend');
+    }
   }
 
   /**
-   * Resets the internal variables and end timer.
+   * Resets the timer. Destroy the buffer source node.
    * @private
    */
   _reset() {
-    super._reset();
     this._clearEndTimer();
+    this._stopNode();
+    this._cleanNode();
   }
 
   /**
@@ -296,8 +303,8 @@ class BufferBuzz extends BaseBuzz {
       return this;
     }
 
-    this._rateElapsed = this.seek(); // TODO: reset this variable at the places required
-    this._startedAt = this._context.currentTime;
+    this._rateSeek = this.seek();
+    this._startTime = this._context.currentTime;
     this._rate = rate;
 
     if (this.isPlaying()) {
@@ -318,8 +325,8 @@ class BufferBuzz extends BaseBuzz {
    */
   seek(seek) {
     if (typeof seek === 'undefined') {
-      const realTime = this.isPlaying() ? this._context.currentTime - this._startedAt : 0;
-      const rateElapsed = this._rateElapsed ? this._rateElapsed - this._elapsed : 0;
+      const realTime = this.isPlaying() ? this._context.currentTime - this._startTime : 0;
+      const rateElapsed = this._rateSeek ? this._rateSeek - this._elapsed : 0;
 
       return this._elapsed + (rateElapsed + realTime * this._rate);
     }
@@ -400,11 +407,13 @@ class BufferBuzz extends BaseBuzz {
 
     this._bufferSourceNode.disconnect();
     this._bufferSourceNode.onended = null;
+
     try {
       this._bufferSourceNode.buffer = buzzer.scratchBuffer();
     }
     catch (e) {
     }
+
     this._bufferSourceNode = null;
   }
 
