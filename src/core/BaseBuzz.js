@@ -264,6 +264,8 @@ class BaseBuzz {
    */
   _setup() {
     buzzer.setup(null);
+    buzzer.add(this);
+
     this._context = buzzer.context();
     this._loadState = LoadState.NotLoaded;
 
@@ -593,15 +595,16 @@ class BaseBuzz {
     }
 
     this.stop();
+    buzzer.remove(this);
     this._context = null;
     this._gainNode = null;
+    this._actionQueue.clear();
+    this._actionQueue = null;
     this._destroy();
     this._state = BuzzState.Destroyed;
     this._fire('destroy');
     this._emitter.clear();
     this._emitter = null;
-    this._actionQueue.clear();
-    this._actionQueue = null;
     return this;
   }
 

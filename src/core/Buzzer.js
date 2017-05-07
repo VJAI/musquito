@@ -255,13 +255,35 @@ class Buzzer {
   }
 
   /**
+   * Adds the passed buzz to the internal object.
+   * @param buzz
+   * @return {Buzzer}
+   */
+  add(buzz) {
+    if (this._buzzes[buzz.id] === undefined) {
+      this._buzzes[buzz.id] = buzz;
+    }
+
+    return this;
+  }
+
+  /**
+   * Removes the added buzz from the object.
+   * @param buzz
+   * @return {Buzzer}
+   */
+  remove(buzz) {
+    delete this._buzzes[buzz.id];
+    return this;
+  }
+
+  /**
    * Adds the buzz to the internal array for controlling the playback and to the audio graph.
    * @param {BaseBuzz} buzz The buzz object
    * @returns {Buzzer}
    * @private
    */
   _link(buzz) {
-    this._buzzes[buzz.id] = buzz;
     buzz._gainNode.connect(this._gainNode);
 
     this._buzzEvents.forEach(event => buzz.on(event, {
@@ -286,7 +308,6 @@ class Buzzer {
       buzz._gainNode.disconnect();
     }
 
-    delete this._buzzes[buzz.id];
     return this;
   }
 
