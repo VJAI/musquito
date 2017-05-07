@@ -62,6 +62,20 @@ class BaseBuzz {
   _compatibleSrc = null;
 
   /**
+   * The sprite definition.
+   * @type {object}
+   * @protected
+   */
+  _sprite = null;
+
+  /**
+   * Current playing sound name in a sprite.
+   * @type {string|null}
+   * @protected
+   */
+  _spriteSound = null;
+
+  /**
    * The current volume of the sound. The value should be between 0.0 and 1.0.
    * @type {number}
    * @protected
@@ -191,6 +205,7 @@ class BaseBuzz {
    * @param {string|object} args The input parameters of the sound.
    * @param {string=} args.id The unique id of the sound.
    * @param {string|string[]=} args.src The array of audio urls.
+   * @param {object=} args.sprite The sprite definition.
    * @param {number} [args.volume = 1.0] The initial volume of the sound.
    * @param {number} [args.rate = 1] The initial playback rate of the sound.
    * @param {boolean} [args.muted = false] True to be muted initially.
@@ -213,7 +228,9 @@ class BaseBuzz {
   constructor(args) {
     let options = typeof args === 'string' || Array.isArray(args) ? { src: args } : args || {};
 
-    this._validate(options);
+    if (!options.src || (Array.isArray(options.src) && options.src.length === 0)) {
+      throw new Error('You should pass the source for the audio.');
+    }
 
     this._emitter = new EventEmitter('load,error,playstart,playend,stop,pause,mute,volume');
     this._actionQueue = new ActionQueue();
@@ -223,6 +240,8 @@ class BaseBuzz {
     if (options !== undefined) {
       this._src = Array.isArray(options.src) ? options.src : [options.src];
     }
+
+    typeof options.sprite === 'object' && (this._sprite = options.sprite);
 
     if (typeof options.volume === 'number' && options.volume >= 0 && options.volume <= 1.0) {
       this._volume = options.volume;
@@ -247,22 +266,7 @@ class BaseBuzz {
     typeof options.onseek === 'function' && this.on('seek', options.onseek);
     typeof options.onrate === 'function' && this.on('rate', options.onrate);
     typeof options.ondestroy === 'function' && this.on('destroy', options.ondestroy);
-  }
 
-  /**
-   * Validate the passed options. Will be overridden by the derived classes.
-   * @param {object} options The passed options to the buzz
-   * @private
-   */
-  _validate(options) { // eslint-disable-line no-unused-vars
-    return;
-  }
-
-  /**
-   * Setup the buzzer if it's not yet ready and auto-play or preload based on the passed option.
-   * @protected
-   */
-  _setup() {
     buzzer.setup(null);
     buzzer.add(this);
 
@@ -339,9 +343,10 @@ class BaseBuzz {
   }
 
   /**
-   * Plays the sound or resume it from the paused state. Should be implemented by the derived classes.
+   * Plays the sound or the clip that is defined in the sprite.
+   * @param {string=} sound The sound name
    */
-  play() {
+  play(sound) { // eslint-disable-line no-unused-vars
     throw new Error('Not implemented');
   }
 
@@ -527,11 +532,22 @@ class BaseBuzz {
   }
 
   /**
-   * Returns the duration of the sound.
-   * @returns {number}
+   * Returns the total duration of the sound or the piece of sound in sprite.
+   * @param {string=} sound The sound name in the sprite.
+   * @return {number}
    */
-  duration() {
-    return this._duration;
+  duration(sound) {
+    if (typeof sound === 'undefined') {
+      return this._duration;
+    }
+
+    const times = this._sprite[sound];
+
+    if (!times) {
+      return 0;
+    }
+
+    return times[1] - times[0];
   }
 
   /**

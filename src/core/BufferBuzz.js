@@ -8,34 +8,6 @@ import buzzer from './Buzzer';
 class BufferBuzz extends BaseBuzz {
 
   /**
-   * Base64 string of an audio.
-   * @type {string}
-   * @private
-   */
-  _dataUri = '';
-
-  /**
-   * The sprite definition.
-   * @type {object}
-   * @private
-   */
-  _sprite = null;
-
-  /**
-   * Current playing sound name in a sprite.
-   * @type {string|null}
-   * @private
-   */
-  _spriteSound = null;
-
-  /**
-   * Whether to cache the buffer or not.
-   * @type {boolean}
-   * @protected
-   */
-  _cache = false;
-
-  /**
    * The audio buffer.
    * @type {AudioBuffer}
    * @private
@@ -57,59 +29,12 @@ class BufferBuzz extends BaseBuzz {
   _endTimer = null;
 
   /**
-   * @param {string|object} args The input parameters of the sound.
-   * @param {string=} args.id The unique id of the sound.
-   * @param {string=} args.src The array of audio urls.
-   * @param {string=} args.dataUri The source of the audio as base64 string.
-   * @param {object=} args.sprite The sprite definition.
-   * @param {number} [args.volume = 1.0] The initial volume of the sound.
-   * @param {boolean} [args.muted = false] True to be muted initially.
-   * @param {boolean} [args.loop = false] True to play the sound repeatedly.
-   * @param {boolean} [args.preload = false] True to pre-load the sound after construction.
-   * @param {boolean} [args.autoplay = false] True to play automatically after construction.
-   * @param {boolean} [args.cache = false] Whether to cache the buffer or not.
-   * @param {function=} args.onload Event-handler for the "load" event.
-   * @param {function=} args.onerror Event-handler for the "error" event.
-   * @param {function=} args.onplay Event-handler for the "play" event.
-   * @param {function=} args.onplayend Event-handler for the "playend" event.
-   * @param {function=} args.onstop Event-handler for the "stop" event.
-   * @param {function=} args.onpause Event-handler for the "pause" event.
-   * @param {function=} args.onmute Event-handler for the "mute" event.
-   * @param {function=} args.onvolume Event-handler for the "volume" event.
-   * @param {function=} args.onrate Event-handler for the "rate" event.
-   * @param {function=} args.onseek Event-handler for the "seek" event.
-   * @param {function=} args.ondestroy Event-handler for the "destroy" event.
-   * @constructor
-   */
-  constructor(args) {
-    super(args);
-
-    if (typeof args === 'object') {
-      typeof args.dataUri === 'string' && (this._dataUri = args.dataUri);
-      typeof args.cache === 'boolean' && (this._cache = args.cache);
-    }
-
-    this._setup();
-  }
-
-  /**
-   * Validate the passed options.
-   * @param {object} options The buzz options.
-   * @private
-   */
-  _validate(options) {
-    if ((!options.src || (Array.isArray(options.src) && options.src.length === 0)) && !options.dataUri) {
-      throw new Error('You should pass the source for the audio.');
-    }
-  }
-
-  /**
    * Download the audio file and loads into an audio buffer.
    * @return {Promise<DownloadResult>}
    * @private
    */
   _load() {
-    return buzzer.load(this._compatibleSrc, this._cache);
+    return buzzer.load(this._compatibleSrc);
   }
 
   /**
@@ -123,19 +48,11 @@ class BufferBuzz extends BaseBuzz {
   }
 
   /**
-   * Plays the sound or resume it from the paused state.
-   * @return {BufferBuzz}
-   */
-  play() {
-    return this._play();
-  }
-
-  /**
    * Plays the passed sound that is defined in the sprite.
    * @param {string=} sound The sound name
    * @returns {BufferBuzz}
    */
-  playSprite(sound) {
+  play(sound) {
     return this._play(sound);
   }
 
@@ -184,7 +101,7 @@ class BufferBuzz extends BaseBuzz {
     }
 
     let [seek, duration, timeout] = this._getTimeVars();
-    buzzer._link(this); // TODO: Need to figure out a better way for this
+    buzzer._link(this);
     this._playNode(seek, duration);
     this._startTime = this._context.currentTime;
     this._endTimer = setTimeout(this._onEnded, timeout);
@@ -358,25 +275,6 @@ class BufferBuzz extends BaseBuzz {
     }
 
     return this;
-  }
-
-  /**
-   * Returns the total duration of the sound or the piece of sound in sprite.
-   * @param {string=} sound The sound name in the sprite.
-   * @return {number}
-   */
-  spriteDuration(sound) {
-    if (typeof sound === 'undefined') {
-      return this.duration();
-    }
-
-    const times = this._sprite[sound];
-
-    if (!times) {
-      return 0;
-    }
-
-    return times[1] - times[0];
   }
 
   /**

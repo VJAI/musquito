@@ -34,28 +34,49 @@ class BufferLoader {
   /**
    * Loads single or multiple audio resources into audio buffers.
    * @param {string|string[]} urls Single or array of audio urls
-   * @param {boolean} [cache = true] Whether to cache the buffer(s) or not
    * @return {Promise<DownloadResult|Array<DownloadResult>>}
    */
-  load(urls, cache = true) {
+  load(urls) {
     if (typeof urls === 'string') {
-      return this._load(urls, cache);
+      return this._load(urls);
     }
 
-    return Promise.all(urls.map(url => this._load(url, cache)));
+    return Promise.all(urls.map(url => this._load(url)));
   }
 
   /**
    * Loads a single audio resource into audio buffer and cache result if the download is succeeded.
    * @param {string} url The Audio url
-   * @param {boolean} cache Whether to cache the buffer or not
    * @return {Promise<DownloadResult>}
    * @private
    */
-  _load(url, cache) {
+  _load(url) {
     return new Promise(resolve => {
       if (this._bufferCache.hasBuffer(url)) {
         resolve(new DownloadResult(url, this._bufferCache.getBuffer(url)));
+        return;
+      }
+
+      const reject = err => {
+        resolve(new DownloadResult(url, null, err));
+      };
+
+      const decodeAudioData = (arrayBuffer) => {
+        this._context.decodeAudioData(arrayBuffer).then(buffer => {
+          this._bufferCache.setBuffer(url, buffer);
+          resolve(new DownloadResult(url, buffer));
+        }, reject);
+      };
+
+      if (/^data:[^;]+;base64,/.test(url)) {
+        const data = atob(url.split(',')[1]);
+        const dataView = new Uint8Array(data.length);
+
+        for (let i = 0; i < data.length; ++i) {
+          dataView[i] = data.charCodeAt(i);
+        }
+
+        decodeAudioData(dataView);
         return;
       }
 
@@ -63,15 +84,9 @@ class BufferLoader {
       req.open('GET', url, true);
       req.responseType = 'arraybuffer';
 
-      const reject = err => {
-        resolve(new DownloadResult(url, null, err));
-      };
-
       req.addEventListener('load', () => {
         this._context.decodeAudioData(req.response).then(buffer => {
-          if (cache) {
-            this._bufferCache.setBuffer(url, buffer);
-          }
+          this._bufferCache.setBuffer(url, buffer);
           resolve(new DownloadResult(url, buffer));
         }, reject);
       }, false);

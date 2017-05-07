@@ -12,44 +12,6 @@ class MediaBuzz extends BaseBuzz {
   _mediaElementAudioSourceNode = null;
 
   /**
-   * @param {string|object} args The input parameters of the sound.
-   * @param {string=} args.id The unique id of the sound.
-   * @param {string=} args.src The array of audio urls.
-   * @param {number} [args.volume = 1.0] The initial volume of the sound.
-   * @param {boolean} [args.muted = false] True to be muted initially.
-   * @param {boolean} [args.loop = false] True to play the sound repeatedly.
-   * @param {boolean} [args.preload = false] True to pre-load the sound after construction.
-   * @param {boolean} [args.autoplay = false] True to play automatically after construction.
-   * @param {function=} args.onload Event-handler for the "load" event.
-   * @param {function=} args.onerror Event-handler for the "error" event.
-   * @param {function=} args.onplaystart Event-handler for the "playstart" event.
-   * @param {function=} args.onplayend Event-handler for the "playend" event.
-   * @param {function=} args.onstop Event-handler for the "stop" event.
-   * @param {function=} args.onpause Event-handler for the "pause" event.
-   * @param {function=} args.onmute Event-handler for the "mute" event.
-   * @param {function=} args.onvolume Event-handler for the "volume" event.
-   * @param {function=} args.onrate Event-handler for the "rate" event.
-   * @param {function=} args.onseek Event-handler for the "seek" event.
-   * @param {function=} args.ondestroy Event-handler for the "destroy" event.
-   * @constructor
-   */
-  constructor(args) {
-    super(args);
-    this._setup();
-  }
-
-  /**
-   * Validate the passed options.
-   * @param {object} options The buzz options.
-   * @private
-   */
-  _validate(options) {
-    if (!options.src || (Array.isArray(options.src) && options.src.length === 0)) {
-      throw new Error('You should pass the source for the audio.');
-    }
-  }
-
-  /**
    * Loads the audio node.
    * @return {Promise<DownloadResult>}
    * @private
