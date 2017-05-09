@@ -1,5 +1,6 @@
 import BufferCache from './BufferCache';
 import DownloadResult, { DownloadStatus } from './DownloadResult';
+import codecAid from './CodecAid';
 
 /**
  * Loads the audio sources into audio buffers and returns them.
@@ -68,9 +69,9 @@ class BufferLoader {
         }, reject);
       };
 
-      if (/^data:[^;]+;base64,/.test(url)) {
+      if (codecAid.isBase64(url)) {
         const data = atob(url.split(',')[1]);
-        const dataView = new Uint8Array(data.length);
+        const dataView = new Uint8Array(data.length); // eslint-disable-line no-undef
 
         for (let i = 0; i < data.length; ++i) {
           dataView[i] = data.charCodeAt(i);

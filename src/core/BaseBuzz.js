@@ -55,6 +55,13 @@ class BaseBuzz {
   _src = [];
 
   /**
+   * The file format of the passed audio source.
+   * @type {string|null}
+   * @protected
+   */
+  _format = null;
+
+  /**
    * The supported source in the passed array of urls.
    * @type {string|null}
    * @protected
@@ -205,6 +212,7 @@ class BaseBuzz {
    * @param {string|object} args The input parameters of the sound.
    * @param {string=} args.id The unique id of the sound.
    * @param {string|string[]=} args.src The array of audio urls.
+   * @param {string} args.format The file format of the passed audio source.
    * @param {object=} args.sprite The sprite definition.
    * @param {number} [args.volume = 1.0] The initial volume of the sound.
    * @param {number} [args.rate = 1] The initial playback rate of the sound.
@@ -241,6 +249,7 @@ class BaseBuzz {
       this._src = Array.isArray(options.src) ? options.src : [options.src];
     }
 
+    typeof options.format === 'string' && (this._format = options.format);
     typeof options.sprite === 'object' && (this._sprite = options.sprite);
 
     if (typeof options.volume === 'number' && options.volume >= 0 && options.volume <= 1.0) {
@@ -296,12 +305,14 @@ class BaseBuzz {
     // Set the state to "Loading" to avoid multiple times loading the buffer.
     this._loadState = LoadState.Loading;
 
-    const src = codecAid.getSupportedFile(this._src);
+    // If the user has passed format check if it is supported
+    // or else retrieve the supported source from the array.
+    const src = this._format && codecAid.isFormatSupported(this._format) ? this._src[0] : codecAid.getSupportedSource(this._src);
 
     if (!src) {
       this._actionQueue.clear();
       this._loadState = LoadState.NotLoaded;
-      this._fire('error', { type: ErrorType.LoadError, error: 'None of the audio format you passed is supported' });
+      this._fire('error', { type: ErrorType.LoadError, error: 'The audio formats you passed are not supported' });
       return this;
     }
 

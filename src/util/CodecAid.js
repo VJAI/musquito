@@ -1,6 +1,3 @@
-// Ref: http://stackoverflow.com/questions/190852/how-can-i-get-file-extensions-with-javascript
-const fileExtRegEx = /^.+\.([^.]+)$/;
-
 /**
  * Helps to deal with the supported audio formats by the current environment.
  * @class
@@ -79,22 +76,35 @@ class CodecAid {
   }
 
   /**
-   * Returns true if the audio file is supported.
-   * @param {string} file The audio file url
+   * Returns true if the audio source is supported.
+   * @param {string} source The audio source url or base64 string
    * @return {boolean}
    */
-  isFileSupported(file) {
-    const ext = fileExtRegEx.exec(file);
-    return ext ? this.isFormatSupported(ext[1]) : false;
+  isSourceSupported(source) {
+    let ext = this.isBase64(source) ?
+      (/^data:audio\/([^;,]+);/i).exec(source) :
+      (/^.+\.([^.]+)$/).exec(source);
+
+    ext = (/^.+\.([^.]+)$/).exec(source);
+    return ext ? this.isFormatSupported(ext[1].toLowerCase()) : false;
   }
 
   /**
-   * Returns the first supported audio file from the passed array.
-   * @param {string[]} files Array of audio files
+   * Returns the first supported audio source from the passed array.
+   * @param {string[]} sources Array of audio sources. The audio source could be either url or base64 string.
    * @return {string}
    */
-  getSupportedFile(files) {
-    return files.find(file => this.isFileSupported(file));
+  getSupportedSource(sources) {
+    return sources.find(source => this.isSourceSupported(source));
+  }
+
+  /**
+   * Returns whether the passed string is a base64 string or not.
+   * @param {string} str Base64 audio string
+   * @return {boolean}
+   */
+  isBase64(str) {
+    return (/^data:[^;]+;base64,/).test(str);
   }
 }
 
