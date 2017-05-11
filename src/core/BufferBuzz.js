@@ -22,13 +22,6 @@ class BufferBuzz extends BaseBuzz {
   _bufferSourceNode = null;
 
   /**
-   * Represents the timer that is used to reset the variables once the playback is ended.
-   * @type {number|null}
-   * @private
-   */
-  _endTimer = null;
-
-  /**
    * Download the audio file and loads into an audio buffer.
    * @return {Promise<DownloadResult>}
    * @private
@@ -111,69 +104,31 @@ class BufferBuzz extends BaseBuzz {
   }
 
   /**
-   * Reset the timer and clean the node.
+   * Reset the timer and destroy the node.
    * @private
    */
   _pauseNode() {
-    this._reset();
-  }
-
-  /**
-   * Reset the timer and clean the node.
-   * @private
-   */
-  _stopNode() {
-    this._reset();
-  }
-
-  /**
-   * Resets the timer. Destroy the buffer source node.
-   * @private
-   */
-  _reset() {
-    this._clearEndTimer();
     this._stopBufferNode();
     this._destroyBufferNode();
   }
 
   /**
-   * Clears the play end timer.
+   * Reset the timer and destroy the node.
    * @private
    */
-  _clearEndTimer() {
-    if (this._endTimer) {
-      clearTimeout(this._endTimer);
-      this._endTimer = null;
-    }
+  _stopNode() {
+    this._stopBufferNode();
+    this._destroyBufferNode();
   }
 
   /**
-   * Get/set the playback rate.
+   * Set the playbackrate for the buffer source node.
    * @param {number=} rate The playback rate
-   * @return {BufferBuzz|number}
+   * @private
    */
-  rate(rate) {
-    if (typeof rate === 'undefined') {
-      return this._rate;
-    }
-
-    if (typeof rate !== 'number' || rate < 0 || rate > 5) {
-      return this;
-    }
-
-    this._rateSeek = this.seek();
+  _setRate(rate) {
     this._startTime = this._context.currentTime;
-    this._rate = rate;
-
-    if (this.isPlaying()) {
-      this._bufferSourceNode.playbackRate.value = this._rate;
-      this._clearEndTimer();
-      let [, duration] = this._getTimeVars();
-      this._endTimer = setTimeout(this._onEnded, (duration * 1000) / Math.abs(this._rate));
-    }
-
-    this._fire('rate', this._rate);
-    return this;
+    this._bufferSourceNode && (this._bufferSourceNode.playbackRate.value = rate);
   }
 
   /**
@@ -216,6 +171,17 @@ class BufferBuzz extends BaseBuzz {
     }
 
     return this;
+  }
+
+  _getSeek() {
+    const realTime = this.isPlaying() ? this._context.currentTime - this._startTime : 0;
+    const rateElapsed = this._rateSeek ? this._rateSeek - this._elapsed : 0;
+
+    return this._elapsed + (rateElapsed + realTime * this._rate);
+  }
+
+  _setSeek(seek) {
+
   }
 
   /**

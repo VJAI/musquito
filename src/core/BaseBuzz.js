@@ -209,6 +209,13 @@ class BaseBuzz {
   _rateSeek = 0;
 
   /**
+   * Represents the timer that is used to reset the variables once the playback is ended.
+   * @type {number|null}
+   * @protected
+   */
+  _endTimer = null;
+
+  /**
    * @param {string|object} args The input parameters of the sound.
    * @param {string=} args.id The unique id of the sound.
    * @param {string|string[]=} args.src The array of audio urls.
@@ -479,12 +486,12 @@ class BaseBuzz {
     this._seek = this.seek();
     this._rateSeek = 0;
 
-    // Disconnect from graph.
     buzzer._unlink(this);
-
+    this._clearEndTimer();
     this._pauseNode();
 
     this._state = BuzzState.Paused;
+
     fireEvent && this._fire('pause');
 
     return this;
@@ -524,9 +531,13 @@ class BaseBuzz {
     // Reset the variables
     this._seek = 0;
     this._rateSeek = 0;
+
+    buzzer._unlink(this);
+    this._clearEndTimer();
     this._stopNode();
 
     this._state = BuzzState.Idle;
+
     fireEvent && this._fire('stop');
 
     return this;
@@ -538,6 +549,17 @@ class BaseBuzz {
    */
   _stopNode() {
     throw new Error('Should be implemented the derived class');
+  }
+
+  /**
+   * Clears the play end timer.
+   * @protected
+   */
+  _clearEndTimer() {
+    if (this._endTimer) {
+      clearTimeout(this._endTimer);
+      this._endTimer = null;
+    }
   }
 
   /**
@@ -619,8 +641,37 @@ class BaseBuzz {
   /**
    * Get/set the playback rate.
    * @param {number=} rate The playback rate
+   * @return {BaseBuzz|number}
    */
-  rate(rate) { // eslint-disable-line no-unused-vars
+  rate(rate) {
+    if (typeof rate === 'undefined') {
+      return this._rate;
+    }
+
+    if (typeof rate !== 'number' || rate < 0 || rate > 5) {
+      return this;
+    }
+
+    this._rate = rate;
+    this._rateSeek = this.seek();
+
+    if (this.isPlaying()) {
+      this._setRate(rate);
+      this._clearEndTimer();
+      let [, duration] = this._getTimeVars();
+      this._endTimer = setTimeout(this._onEnded, (duration * 1000) / Math.abs(rate));
+    }
+
+    this._fire('rate', this._rate);
+    return this;
+  }
+
+  /**
+   * Set the playbackrate for the underlying node.
+   * @param {number=} rate The playback rate
+   * @protected
+   */
+  _setRate(rate) { // eslint-disable-line no-unused-vars
     throw new Error('Should be implemented the derived class');
   }
 

@@ -75,7 +75,7 @@ class MediaBuzz extends BaseBuzz {
   }
 
   /**
-   * Pause the audio element and set it's position to 0.
+   * Pause the audio element and resets it's position to 0.
    * @private
    */
   _handleStop() {
@@ -86,7 +86,7 @@ class MediaBuzz extends BaseBuzz {
   }
 
   /**
-   * Mutes the audio element.
+   * Mutes the audio element directly if web audio/media element audio source is not supported.
    * @private
    */
   _muteNode() {
@@ -96,7 +96,7 @@ class MediaBuzz extends BaseBuzz {
   }
 
   /**
-   * Unmuted the audio element.
+   * Un-mutes the audio element directly if web audio/media element audio source is not supported.
    * @private
    */
   _unMuteNode() {
@@ -105,6 +105,11 @@ class MediaBuzz extends BaseBuzz {
     }
   }
 
+  /**
+   * Set the volume directly to the audio element if web audio/media element audio source is not supported.
+   * @param {number} vol Volume
+   * @private
+   */
   _setVolume(vol) {
     if (!this._mediaElementAudioSourceNode && this._audio) {
       this._audio.volume = buzzer.volume() * vol;
@@ -112,30 +117,15 @@ class MediaBuzz extends BaseBuzz {
   }
 
   /**
-   * Get/set the playback rate.
+   * Set the playbackrate for the buffer source node.
    * @param {number=} rate The playback rate
-   * @return {MediaBuzz|number}
+   * @private
    */
-  rate(rate) {
-    if (typeof rate === 'undefined') {
-      return this._rate;
-    }
-
-    if (typeof rate !== 'number' || rate < 0 || rate > 5) {
-      return this;
-    }
-
-    this._startTime = this._context.currentTime; // TODO: do we need this?
-    this._rate = rate;
-
+  _setRate(rate) {
     if (this._audio) {
-      this._audio.playbackRate.value = this._rate;
+      this._audio.playbackRate.value = rate;
     }
-
-    this._fire('rate', this._rate);
-    return this;
   }
-
 
   /**
    * Get/set the seek position.
@@ -189,6 +179,10 @@ class MediaBuzz extends BaseBuzz {
     }
 
     return this;
+  }
+
+  _getSeek() {
+    return this._audio ? this._audio.currentTime : 0;
   }
 
   /**
