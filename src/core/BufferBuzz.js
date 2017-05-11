@@ -102,7 +102,7 @@ class BufferBuzz extends BaseBuzz {
 
     let [seek, duration, timeout] = this._getTimeVars();
     buzzer._link(this);
-    this._playNode(seek, duration);
+    this._playBufferNode(seek, duration);
     this._startTime = this._context.currentTime;
     this._endTimer = setTimeout(this._onEnded, timeout);
     this._state = BuzzState.Playing;
@@ -113,25 +113,12 @@ class BufferBuzz extends BaseBuzz {
   }
 
   /**
-   * Returns the seek, duration and timeout for the playback.
-   * @return {[number, number, number]}
-   * @private
-   */
-  _getTimeVars() {
-    let seek = Math.max(0, this._seek > 0 ? this._seek : this._startPos),
-      duration = this._endPos - this._startPos,
-      timeout = (duration * 1000) / this._rate;
-
-    return [seek, duration, timeout];
-  }
-
-  /**
    * Creates a new AudioBufferSourceNode, set it's properties and play it.
    * @param {number} offset The time offset
    * @param {number} duration The duration to play
    * @private
    */
-  _playNode(offset, duration) {
+  _playBufferNode(offset, duration) {
 
     // Create a new node
     this._bufferSourceNode = this._context.createBufferSource();
@@ -179,10 +166,26 @@ class BufferBuzz extends BaseBuzz {
       this._seek = 0;
       this._rateSeek = 0;
       this._clearEndTimer();
-      this._cleanNode();
+      this._destroyBufferNode();
       this._state = BuzzState.Idle;
       this._fire('playend');
     }
+  }
+
+  /**
+   * Reset the timer and clean the node.
+   * @private
+   */
+  _pauseNode() {
+    this._reset();
+  }
+
+  /**
+   * Reset the timer and clean the node.
+   * @private
+   */
+  _stopNode() {
+    this._reset();
   }
 
   /**
@@ -191,8 +194,8 @@ class BufferBuzz extends BaseBuzz {
    */
   _reset() {
     this._clearEndTimer();
-    this._stopNode();
-    this._cleanNode();
+    this._stopBufferNode();
+    this._destroyBufferNode();
   }
 
   /**
@@ -281,24 +284,26 @@ class BufferBuzz extends BaseBuzz {
    * Stops the playing buffer source node and destroys it.
    * @private
    */
-  _stopNode() {
-    if (this._bufferSourceNode) {
-      if (typeof this._bufferSourceNode.stop !== 'undefined') {
-        this._bufferSourceNode.stop();
-      }
-      else {
-        this._bufferSourceNode.noteGrainOff();
-      }
-
-      this._cleanNode();
+  _stopBufferNode() {
+    if (!this._bufferSourceNode) {
+      return;
     }
+
+    if (typeof this._bufferSourceNode.stop !== 'undefined') {
+      this._bufferSourceNode.stop();
+    }
+    else {
+      this._bufferSourceNode.noteGrainOff();
+    }
+
+    this._destroyBufferNode();
   }
 
   /**
    * Destroys the buffer source node.
    * @private
    */
-  _cleanNode() {
+  _destroyBufferNode() {
     if (!this._bufferSourceNode) {
       return;
     }

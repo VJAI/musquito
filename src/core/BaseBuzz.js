@@ -132,14 +132,14 @@ class BaseBuzz {
   _state = BuzzState.Idle;
 
   /**
-   * Represents the different states that occurs while the sound is loading.
+   * Represents the different states that occurs while loading the sound.
    * @type {LoadState|null}
    * @private
    */
   _loadState = null;
 
   /**
-   * AudioContext.
+   * Web API's audio context.
    * @type {AudioContext}
    * @protected
    */
@@ -160,14 +160,14 @@ class BaseBuzz {
   _emitter = null;
 
   /**
-   * Action queue to store actions invoked by user when the sound is in loading state.
+   * Action queue to store the actions invoked by user when the sound is in loading state.
    * @type {ActionQueue}
    * @protected
    */
   _actionQueue = null;
 
   /**
-   * Duration of the sound.
+   * Duration of the sound in seconds.
    * @type {number}
    * @protected
    */
@@ -276,7 +276,7 @@ class BaseBuzz {
     typeof options.onrate === 'function' && this.on('rate', options.onrate);
     typeof options.ondestroy === 'function' && this.on('destroy', options.ondestroy);
 
-    buzzer.setup(null);
+    buzzer.setup();
     buzzer.add(this);
 
     this._context = buzzer.context();
@@ -321,8 +321,12 @@ class BaseBuzz {
     this._load().then(downloadResult => {
       if (downloadResult.status === DownloadStatus.Success) {
         this._save(downloadResult);
-        this._gainNode = this._context.createGain();
-        this._gainNode.gain.value = this._muted ? 0 : this._volume;
+
+        if (buzzer.isWebAudioAvailable()) {
+          this._gainNode = this._context.createGain();
+          this._gainNode.gain.value = this._muted ? 0 : this._volume;
+        }
+
         this._loadState = LoadState.Loaded;
         this._fire('load', downloadResult);
         this._actionQueue.run();
@@ -341,7 +345,7 @@ class BaseBuzz {
    * @protected
    */
   _load() {
-    throw new Error('Not implemented');
+    throw new Error('Should be implemented the derived class');
   }
 
   /**
@@ -350,7 +354,7 @@ class BaseBuzz {
    * @protected
    */
   _save(downloadResult) { // eslint-disable-line no-unused-vars
-    throw new Error('Not implemented');
+    throw new Error('Should be implemented the derived class');
   }
 
   /**
@@ -358,7 +362,20 @@ class BaseBuzz {
    * @param {string=} sound The sound name
    */
   play(sound) { // eslint-disable-line no-unused-vars
-    throw new Error('Not implemented');
+    throw new Error('Should be implemented the derived class');
+  }
+
+  /**
+   * Returns the seek, duration and timeout for the playback.
+   * @return {[number, number, number]}
+   * @protected
+   */
+  _getTimeVars() {
+    let seek = Math.max(0, this._seek > 0 ? this._seek : this._startPos),
+      duration = this._endPos - this._startPos,
+      timeout = (duration * 1000) / this._rate;
+
+    return [seek, duration, timeout];
   }
 
   /**
@@ -391,7 +408,8 @@ class BaseBuzz {
 
     // Disconnect from graph.
     buzzer._unlink(this);
-    this._reset();
+
+    this._pauseNode();
 
     this._state = BuzzState.Paused;
     fireEvent && this._fire('pause');
@@ -403,8 +421,8 @@ class BaseBuzz {
    * Should be implemented by the derived classes.
    * @protected
    */
-  _reset() {
-    throw new Error('Not implemented');
+  _pauseNode() {
+    throw new Error('Should be implemented the derived class');
   }
 
   /**
@@ -433,12 +451,20 @@ class BaseBuzz {
     // Reset the variables
     this._seek = 0;
     this._rateSeek = 0;
-    this._reset();
+    this._stopNode();
 
     this._state = BuzzState.Idle;
     fireEvent && this._fire('stop');
 
     return this;
+  }
+
+  /**
+   * Should be implemented by the derived classes.
+   * @protected
+   */
+  _stopNode() {
+    throw new Error('Should be implemented the derived class');
   }
 
   /**
@@ -451,10 +477,18 @@ class BaseBuzz {
     }
 
     this._gainNode && (this._gainNode.gain.value = 0);
+    this._muteNode();
     this._muted = true;
     this._fire('mute', this._muted);
 
     return this;
+  }
+
+  /**
+   * Should be implemented by the derived classes if required.
+   * @private
+   */
+  _muteNode() {
   }
 
   /**
@@ -467,10 +501,18 @@ class BaseBuzz {
     }
 
     this._gainNode && (this._gainNode.gain.value = this._volume);
+    this._unMuteNode();
     this._muted = false;
     this._fire('mute', this._muted);
 
     return this;
+  }
+
+  /**
+   * Should be implemented by the derived classes if required.
+   * @private
+   */
+  _unMuteNode() {
   }
 
   /**
@@ -487,11 +529,18 @@ class BaseBuzz {
       return this;
     }
 
-    this._volume = vol;
-    this._gainNode && (this._gainNode.gain.value = this._volume);
-    this._fire('volume', this._volume);
+    if (this._gainNode) {
+      this._gainNode.gain.value = vol;
+    } else {
+      this._setVolume(vol);
+    }
 
+    this._volume = vol;
+    this._fire('volume', this._volume);
     return this;
+  }
+
+  _setVolume(vol) {
   }
 
   /**
@@ -499,7 +548,7 @@ class BaseBuzz {
    * @param {number=} rate The playback rate
    */
   rate(rate) { // eslint-disable-line no-unused-vars
-    throw new Error('Not implemented');
+    throw new Error('Should be implemented the derived class');
   }
 
   /**
@@ -507,7 +556,7 @@ class BaseBuzz {
    * @param {number=} seek The seek position
    */
   seek(seek) { // eslint-disable-line no-unused-vars
-    throw new Error('Not implemented');
+    throw new Error('Should be implemented the derived class');
   }
 
   /**
@@ -640,7 +689,7 @@ class BaseBuzz {
    * @protected
    */
   _destroy() {
-    throw new Error('Not implemented');
+    throw new Error('Should be implemented the derived class');
   }
 }
 

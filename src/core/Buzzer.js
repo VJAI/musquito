@@ -8,12 +8,10 @@ import EventEmitter from '../util/EventEmitter';
  * @enum {number}
  */
 const BuzzerState = {
-  Constructed: 0,
-  Ready: 1,
-  Suspended: 2,
+  Idle: 0,
+  Suspended: 1,
   Closing: 3,
-  Done: 4,
-  Error: 5
+  Done: 4
 };
 
 /**
@@ -58,6 +56,13 @@ class Buzzer {
   _isAudioAvailable = false;
 
   /**
+   * True if HTML5 audio is available.
+   * @type {boolean}
+   * @private
+   */
+  _isHTML5AudioAvailable = false;
+
+  /**
    * True if Web Audio API is available.
    * @type {boolean}
    * @private
@@ -70,6 +75,13 @@ class Buzzer {
    * @private
    */
   _isMediaSourceAvailable = false;
+
+  /**
+   * The supported play event without buffering in HTML5 audio.
+   * @type {string|null}
+   * @protected
+   */
+  _canPlayEvent = null;
 
   /**
    * BufferLoader.
@@ -122,9 +134,10 @@ class Buzzer {
 
   /**
    * Represents the context type that is available in the environment.
+   * @type {function|null}
    * @private
    */
-  _contextType = AudioContext || webkitAudioContext;
+  _contextType = null;
 
   /**
    * Array of buzz events that the engine broadcast.
@@ -176,13 +189,25 @@ class Buzzer {
       return this;
     }
 
-    if (!this._contextType) {
-      this._state = BuzzerState.Error;
-      throw new Error('Web Audio API is unavailable');
+    this._contextType = AudioContext || webkitAudioContext;
+
+    if (this._contextType) {
+      this._isWebAudioAvailable = true;
+      this._isContextInjected = typeof options.context === 'object';
+      this._context = this._isContextInjected ? options.context : new this._contextType();
+
+      // TODO: determine whether MediaElementSource is supported or not.
+      this._isMediaSourceAvailable = true;
     }
 
-    this._isContextInjected = Boolean(options.context);
-    this._context = this._isContextInjected ? options.context : new this._contextType();
+    if (typeof Audio !== 'undefined') {
+      this._isHTML5AudioAvailable = true;
+      let test = new Audio();
+      this._canPlayEvent = test.oncanplaythrough === 'undefined' ? 'canplay' : 'canplaythrough';
+      test = null;
+    }
+
+    this._isAudioAvailable = this._isWebAudioAvailable || this._isHTML5AudioAvailable;
 
     if (typeof options.volume === 'number' && options.volume >= 0 && options.volume <= 1.0) {
       this._volume = options.volume;
@@ -283,7 +308,9 @@ class Buzzer {
    * @private
    */
   _link(buzz) {
-    buzz._gainNode.connect(this._gainNode);
+    if (buzz._gainNode && this._gainNode) {
+      buzz._gainNode.connect(this._gainNode);
+    }
 
     this._buzzEvents.forEach(event => buzz.on(event, {
       handler: this._fireBuzzEvent,
