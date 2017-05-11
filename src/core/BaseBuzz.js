@@ -358,11 +358,68 @@ class BaseBuzz {
   }
 
   /**
-   * Plays the sound or the clip that is defined in the sprite.
+   * Plays the passed sound that is defined in the sprite.
    * @param {string=} sound The sound name
+   * @returns {BaseBuzz}
    */
-  play(sound) { // eslint-disable-line no-unused-vars
-    throw new Error('Should be implemented the derived class');
+  play(sound) {
+    return this._play(sound);
+  }
+
+  /**
+   * Plays the sound from start or resume it from the paused state.
+   * @param {string|null=} sound The sound name
+   * @param {boolean} [fireEvent = true] True to fire event
+   * @return {BaseBuzz}
+   * @private
+   */
+  _play(sound, fireEvent = true) {
+    // If the sound is already playing return immediately.
+    if (this.isPlaying()) {
+      return this;
+    }
+
+    // If the sound is not yet loaded push an action to the queue to play the sound once it's loaded.
+    if (!this.isLoaded()) {
+      this._actionQueue.add('play', () => this._play(sound, fireEvent));
+      this.load();
+      return this;
+    }
+
+    const prevSound = this._spriteSound;
+    if (sound && this._sprite && this._sprite[sound]) {
+      this._spriteSound = sound;
+    } else {
+      this._spriteSound = null;
+    }
+
+    // If the sound is not paused and the passed sound name is different
+    // from the last one then start the playback from the start position.
+    if (!this.isPaused() && this._spriteSound !== prevSound) {
+      this._seek = 0;
+    }
+
+    // Store the sound start and end positions.
+    if (this._spriteSound) {
+      const soundTimeVars = this._sprite[this._spriteSound];
+      this._startPos = soundTimeVars[0];
+      this._endPos = soundTimeVars[1];
+    } else {
+      this._startPos = 0;
+      this._endPos = this._duration;
+    }
+
+    let [, , timeout] = this._getTimeVars();
+    buzzer._link(this);
+
+    this._playNode(() => {
+      this._endTimer = setTimeout(this._onEnded, timeout);
+      this._state = BuzzState.Playing;
+
+      fireEvent && this._fire('play');
+    });
+
+    return this;
   }
 
   /**
@@ -376,6 +433,22 @@ class BaseBuzz {
       timeout = (duration * 1000) / this._rate;
 
     return [seek, duration, timeout];
+  }
+
+  /**
+   * Plays the sound using the underlying audio node.
+   * @protected
+   */
+  _playNode() {
+    throw new Error('Should be implemented the derived class');
+  }
+
+  /**
+   * Called after the playback ends.
+   * @protected
+   */
+  _onEnded() {
+    throw new Error('Should be implemented the derived class');
   }
 
   /**
@@ -437,7 +510,7 @@ class BaseBuzz {
    * Stop the sound and fire event.
    * @param {boolean=} [fireEvent = true] True to fire event
    * @return {BaseBuzz}
-   * @private
+   * @protected
    */
   _stop(fireEvent = true) {
     // Remove the "play" action from the queue if there is one.

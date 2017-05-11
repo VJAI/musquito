@@ -31,75 +31,24 @@ class MediaBuzz extends BaseBuzz {
   }
 
   /**
-   * Plays the passed sound that is defined in the sprite.
-   * @param {string=} sound The sound name
-   * @returns {MediaBuzz}
-   */
-  play(sound) {
-    return this._play(sound);
-  }
-
-  /**
-   * Plays the sound from start or resume it from the paused state.
-   * @param {string|null=} sound The sound name
-   * @param {boolean} [fireEvent = true] True to fire event
-   * @return {MediaBuzz}
+   * Creates a new MediaElementAudioSourceNode passing the audio element if the platform supports it,
+   * set the properties of the audio element and play it.
+   * @param {function} cb Callback that should be called after the node started playing.
    * @private
    */
-  _play(sound, fireEvent = true) {
-
-    // If the sound is already playing return immediately.
-    if (this.isPlaying()) {
-      return this;
+  _playNode(cb) {
+    if (!this._mediaElementAudioSourceNode && buzzer.isMediaSourceAvailable()) {
+      this._mediaElementAudioSourceNode = this._context.createMediaElementSource(this._audio);
+      this._mediaElementAudioSourceNode.connect(this._gainNode);
     }
 
-    // If the sound is not yet loaded push an action to the queue to play the sound once it's loaded.
-    if (!this.isLoaded()) {
-      this._actionQueue.add('play', () => this._play(sound, fireEvent));
-      this.load();
-      return this;
-    }
-
-    const prevSound = this._spriteSound;
-    if (sound && this._sprite && this._sprite[sound]) {
-      this._spriteSound = sound;
-    } else {
-      this._spriteSound = null;
-    }
-
-    // If the sound is not paused and the passed sound name is different
-    // from the last one then start the playback from the start position.
-    if (!this.isPaused() && this._spriteSound !== prevSound) {
-      this._seek = 0;
-    }
-
-    // Store the sound start and end positions.
-    if (this._spriteSound) {
-      const soundTimeVars = this._sprite[this._spriteSound];
-      this._startPos = soundTimeVars[0];
-      this._endPos = soundTimeVars[1];
-    } else {
-      this._startPos = 0;
-      this._endPos = this._duration;
-    }
-
-    let [seek, duration, timeout] = this._getTimeVars();
-    buzzer._link(this);
-
-    /*if (!this._mediaElementAudioSourceNode) {
-     this._mediaElementAudioSourceNode = this._context.createMediaElementSource(this._audio);
-     this._mediaElementAudioSourceNode.connect(this._gainNode);
-     }
-
-     this._audio.currentTime = this._elapsed;
-     this._audio.playbackRate = this._rate;
-     this._audio.play();
-     this._startTime = this._context.currentTime;
-     this._audio.addEventListener('ended', this._onEnded);
-     this._state = BuzzState.Playing;
-     fireEvent && this._fire('playstart');*/
-
-    return this;
+    let [seek] = this._getTimeVars();
+    this._audio.currentTime = seek;
+    this._audio.muted = this._muted;
+    this._audio.volume = buzzer.volume() * this._volume;
+    this._audio.playbackRate = this._rate;
+    this._audio.play();
+    cb();
   }
 
   /**
@@ -107,16 +56,11 @@ class MediaBuzz extends BaseBuzz {
    * @private
    */
   _onEnded() {
-    this._audio.removeEventListener('ended', this._onEnded);
-
     if (this._loop) {
-      this._startTime = 0;
-      this._elapsed = 0;
-      this._state = BuzzState.Idle;
       this._fire('playend');
-      this.play();
+      this._stop(false).play();
     } else {
-      this._reset();
+      this._stop(false);
       this._state = BuzzState.Idle;
       this._fire('playend');
     }
