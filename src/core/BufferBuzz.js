@@ -22,6 +22,13 @@ class BufferBuzz extends BaseBuzz {
   _bufferSourceNode = null;
 
   /**
+   * The time at which the playback started.
+   * @type {number}
+   * @protected
+   */
+  _startTime = 0;
+
+  /**
    * Download the audio file and loads into an audio buffer.
    * @return {Promise<DownloadResult>}
    * @private
@@ -82,7 +89,7 @@ class BufferBuzz extends BaseBuzz {
       this._fire('playend');
 
       // Reset the seek positions
-      this._seek = this._startPos;
+      this._currentPos = this._startPos;
       this._rateSeek = 0;
 
       // Reset the play start time
@@ -94,7 +101,7 @@ class BufferBuzz extends BaseBuzz {
 
       this._fire('playstart');
     } else {
-      this._seek = 0;
+      this._currentPos = 0;
       this._rateSeek = 0;
       this._clearEndTimer();
       this._destroyBufferNode();

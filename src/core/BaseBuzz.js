@@ -5,7 +5,7 @@ import EventEmitter from '../util/EventEmitter';
 import ActionQueue from '../util/ActionQueue';
 
 /**
- * Enum that represents the different states in loading a sound.
+ * Enum that represents the different states occurs while loading a sound.
  * @enum {string}
  */
 const LoadState = {
@@ -76,21 +76,21 @@ class BaseBuzz {
   _sprite = null;
 
   /**
-   * Current playing sound name in a sprite.
+   * Current playing sound from the sprite.
    * @type {string|null}
    * @protected
    */
   _spriteSound = null;
 
   /**
-   * The current volume of the sound. The value should be between 0.0 and 1.0.
+   * The current volume of the sound.
    * @type {number}
    * @protected
    */
   _volume = 1.0;
 
   /**
-   * The playback rate of the sound.
+   * The current playback rate of the sound.
    * @type {number}
    * @protected
    */
@@ -118,7 +118,7 @@ class BaseBuzz {
   _preload = false;
 
   /**
-   * Represents whether the sound should start playing on construction.
+   * Represents whether the sound should start playing automatically on construction.
    * @type {boolean}
    * @protected
    */
@@ -153,7 +153,7 @@ class BaseBuzz {
   _gainNode = null;
 
   /**
-   * Event emitter that takes care of all event-related mundane jobs.
+   * Event emitter that takes care of all event-related boring jobs.
    * @type {EventEmitter}
    * @protected
    */
@@ -188,18 +188,11 @@ class BaseBuzz {
   _endPos = 0;
 
   /**
-   * The time at which the playback started.
-   * @type {number}
-   * @protected
-   */
-  _startTime = 0;
-
-  /**
    * The current position of the playback.
    * @type {number}
    * @protected
    */
-  _seek = 0;
+  _currentPos = 0;
 
   /**
    * The position of the playback during rate change.
@@ -243,30 +236,22 @@ class BaseBuzz {
   constructor(args) {
     let options = typeof args === 'string' || Array.isArray(args) ? { src: args } : args || {};
 
+    // If the user hasn't passed any source throw error.
     if (!options.src || (Array.isArray(options.src) && options.src.length === 0)) {
       throw new Error('You should pass the source for the audio.');
     }
 
+    // Instantiate the event emitter and action queue.
     this._emitter = new EventEmitter('load,error,playstart,playend,stop,pause,mute,volume');
     this._actionQueue = new ActionQueue();
 
+    // Set all the properties of the sound from the passed options
     this._id = typeof options.id === 'string' ? options.id : Math.round(Date.now() * Math.random()).toString();
-
-    if (options !== undefined) {
-      this._src = Array.isArray(options.src) ? options.src : [options.src];
-    }
-
+    this._src = Array.isArray(options.src) ? options.src : [options.src];
     typeof options.format === 'string' && (this._format = options.format);
     typeof options.sprite === 'object' && (this._sprite = options.sprite);
-
-    if (typeof options.volume === 'number' && options.volume >= 0 && options.volume <= 1.0) {
-      this._volume = options.volume;
-    }
-
-    if (typeof options.rate === 'number' && options.rate > 0 && options.rate <= 5) {
-      this._rate = options.rate;
-    }
-
+    typeof options.volume === 'number' && options.volume >= 0 && options.volume <= 1.0 && (this._volume = options.volume);
+    typeof options.rate === 'number' && options.rate > 0 && options.rate <= 5 && (this._rate = options.rate);
     typeof options.muted === 'boolean' && (this._muted = options.muted);
     typeof options.loop === 'boolean' && (this._loop = options.loop);
     typeof options.preload === 'boolean' && (this._preload = options.preload);
@@ -304,18 +289,18 @@ class BaseBuzz {
    * @returns {BaseBuzz}
    */
   load() {
-    // If source is already loaded return without reloading again.
+    // If the sound is already loaded return without reloading again.
     if (this.isLoaded()) {
       return this;
     }
 
-    // Set the state to "Loading" to avoid multiple times loading the buffer.
+    // Set the state to "Loading" to avoid downloading the sound multiple times.
     this._loadState = LoadState.Loading;
 
-    // If the user has passed format check if it is supported
-    // or else retrieve the supported source from the array.
+    // If the user has passed "format" check if it is supported or else retrieve the supported source from the array.
     const src = this._format && codecAid.isFormatSupported(this._format) ? this._src[0] : codecAid.getSupportedSource(this._src);
 
+    // If no compatible format found clear the queue and throw error.
     if (!src) {
       this._actionQueue.clear();
       this._loadState = LoadState.NotLoaded;
@@ -323,6 +308,7 @@ class BaseBuzz {
       return this;
     }
 
+    // Store the compatible source
     this._compatibleSrc = src;
 
     this._load().then(downloadResult => {
@@ -403,7 +389,7 @@ class BaseBuzz {
     // If the sound is not paused and the passed sound name is different
     // from the last one then start the playback from the start position.
     if (!this.isPaused() && this._spriteSound !== prevSound) {
-      this._seek = 0;
+      this._currentPos = 0;
     }
 
     // Store the sound start and end positions.
@@ -435,7 +421,7 @@ class BaseBuzz {
    * @protected
    */
   _getTimeVars() {
-    let seek = Math.max(0, this._seek > 0 ? this._seek : this._startPos),
+    let seek = Math.max(0, this._currentPos > 0 ? this._currentPos : this._startPos),
       duration = this._endPos - this._startPos,
       timeout = (duration * 1000) / this._rate;
 
@@ -483,7 +469,7 @@ class BaseBuzz {
     }
 
     // Save the current position and reset rateSeek.
-    this._seek = this.seek();
+    this._currentPos = this.seek();
     this._rateSeek = 0;
 
     buzzer._unlink(this);
@@ -529,7 +515,7 @@ class BaseBuzz {
     }
 
     // Reset the variables
-    this._seek = 0;
+    this._currentPos = 0;
     this._rateSeek = 0;
 
     buzzer._unlink(this);
@@ -584,6 +570,7 @@ class BaseBuzz {
    * @private
    */
   _muteNode() {
+    throw new Error('Should be implemented the derived class');
   }
 
   /**
@@ -608,11 +595,12 @@ class BaseBuzz {
    * @private
    */
   _unMuteNode() {
+    throw new Error('Should be implemented the derived class');
   }
 
   /**
    * Get/set the volume.
-   * @param {number=} vol Should be within 0.0 to 1.0
+   * @param {number=} vol Should be from 0.0 to 1.0
    * @returns {BaseBuzz|number}
    */
   volume(vol) {
@@ -635,7 +623,13 @@ class BaseBuzz {
     return this;
   }
 
-  _setVolume(vol) {
+  /**
+   * Set the volume to the underlying node that controls the volume.
+   * @param {number} vol Volume
+   * @private
+   */
+  _setVolume(vol) { // eslint-disable-line no-unused-vars
+    throw new Error('Should be implemented the derived class');
   }
 
   /**

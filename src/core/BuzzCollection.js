@@ -123,7 +123,7 @@ class BuzzCollection {
 
   /**
    * Set's the passed volume to all buzzes.
-   * @param {number} volume Should be between 0.0 to 1.0.
+   * @param {number} volume Should be from 0.0 to 1.0.
    * @return {BuzzCollection}
    */
   volume(volume) {
