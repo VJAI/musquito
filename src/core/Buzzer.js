@@ -265,7 +265,7 @@ class Buzzer {
   }
 
   /**
-   * Loads single or multiple audio resources into audio buffers.
+   * Loads single or multiple audio resources into audio buffers and returns them.
    * @param {string|string[]} urls Single or array of audio urls
    * @return {Promise}
    */
@@ -284,7 +284,7 @@ class Buzzer {
   }
 
   /**
-   * Pre-loads HTML5 audio nodes with audio files.
+   * Pre-loads HTML5 audio nodes with audio and returns them.
    * @param {string|string[]} urls Single or array of audio urls
    * @param {string=} id Sound id
    * @return {Promise.<DownloadResult|Array<DownloadResult>>}
@@ -306,7 +306,7 @@ class Buzzer {
 
   /**
    * Adds the passed buzz to the internal object.
-   * @param buzz
+   * @param {BaseBuzz} buzz The buzz
    * @return {Buzzer}
    */
   add(buzz) {
@@ -319,7 +319,7 @@ class Buzzer {
 
   /**
    * Removes the added buzz from the object.
-   * @param buzz
+   * @param {BaseBuzz} buzz The buzz
    * @return {Buzzer}
    */
   remove(buzz) {

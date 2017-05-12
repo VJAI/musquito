@@ -1,4 +1,4 @@
-import buzzer, {BuzzerState} from './Buzzer';
+import buzzer from './Buzzer';
 import codecAid from '../util/CodecAid';
 import DownloadStatus from '../util/DownloadStatus';
 import EventEmitter from '../util/EventEmitter';
@@ -339,7 +339,7 @@ class BaseBuzz {
    * @protected
    */
   _load() {
-    throw new Error('Should be implemented the derived class');
+    throw new Error('Should be implemented by the derived class');
   }
 
   /**
@@ -347,7 +347,7 @@ class BaseBuzz {
    * @protected
    */
   _createGainNode() {
-    throw new Error('Should be implemented the derived class');
+    throw new Error('Should be implemented by the derived class');
   }
 
   /**
@@ -356,12 +356,12 @@ class BaseBuzz {
    * @protected
    */
   _save(downloadResult) { // eslint-disable-line no-unused-vars
-    throw new Error('Should be implemented the derived class');
+    throw new Error('Should be implemented by the derived class');
   }
 
   /**
-   * Plays the passed sound that is defined in the sprite.
-   * @param {string=} sound The sound name
+   * Plays the sound from start or resume it from the paused state.
+   * @param {string=} sound The sound name defined in the sprite
    * @returns {BaseBuzz}
    */
   play(sound) {
@@ -370,12 +370,13 @@ class BaseBuzz {
 
   /**
    * Plays the sound from start or resume it from the paused state.
-   * @param {string|null=} sound The sound name
+   * @param {string|null=} sound The sound name defined in the sprite
    * @param {boolean} [fireEvent = true] True to fire event
    * @return {BaseBuzz}
    * @private
    */
   _play(sound, fireEvent = true) {
+
     // If the sound is already playing return immediately.
     if (this.isPlaying()) {
       return this;
@@ -442,7 +443,7 @@ class BaseBuzz {
    * @protected
    */
   _playNode() {
-    throw new Error('Should be implemented the derived class');
+    throw new Error('Should be implemented by the derived class');
   }
 
   /**
@@ -450,7 +451,7 @@ class BaseBuzz {
    * @protected
    */
   _onEnded() {
-    throw new Error('Should be implemented the derived class');
+    throw new Error('Should be implemented by the derived class');
   }
 
   /**
@@ -497,7 +498,7 @@ class BaseBuzz {
    * @protected
    */
   _pauseNode() {
-    throw new Error('Should be implemented the derived class');
+    throw new Error('Should be implemented by the derived class');
   }
 
   /**
@@ -543,7 +544,7 @@ class BaseBuzz {
    * @protected
    */
   _stopNode() {
-    throw new Error('Should be implemented the derived class');
+    throw new Error('Should be implemented by the derived class');
   }
 
   /**
@@ -579,7 +580,7 @@ class BaseBuzz {
    * @private
    */
   _muteNode() {
-    throw new Error('Should be implemented the derived class');
+    throw new Error('Should be implemented by the derived class');
   }
 
   /**
@@ -604,7 +605,7 @@ class BaseBuzz {
    * @private
    */
   _unMuteNode() {
-    throw new Error('Should be implemented the derived class');
+    throw new Error('Should be implemented by the derived class');
   }
 
   /**
@@ -638,7 +639,7 @@ class BaseBuzz {
    * @private
    */
   _setVolume(vol) { // eslint-disable-line no-unused-vars
-    throw new Error('Should be implemented the derived class');
+    throw new Error('Should be implemented by the derived class');
   }
 
   /**
@@ -670,20 +671,72 @@ class BaseBuzz {
   }
 
   /**
-   * Set the playbackrate for the underlying node.
+   * Set the playbackrate for the underlying node that plays the sound.
    * @param {number=} rate The playback rate
    * @protected
    */
   _setRate(rate) { // eslint-disable-line no-unused-vars
-    throw new Error('Should be implemented the derived class');
+    throw new Error('Should be implemented by the derived class');
   }
 
   /**
    * Get/set the seek position.
    * @param {number=} seek The seek position
+   * @return {BaseBuzz|number}
    */
-  seek(seek) { // eslint-disable-line no-unused-vars
-    throw new Error('Should be implemented the derived class');
+  seek(seek) {
+    if (typeof seek === 'undefined') {
+      return this._getSeek();
+    }
+
+    if (typeof seek !== 'number' || seek < 0) {
+      return this;
+    }
+
+    if (!this.isLoaded()) {
+      this._actionQueue.add('seek', () => this.seek(seek));
+      this._load();
+      return this;
+    }
+
+    if (seek > this._duration) {
+      return this;
+    }
+
+    const isPlaying = this.isPlaying();
+
+    if (isPlaying) {
+      this._pause(false);
+    }
+
+    this._setSeek(seek, () => {
+      this._fire('seek', seek);
+
+      if (isPlaying) {
+        this._play(null, false);
+      }
+    });
+
+    return this;
+  }
+
+  /**
+   * Returns the current position in the playback.
+   * @protected
+   */
+  _getSeek() {
+    throw new Error('Should be implemented by the derived class');
+  }
+
+  /**
+   * Seek the playback to the passed position.
+   * @param {number} seek The seek position
+   * @param {function} cb The callback function
+   * @protected
+   */
+  _setSeek(seek, cb) {
+    this._currentPos = seek;
+    cb();
   }
 
   /**
@@ -695,7 +748,7 @@ class BaseBuzz {
   }
 
   /**
-   * Returns whether sound is muted or not.
+   * Returns whether the sound is muted or not.
    * @returns {boolean}
    */
   muted() {
@@ -719,8 +772,8 @@ class BaseBuzz {
   }
 
   /**
-   * Returns the total duration of the sound or the piece of sound in sprite.
-   * @param {string=} sound The sound name in the sprite.
+   * Returns the total duration of the sound or for the passed sound that's defined in the sprite.
+   * @param {string=} sound The sound name defined in the sprite.
    * @return {number}
    */
   duration(sound) {
@@ -738,7 +791,7 @@ class BaseBuzz {
   }
 
   /**
-   * Returns true if the buzz is in playing state.
+   * Returns true if the buzz is playing.
    * @return {boolean}
    */
   isPlaying() {
@@ -746,7 +799,7 @@ class BaseBuzz {
   }
 
   /**
-   * Returns true if buzz is in paused state.
+   * Returns true if buzz is paused.
    * @return {boolean}
    */
   isPaused() {
@@ -812,11 +865,11 @@ class BaseBuzz {
   }
 
   /**
-   * Should be overridden by the derived classes.
+   * Should be implemented by the derived class if required.
    * @protected
    */
   _destroy() {
-    throw new Error('Should be implemented the derived class');
+    return;
   }
 }
 

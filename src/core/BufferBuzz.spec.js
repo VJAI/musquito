@@ -234,7 +234,7 @@ describe('BufferBuzz', () => {
       it('reset the variables after played', () => {
         bufferBuzz.on('playend', () => {
           expect(bufferBuzz._startTime).toBe(0);
-          expect(bufferBuzz._elapsed).toBe(0);
+          expect(bufferBuzz._currentPos).toBe(0);
           expect(bufferBuzz._endTimer).toBeNull();
           expect(bufferBuzz._bufferSourceNode).toBeNull();
           expect(bufferBuzz._state).toBe(BuzzState.Ready);
@@ -283,7 +283,7 @@ describe('BufferBuzz', () => {
       });
 
       it('should play the sound from the paused position', () => {
-        expect(bufferBuzz._play).toHaveBeenCalledWith(bufferBuzz._elapsed);
+        expect(bufferBuzz._play).toHaveBeenCalledWith(bufferBuzz._currentPos);
       });
     });
 
@@ -369,7 +369,7 @@ describe('BufferBuzz', () => {
       });
 
       it('should update the elapsed property', () => {
-        expect(bufferBuzz._elapsed).not.toBe(0);
+        expect(bufferBuzz._currentPos).not.toBe(0);
       });
 
       it('should set the state to paused', () => {
@@ -429,7 +429,7 @@ describe('BufferBuzz', () => {
 
       it('should update startedat and elapsed to 0', () => {
         expect(bufferBuzz._startTime).toBe(0);
-        expect(bufferBuzz._elapsed).toBe(0);
+        expect(bufferBuzz._currentPos).toBe(0);
       });
 
       it('should call the stop method', () => {

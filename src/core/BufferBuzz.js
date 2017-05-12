@@ -15,7 +15,7 @@ class BufferBuzz extends BaseBuzz {
   _buffer = null;
 
   /**
-   * The underlying node that plays the audio.
+   * The AudioBufferSourceNode that plays the audio buffer assigned to it.
    * @type {AudioBufferSourceNode}
    * @private
    */
@@ -86,11 +86,12 @@ class BufferBuzz extends BaseBuzz {
     }
 
     this._startTime = this._context.currentTime;
+
     cb();
   }
 
   /**
-   * Called after the playback ends.
+   * Callback that is invoked after the playback is ended.
    * @private
    */
   _onEnded() {
@@ -110,17 +111,25 @@ class BufferBuzz extends BaseBuzz {
 
       this._fire('playstart');
     } else {
+      // Reset the seek positions
       this._currentPos = 0;
       this._rateSeek = 0;
+
+      // Clear the end timer
       this._clearEndTimer();
+
+      // Destroy the node (AudioBufferSourceNodes are one-time use and throw objects).
       this._destroyBufferNode();
+
+      // Reset the state to allow future actions
       this._state = BuzzState.Idle;
+
       this._fire('playend');
     }
   }
 
   /**
-   * Reset the timer and destroy the node.
+   * Resets the timer and destroys the node.
    * @private
    */
   _pauseNode() {
@@ -129,7 +138,7 @@ class BufferBuzz extends BaseBuzz {
   }
 
   /**
-   * Reset the timer and destroy the node.
+   * Resets the timer and destroys the node.
    * @private
    */
   _stopNode() {
@@ -138,7 +147,7 @@ class BufferBuzz extends BaseBuzz {
   }
 
   /**
-   * Set the playbackrate for the buffer source node.
+   * Sets the playbackrate for the buffer source node.
    * @param {number=} rate The playback rate
    * @private
    */
@@ -148,56 +157,15 @@ class BufferBuzz extends BaseBuzz {
   }
 
   /**
-   * Get/set the seek position.
-   * @param {number=} seek The seek position
-   * @return {BufferBuzz|number}
+   * Returns the current position of the playback.
+   * @return {number}
+   * @private
    */
-  seek(seek) {
-    if (typeof seek === 'undefined') {
-      const realTime = this.isPlaying() ? this._context.currentTime - this._startTime : 0;
-      const rateElapsed = this._rateSeek ? this._rateSeek - this._elapsed : 0;
-
-      return this._elapsed + (rateElapsed + realTime * this._rate);
-    }
-
-    if (typeof seek !== 'number' || seek < 0) {
-      return this;
-    }
-
-    if (!this.isLoaded()) {
-      this._actionQueue.add('seek', () => this.seek(seek));
-      this._load();
-      return this;
-    }
-
-    if (seek > this._duration) {
-      return this;
-    }
-
-    const isPlaying = this.isPlaying();
-    if (isPlaying) {
-      this._pause(false);
-    }
-
-    this._elapsed = seek;
-    this._fire('seek', seek);
-
-    if (isPlaying) {
-      this._play(null, false);
-    }
-
-    return this;
-  }
-
   _getSeek() {
     const realTime = this.isPlaying() ? this._context.currentTime - this._startTime : 0;
-    const rateElapsed = this._rateSeek ? this._rateSeek - this._elapsed : 0;
+    const rateElapsed = this._rateSeek ? this._rateSeek - this._currentPos : 0;
 
-    return this._elapsed + (rateElapsed + realTime * this._rate);
-  }
-
-  _setSeek(seek) {
-
+    return this._currentPos + (rateElapsed + realTime * this._rate);
   }
 
   /**

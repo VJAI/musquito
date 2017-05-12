@@ -2,13 +2,23 @@ import BaseBuzz, { BuzzState } from './BaseBuzz';
 import buzzer from './Buzzer';
 
 /**
- * Employs HTML5 audio element for playing sounds.
+ * Employs the native HTML5 audio element for playing sounds.
  * @class
  */
 class MediaBuzz extends BaseBuzz {
 
+  /**
+   * The HTML5 Audio element.
+   * @type {Audio}
+   * @private
+   */
   _audio = null;
 
+  /**
+   * Web Audio API's MediaElementAudioSourceNode
+   * @type {MediaElementAudioSourceNode}
+   * @private
+   */
   _mediaElementAudioSourceNode = null;
 
   /**
@@ -32,7 +42,7 @@ class MediaBuzz extends BaseBuzz {
   }
 
   /**
-   * Store the pre-loaded HTML5 Audio element along with duration.
+   * Set the pre-loaded HTML5 Audio element and the duration to the properties.
    * @param {DownloadResult} downloadResult The download result returned by the loader.
    * @private
    */
@@ -42,7 +52,7 @@ class MediaBuzz extends BaseBuzz {
   }
 
   /**
-   * Creates a new MediaElementAudioSourceNode passing the audio element if the platform supports it,
+   * Creates a new MediaElementAudioSourceNode passing the audio element if the platform supports it and
    * set the properties of the audio element and play it.
    * @param {function} cb Callback that should be called after the node started playing.
    * @private
@@ -63,7 +73,7 @@ class MediaBuzz extends BaseBuzz {
   }
 
   /**
-   * Called after the playback ends.
+   * Callback that is invoked after the playback is ended.
    * @private
    */
   _onEnded() {
@@ -97,27 +107,27 @@ class MediaBuzz extends BaseBuzz {
   }
 
   /**
-   * Mutes the audio element directly if web audio/media element audio source is not supported.
+   * Mutes the audio element directly if Web Audio API/MediaElementAudioSourceNode is not supported.
    * @private
    */
   _muteNode() {
+    if (!this._mediaElementAudioSourceNode && this._audio) {
+      this._audio.muted = true;
+    }
+  }
+
+  /**
+   * Un-mutes the audio element directly if Web Audio API/MediaElementAudioSourceNode is not supported.
+   * @private
+   */
+  _unMuteNode() {
     if (!this._mediaElementAudioSourceNode && this._audio) {
       this._audio.muted = buzzer.muted();
     }
   }
 
   /**
-   * Un-mutes the audio element directly if web audio/media element audio source is not supported.
-   * @private
-   */
-  _unMuteNode() {
-    if (!this._mediaElementAudioSourceNode && this._audio) {
-      this._audio.muted = buzzer.muted() ? true : false;
-    }
-  }
-
-  /**
-   * Set the volume directly to the audio element if web audio/media element audio source is not supported.
+   * Set the volume directly to the audio element if Web Audio API/MediaElementAudioSourceNode is not supported.
    * @param {number} vol Volume
    * @private
    */
@@ -128,7 +138,7 @@ class MediaBuzz extends BaseBuzz {
   }
 
   /**
-   * Set the playbackrate for the buffer source node.
+   * Set the playbackrate for the audio node.
    * @param {number=} rate The playback rate
    * @private
    */
@@ -139,35 +149,23 @@ class MediaBuzz extends BaseBuzz {
   }
 
   /**
-   * Get/set the seek position.
-   * @param {number=} seek The seek position
-   * @return {MediaBuzz|number}
+   * Returns the current position of the playback.
+   * @return {number}
+   * @private
    */
-  seek(seek) {
-    if (typeof seek === 'undefined') {
-      return this._audio ? this._audio.currentTime : 0;
-    }
+  _getSeek() {
+    return this._audio ? this._audio.currentTime : 0;
+  }
 
-    if (typeof seek !== 'number' || seek < 0) {
-      return this;
-    }
-
-    if (!this.isLoaded()) {
-      this._actionQueue.add('seek', () => this.seek(seek));
-      this._load();
-      return this;
-    }
-
-    if (seek > this._duration) {
-      return this;
-    }
-
-    const isPlaying = this.isPlaying();
-    if (isPlaying) {
-      this._pause(false);
-    }
-
+  /**
+   * Seek the playback to the passed position.
+   * @param {number} seek The seek position
+   * @param {function} cb The callback function
+   * @protected
+   */
+  _setSeek(seek, cb) {
     let canPlayThroughEventHandled = false;
+
     const onCanPlayThrough = () => {
       if (canPlayThroughEventHandled) {
         return;
@@ -175,25 +173,16 @@ class MediaBuzz extends BaseBuzz {
 
       canPlayThroughEventHandled = true;
       this._audio.removeEventListener('canplaythrough');
-      this._fire('seek', seek);
-
-      if (isPlaying) {
-        this._play(false);
-      }
+      cb();
     };
+
     this._audio.addEventListener('canplaythrough', onCanPlayThrough);
 
-    this._elapsed = seek;
+    this._currentPos = seek;
 
     if (this._audio.readyState === 4) {
       onCanPlayThrough();
     }
-
-    return this;
-  }
-
-  _getSeek() {
-    return this._audio ? this._audio.currentTime : 0;
   }
 
   /**
