@@ -21,7 +21,18 @@ class MediaBuzz extends BaseBuzz {
   }
 
   /**
-   * Stores the pre-loaded HTML5 Audio element and duration.
+   * Create the gain node and set it's gain value.
+   * @protected
+   */
+  _createGainNode() {
+    if (buzzer.isMediaSourceAvailable()) {
+      this._gainNode = this._context.createGain();
+      this._gainNode.gain.value = this._muted ? 0 : this._volume;
+    }
+  }
+
+  /**
+   * Store the pre-loaded HTML5 Audio element along with duration.
    * @param {DownloadResult} downloadResult The download result returned by the loader.
    * @private
    */

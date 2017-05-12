@@ -2,44 +2,26 @@ import codecAid from '../util/CodecAid';
 import BufferLoader from '../util/BufferLoader';
 import MediaLoader from '../util/MediaLoder';
 import EventEmitter from '../util/EventEmitter';
+import ErrorType from '../util/ErrorType';
 
 /**
  * Represents the different states of the audio engine.
  * @enum {number}
  */
 const BuzzerState = {
-  Idle: 0,
-  Suspended: 1,
-  Closing: 3,
-  Done: 4
+  NotReady: 'notready',
+  Idle: 'idle',
+  Suspended: 'suspended',
+  Closing: 'closing',
+  Done: 'done',
+  NoAudio: 'no-audio'
 };
 
 /**
- * The audio engine.
+ * The audio engine that orchestrates all the sounds.
  * @class
  */
 class Buzzer {
-
-  /**
-   * True to enable auto-suspend and save energy.
-   * @type {boolean}
-   * @private
-   */
-  _saveEnergy = true;
-
-  /**
-   * The interval in minutes the auto-suspend process has to run.
-   * @type {number}
-   * @private
-   */
-  _autoSuspendInterval = 5;
-
-  /**
-   * The auto suspend process timer id.
-   * @type {number|null}
-   * @private
-   */
-  _autoSuspendIntervalId = null;
 
   /**
    * The web audio api's audio context.
@@ -77,11 +59,32 @@ class Buzzer {
   _isMediaSourceAvailable = false;
 
   /**
-   * The supported play event without buffering in HTML5 audio.
+   * The supported play ready event in HTML5 audio.
    * @type {string|null}
    * @protected
    */
   _canPlayEvent = null;
+
+  /**
+   * True to auto-suspend AudioContext when no sounds are playing.
+   * @type {boolean}
+   * @private
+   */
+  _saveEnergy = true;
+
+  /**
+   * The duration in minutes the auto-suspend process has to run.
+   * @type {number}
+   * @private
+   */
+  _autoSuspendInterval = 5;
+
+  /**
+   * The auto suspend process timer id.
+   * @type {number|null}
+   * @private
+   */
+  _autoSuspendIntervalId = null;
 
   /**
    * BufferLoader.
@@ -102,7 +105,7 @@ class Buzzer {
    * @type {EventEmitter}
    * @private
    */
-  _emitter = new EventEmitter('suspend,resume,done,stop,mute,volume,buzzplaystart,buzzplayend,buzzpause,buzzstop');
+  _emitter = null;
 
   /**
    * Dictionary of buzzes that are currently playing.
@@ -127,14 +130,14 @@ class Buzzer {
 
   /**
    * Represents the master gain node.
-   * @type {GainNode|null}
+   * @type {GainNode}
    * @private
    */
   _gainNode = null;
 
   /**
-   * Represents the context type that is available in the environment.
-   * @type {function|null}
+   * Represents the context type that is available in the running environment.
+   * @type {function}
    * @private
    */
   _contextType = null;
@@ -151,7 +154,7 @@ class Buzzer {
    * @type {BuzzerState}
    * @private
    */
-  _state = BuzzerState.Constructed;
+  _state = BuzzerState.NotReady;
 
   /**
    * Whether the context is injected from outside or not.
@@ -160,14 +163,19 @@ class Buzzer {
    */
   _isContextInjected = false;
 
+  /**
+   * A 1-sample long scratch buffer to clear out the reference to buffer in AudioBufferSourceNodes
+   * Ref; http://stackoverflow.com/questions/24119684
+   * @type {AudioBuffer}
+   * @private
+   */
   _scratchBuffer = null;
 
   /**
-   * Instantiate audio context and other important objects.
-   * Returns true if the setup is success.
+   * Instantiate the audio context and other dependencies.
    * @param {object=} args Input parameters object.
    * @param {number=} [args.volume = 1.0] The global volume of the sound engine.
-   * @param {boolean=} [args.saveEnergy = false] Whether to auto-suspend the engine to save energy.
+   * @param {boolean=} [args.saveEnergy = false] Whether to auto-suspend the AudioContext to save energy.
    * @param {number=} [args.autoSuspendInterval = 5] The auto-suspend interval in minutes.
    * @param {function=} args.onsuspend Event-handler for the "suspend" event.
    * @param {function=} args.onresume Event-handler for the "resume" event.
@@ -183,11 +191,13 @@ class Buzzer {
    * @returns {Buzzer}
    */
   setup(args) {
-    const options = args || {};
 
-    if (this._state === BuzzerState.Ready) {
+    // If the setup is already done return.
+    if (this._state !== BuzzerState.NotReady) {
       return this;
     }
+
+    const options = args || {}, testAudio = new Audio();
 
     this._contextType = AudioContext || webkitAudioContext;
 
@@ -196,23 +206,32 @@ class Buzzer {
       this._isContextInjected = typeof options.context === 'object';
       this._context = this._isContextInjected ? options.context : new this._contextType();
 
-      // TODO: determine whether MediaElementSource is supported or not.
-      this._isMediaSourceAvailable = true;
+      try {
+        this._context.createMediaElementSource(testAudio);
+        this._isMediaSourceAvailable = true;
+      } catch (e) {
+        this._isMediaSourceAvailable = false;
+      }
     }
 
     if (typeof Audio !== 'undefined') {
       this._isHTML5AudioAvailable = true;
-      let test = new Audio();
-      this._canPlayEvent = test.oncanplaythrough === 'undefined' ? 'canplay' : 'canplaythrough';
-      test = null;
+      this._canPlayEvent = testAudio.oncanplaythrough === 'undefined' ? 'canplay' : 'canplaythrough';
     }
 
     this._isAudioAvailable = this._isWebAudioAvailable || this._isHTML5AudioAvailable;
 
-    if (typeof options.volume === 'number' && options.volume >= 0 && options.volume <= 1.0) {
-      this._volume = options.volume;
+    // Instantiate the emitter.
+    this._emitter = new EventEmitter('error, suspend,resume,done,stop,mute,volume,buzzplaystart,buzzplayend,buzzpause,buzzstop');
+
+    if (!this._isAudioAvailable) {
+      this._state = BuzzerState.NoAudio;
+      this._fire('error', { type: ErrorType.NoAudio, error: 'No audio support is available' });
+      return this;
     }
 
+    // Set the properties from the passed options.
+    typeof options.volume === 'number' && options.volume >= 0 && options.volume <= 1.0 && (this._volume = options.volume);
     typeof options.saveEnergy === 'boolean' && (this._saveEnergy = options.saveEnergy);
     typeof options.autoSuspendInterval === 'number' && (this._autoSuspendInterval = options.autoSuspendInterval);
     this._emitter = new EventEmitter('suspend,resume,done,stop,mute,volume,buzzplaystart,buzzplayend,buzzpause,buzzstop');
@@ -227,14 +246,21 @@ class Buzzer {
     typeof options.onbuzzpause === 'function' && this.on('buzzpause', options.onbuzzpause);
     typeof options.onbuzzstop === 'function' && this.on('buzzstop', options.onbuzzstop);
 
+    // Instantiate other dependencies
     this._bufferLoader = new BufferLoader(this._context);
     this._mediaLoader = new MediaLoader();
-    this._gainNode = this._context.createGain();
-    this._gainNode.gain.value = this._volume;
-    this._gainNode.connect(this._context.destination);
-    this._saveEnergy && setInterval(this.suspend, this._autoSuspendInterval * 60 * 1000);
-    this._scratchBuffer = this._context.createBuffer(1, 1, 22050);
-    this._state = BuzzerState.Ready;
+
+    // Create the audio graph if web audio is available
+    if (this._isWebAudioAvailable) {
+      this._gainNode = this._context.createGain();
+      this._gainNode.gain.value = this._volume;
+      this._gainNode.connect(this._context.destination);
+      this._saveEnergy && setInterval(this.suspend, this._autoSuspendInterval * 60 * 1000);
+      this._scratchBuffer = this._context.createBuffer(1, 1, 22050);
+    }
+
+    this._state = BuzzerState.Idle;
+
     return this;
   }
 

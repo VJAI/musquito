@@ -1,8 +1,9 @@
-import buzzer from './Buzzer';
+import buzzer, {BuzzerState} from './Buzzer';
 import codecAid from '../util/CodecAid';
 import DownloadStatus from '../util/DownloadStatus';
 import EventEmitter from '../util/EventEmitter';
 import ActionQueue from '../util/ActionQueue';
+import ErrorType from '../util/ErrorType';
 
 /**
  * Enum that represents the different states occurs while loading a sound.
@@ -24,14 +25,6 @@ const BuzzState = {
   Playing: 'playing',
   Paused: 'paused',
   Destroyed: 'destroyed'
-};
-
-/**
- * Enum that represents the different type of errors thrown by Buzz.
- * @enum {number}
- */
-const ErrorType = {
-  LoadError: 'load'
 };
 
 /**
@@ -133,10 +126,10 @@ class BaseBuzz {
 
   /**
    * Represents the different states that occurs while loading the sound.
-   * @type {LoadState|null}
+   * @type {LoadState}
    * @private
    */
-  _loadState = null;
+  _loadState = LoadState.NotLoaded;
 
   /**
    * Web API's audio context.
@@ -268,15 +261,26 @@ class BaseBuzz {
     typeof options.onrate === 'function' && this.on('rate', options.onrate);
     typeof options.ondestroy === 'function' && this.on('destroy', options.ondestroy);
 
+    // Run the setup for the audio engine
     buzzer.setup();
+
+    // If no audio is available throw error.
+    if (!buzzer.isAudioAvailable()) {
+      this._fire('error', { type: ErrorType.NoAudio, error: 'No audio support is available' });
+      return this;
+    }
+
+    // Add the created buzz to the buzzer collection for controlling it when needed.
     buzzer.add(this);
 
-    this._context = buzzer.context();
-    this._loadState = LoadState.NotLoaded;
+    // If web audio is available retrieve and store the context locally.
+    if (buzzer.isWebAudioAvailable()) {
+      this._context = buzzer.context();
+    }
 
     if (this._autoplay) {
       this.play();
-      return;
+      return this;
     }
 
     if (this._preload) {
@@ -289,12 +293,13 @@ class BaseBuzz {
    * @returns {BaseBuzz}
    */
   load() {
+
     // If the sound is already loaded return without reloading again.
     if (this.isLoaded()) {
       return this;
     }
 
-    // Set the state to "Loading" to avoid downloading the sound multiple times.
+    // Set the state to "Loading" to avoid loading the sound multiple times.
     this._loadState = LoadState.Loading;
 
     // If the user has passed "format" check if it is supported or else retrieve the supported source from the array.
@@ -311,15 +316,11 @@ class BaseBuzz {
     // Store the compatible source
     this._compatibleSrc = src;
 
+    // Load the sound and store the result
     this._load().then(downloadResult => {
       if (downloadResult.status === DownloadStatus.Success) {
+        this._createGainNode();
         this._save(downloadResult);
-
-        if (buzzer.isWebAudioAvailable()) {
-          this._gainNode = this._context.createGain();
-          this._gainNode.gain.value = this._muted ? 0 : this._volume;
-        }
-
         this._loadState = LoadState.Loaded;
         this._fire('load', downloadResult);
         this._actionQueue.run();
@@ -338,6 +339,14 @@ class BaseBuzz {
    * @protected
    */
   _load() {
+    throw new Error('Should be implemented the derived class');
+  }
+
+  /**
+   * Create the gain node if the derived type supports it.
+   * @protected
+   */
+  _createGainNode() {
     throw new Error('Should be implemented the derived class');
   }
 

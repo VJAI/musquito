@@ -38,7 +38,16 @@ class BufferBuzz extends BaseBuzz {
   }
 
   /**
-   * Store the buffer and duration from the download result.
+   * Create the gain node and set it's gain value.
+   * @protected
+   */
+  _createGainNode() {
+    this._gainNode = this._context.createGain();
+    this._gainNode.gain.value = this._muted ? 0 : this._volume;
+  }
+
+  /**
+   * Store the buffer, duration from the download result.
    * @param {DownloadResult} downloadResult The download result
    * @private
    */
