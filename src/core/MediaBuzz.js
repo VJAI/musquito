@@ -22,6 +22,15 @@ class MediaBuzz extends BaseBuzz {
   _mediaElementAudioSourceNode = null;
 
   /**
+   * Constructor.
+   * @param {object} args The input arguents for the sound
+   */
+  constructor(args) {
+    super(args);
+    this._webAudio = buzzer.isMediaSourceAvailable();
+  }
+
+  /**
    * Loads the audio node.
    * @return {Promise<DownloadResult>}
    * @private
@@ -35,7 +44,7 @@ class MediaBuzz extends BaseBuzz {
    * @protected
    */
   _createGainNode() {
-    if (buzzer.isMediaSourceAvailable()) {
+    if (this._webAudio) {
       this._gainNode = this._context.createGain();
       this._gainNode.gain.value = this._muted ? 0 : this._volume;
     }
@@ -58,7 +67,7 @@ class MediaBuzz extends BaseBuzz {
    * @private
    */
   _playNode(cb) {
-    if (!this._mediaElementAudioSourceNode && buzzer.isMediaSourceAvailable()) {
+    if (!this._mediaElementAudioSourceNode && this._webAudio) {
       this._mediaElementAudioSourceNode = this._context.createMediaElementSource(this._audio);
       this._mediaElementAudioSourceNode.connect(this._gainNode);
     }

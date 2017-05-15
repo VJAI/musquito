@@ -202,6 +202,13 @@ class BaseBuzz {
   _endTimer = null;
 
   /**
+   * True if using Web Audio API to play sounds.
+   * @type {boolean}
+   * @protected
+   */
+  _webAudio = false;
+
+  /**
    * @param {string|object} args The input parameters of the sound.
    * @param {string=} args.id The unique id of the sound.
    * @param {string|string[]=} args.src The array of audio urls.
@@ -275,6 +282,7 @@ class BaseBuzz {
 
     // If web audio is available retrieve and store the context locally.
     if (buzzer.isWebAudioAvailable()) {
+      this._webAudio = true;
       this._context = buzzer.context();
     }
 
@@ -734,17 +742,39 @@ class BaseBuzz {
    * @param {function} cb The callback function
    * @protected
    */
-  _setSeek(seek, cb) {
-    this._currentPos = seek;
-    cb();
+  _setSeek(seek, cb) { // eslint-disable-line no-unused-vars
+    throw new Error('Should be implemented by the derived class');
   }
 
   /**
    * Get/set the loop parameter of the sound.
-   * @return {BaseBuzz}
+   * @param {boolean} loop True to loop the sound
+   * @return {BaseBuzz/boolean}
    */
-  loop() {
+  loop(loop) {
+    if (typeof loop !== 'boolean') {
+      return this._loop;
+    }
+
+    this._loop = loop;
+    this._setLoop();
     return this;
+  }
+
+  /**
+   * Set the sound to play repeatedly or not.
+   * @protected
+   */
+  _setLoop() {
+    return;
+  }
+
+  /**
+   * Returns the id.
+   * @return {string|null}
+   */
+  id() {
+    return this._id;
   }
 
   /**
@@ -804,6 +834,14 @@ class BaseBuzz {
    */
   isPaused() {
     return this._state === BuzzState.Paused;
+  }
+
+  /**
+   * Returns true if using Web Audio API to play sounds.
+   * @return {boolean}
+   */
+  usingWebAudio() {
+    return this._webAudio;
   }
 
   /**

@@ -70,6 +70,7 @@ class BufferBuzz extends BaseBuzz {
     // Set the buffer, playback rate and loop parameters
     this._bufferSourceNode.buffer = this._buffer;
     this._bufferSourceNode.playbackRate.value = this._rate;
+    this._setLoop();
     this._bufferSourceNode.loop = this._loop;
     this._bufferSourceNode.loopStart = this._startPos;
     this._bufferSourceNode.loopEnd = this._endPos;
@@ -147,28 +148,6 @@ class BufferBuzz extends BaseBuzz {
   }
 
   /**
-   * Sets the playbackrate for the buffer source node.
-   * @param {number=} rate The playback rate
-   * @private
-   */
-  _setRate(rate) {
-    this._startTime = this._context.currentTime;
-    this._bufferSourceNode && (this._bufferSourceNode.playbackRate.value = rate);
-  }
-
-  /**
-   * Returns the current position of the playback.
-   * @return {number}
-   * @private
-   */
-  _getSeek() {
-    const realTime = this.isPlaying() ? this._context.currentTime - this._startTime : 0;
-    const rateElapsed = this._rateSeek ? this._rateSeek - this._currentPos : 0;
-
-    return this._currentPos + (rateElapsed + realTime * this._rate);
-  }
-
-  /**
    * Stops the playing buffer source node and destroys it.
    * @private
    */
@@ -206,6 +185,54 @@ class BufferBuzz extends BaseBuzz {
     }
 
     this._bufferSourceNode = null;
+  }
+
+  /**
+   * Sets the playbackrate for the buffer source node.
+   * @param {number=} rate The playback rate
+   * @private
+   */
+  _setRate(rate) {
+    this._startTime = this._context.currentTime;
+    this._bufferSourceNode && (this._bufferSourceNode.playbackRate.value = rate);
+  }
+
+  /**
+   * Returns the current position of the playback.
+   * @return {number}
+   * @private
+   */
+  _getSeek() {
+    const realTime = this.isPlaying() ? this._context.currentTime - this._startTime : 0;
+    const rateElapsed = this._rateSeek ? this._rateSeek - this._currentPos : 0;
+
+    return this._currentPos + (rateElapsed + realTime * this._rate);
+  }
+
+  /**
+   * Seek the playback to the passed position.
+   * @param {number} seek The seek position
+   * @param {function} cb The callback function
+   * @protected
+   */
+  _setSeek(seek, cb) {
+    this._currentPos = seek;
+    cb();
+  }
+
+  /**
+   * Set the sound to play repeatedly or not.
+   * @private
+   */
+  _setLoop() {
+    if (this._bufferSourceNode) {
+      this._bufferSourceNode.loop = this._loop;
+
+      if (this._loop) {
+        this._bufferSourceNode.loopStart = this._startPos;
+        this._bufferSourceNode.loopEnd = this._endPos;
+      }
+    }
   }
 
   /**

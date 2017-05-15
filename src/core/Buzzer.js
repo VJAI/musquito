@@ -3,6 +3,7 @@ import BufferLoader from '../util/BufferLoader';
 import MediaLoader from '../util/MediaLoder';
 import EventEmitter from '../util/EventEmitter';
 import ErrorType from '../util/ErrorType';
+import mobileAudioEnabler from '../util/MobileAudioEnabler';
 
 /**
  * Represents the different states of the audio engine.
@@ -224,6 +225,7 @@ class Buzzer {
     // Instantiate the emitter.
     this._emitter = new EventEmitter('error, suspend,resume,done,stop,mute,volume,buzzplaystart,buzzplayend,buzzpause,buzzstop');
 
+    // If no Web Audio and HTML5 audio is available fire an error event.
     if (!this._isAudioAvailable) {
       this._state = BuzzerState.NoAudio;
       this._fire('error', { type: ErrorType.NoAudio, error: 'No audio support is available' });
@@ -252,9 +254,15 @@ class Buzzer {
 
     // Create the audio graph if web audio is available
     if (this._isWebAudioAvailable) {
+
+      // Auto-enable audio for the mobile devices in the first touch.
+      mobileAudioEnabler.enable(this._context);
+
+      // Create the audio graph.
       this._gainNode = this._context.createGain();
       this._gainNode.gain.value = this._volume;
       this._gainNode.connect(this._context.destination);
+
       this._saveEnergy && setInterval(this.suspend, this._autoSuspendInterval * 60 * 1000);
       this._scratchBuffer = this._context.createBuffer(1, 1, 22050);
     }
@@ -310,8 +318,8 @@ class Buzzer {
    * @return {Buzzer}
    */
   add(buzz) {
-    if (this._buzzes[buzz.id] === undefined) {
-      this._buzzes[buzz.id] = buzz;
+    if (this._buzzes[buzz.id()] === undefined) {
+      this._buzzes[buzz.id()] = buzz;
     }
 
     return this;
@@ -323,7 +331,7 @@ class Buzzer {
    * @return {Buzzer}
    */
   remove(buzz) {
-    delete this._buzzes[buzz.id];
+    delete this._buzzes[buzz.id()];
     return this;
   }
 
@@ -389,6 +397,8 @@ class Buzzer {
 
     this._volume = vol;
     this._gainNode && (this._gainNode.gain.value = this._volume);
+    this._nonWebAudioBuzzes().forEach(buzz => buzz._setVolume(vol));
+
     this._fire('volume', this._volume, this);
 
     return this;
@@ -404,6 +414,8 @@ class Buzzer {
     }
 
     this._gainNode && (this._gainNode.gain.value = 0);
+    this._nonWebAudioBuzzes().forEach(buzz => buzz._muteNode());
+
     this._muted = true;
     this._fire('mute', this._muted);
 
@@ -420,6 +432,8 @@ class Buzzer {
     }
 
     this._gainNode && (this._gainNode.gain.value = this._volume);
+    this._nonWebAudioBuzzes().forEach(buzz => buzz._unMuteNode());
+
     this._muted = false;
     this._fire('mute', this._muted);
 
@@ -504,6 +518,15 @@ class Buzzer {
     }
 
     return this;
+  }
+
+  /**
+   * Returns the array of buzzes that are not using Web Audio for playing sounds.
+   * @return {BaseBuzz[]}
+   * @private
+   */
+  _nonWebAudioBuzzes() {
+    return Object.keys(this._buzzes).filter(buzz => !buzz.usingWebAudio());
   }
 
   /**
