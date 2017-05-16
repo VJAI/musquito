@@ -879,6 +879,11 @@ class BaseBuzz {
     return this;
   }
 
+  // TODO: Need to implement this
+  unload() {
+    throw new Error('Not implemented');
+  }
+
   /**
    * Destroys the buzz.
    * @return {BaseBuzz}
@@ -890,15 +895,22 @@ class BaseBuzz {
 
     this.stop();
     buzzer.remove(this);
+
     this._context = null;
     this._gainNode = null;
+
     this._actionQueue.clear();
     this._actionQueue = null;
+
     this._destroy();
+
     this._state = BuzzState.Destroyed;
+
     this._fire('destroy');
+
     this._emitter.clear();
     this._emitter = null;
+
     return this;
   }
 

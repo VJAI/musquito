@@ -34,7 +34,7 @@ class BufferBuzz extends BaseBuzz {
    * @private
    */
   _load() {
-    return buzzer.load(this._compatibleSrc);
+    return buzzer.loadBuffer(this._compatibleSrc);
   }
 
   /**

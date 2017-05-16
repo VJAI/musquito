@@ -25,7 +25,7 @@ const BuzzerState = {
 class Buzzer {
 
   /**
-   * The web audio api's audio context.
+   * The Web Audio API's audio context.
    * @type {AudioContext}
    * @private
    */
@@ -60,7 +60,7 @@ class Buzzer {
   _isMediaSourceAvailable = false;
 
   /**
-   * The supported play ready event in HTML5 audio.
+   * The supported play event in HTML5 audio.
    * @type {string|null}
    * @protected
    */
@@ -74,11 +74,11 @@ class Buzzer {
   _saveEnergy = true;
 
   /**
-   * The duration in minutes the auto-suspend process has to run.
+   * The interval (minutes) the auto-suspend process has to run.
    * @type {number}
    * @private
    */
-  _autoSuspendInterval = 5;
+  _autoSuspendInterval = 1;
 
   /**
    * The auto suspend process timer id.
@@ -88,14 +88,14 @@ class Buzzer {
   _autoSuspendIntervalId = null;
 
   /**
-   * BufferLoader.
+   * BufferLoader - the component that loads audio buffers with audio data.
    * @type {BufferLoader}
    * @private
    */
   _bufferLoader = null;
 
   /**
-   * MediaLoader.
+   * MediaLoader - the component that loads HTML5 audio nodes with audio.
    * @type {MediaLoader}
    * @private
    */
@@ -109,7 +109,7 @@ class Buzzer {
   _emitter = null;
 
   /**
-   * Dictionary of buzzes that are currently playing.
+   * Dictionary of buzzes that are active.
    * @type {object}
    * @private
    */
@@ -137,7 +137,7 @@ class Buzzer {
   _gainNode = null;
 
   /**
-   * Represents the context type that is available in the running environment.
+   * Represents the context type that is available in the current browser/environment.
    * @type {function}
    * @private
    */
@@ -148,7 +148,7 @@ class Buzzer {
    * @type {string[]}
    * @private
    */
-  _buzzEvents = ['playstart', 'playend', 'pause', 'stop'];
+  _buzzEvents = ['playstart', 'playend', 'pause', 'stop', 'error', 'destroy'];
 
   /**
    * Represents the current state of the engine.
@@ -188,6 +188,8 @@ class Buzzer {
    * @param {function=} args.onbuzzplayend Event-handler for the "buzzplayend" event.
    * @param {function=} args.onbuzzpause Event-handler for the "buzzpause" event.
    * @param {function=} args.onbuzzstop Event-handler for the "buzzstop" event.
+   * @param {function=} args.onbuzzerror Event-handler for the "buzzerror" event.
+   * @param {function=} args.onbuzzdestroy Event-handler for the "buzzdestroy" event.
    * @param {AudioContext=} args.context The Web API audio context.
    * @returns {Buzzer}
    */
@@ -223,7 +225,21 @@ class Buzzer {
     this._isAudioAvailable = this._isWebAudioAvailable || this._isHTML5AudioAvailable;
 
     // Instantiate the emitter.
-    this._emitter = new EventEmitter('error, suspend,resume,done,stop,mute,volume,buzzplaystart,buzzplayend,buzzpause,buzzstop');
+    this._emitter = new EventEmitter([
+      'error',
+      'suspend',
+      'resume',
+      'done',
+      'stop',
+      'mute',
+      'volume',
+      'buzzplaystart',
+      'buzzplayend',
+      'buzzpause',
+      'buzzstop',
+      'buzzerror',
+      'buzzdestroy'
+    ]);
 
     // If no Web Audio and HTML5 audio is available fire an error event.
     if (!this._isAudioAvailable) {
@@ -247,6 +263,8 @@ class Buzzer {
     typeof options.onbuzzplayend === 'function' && this.on('buzzplayend', options.onbuzzplayend);
     typeof options.onbuzzpause === 'function' && this.on('buzzpause', options.onbuzzpause);
     typeof options.onbuzzstop === 'function' && this.on('buzzstop', options.onbuzzstop);
+    typeof options.onbuzzerror === 'function' && this.on('buzzerror', options.onbuzzerror);
+    typeof options.onbuzzdestroy === 'function' && this.on('buzzdestroy', options.onbuzzdestroy);
 
     // Instantiate other dependencies
     this._bufferLoader = new BufferLoader(this._context);
@@ -263,7 +281,7 @@ class Buzzer {
       this._gainNode.gain.value = this._volume;
       this._gainNode.connect(this._context.destination);
 
-      this._saveEnergy && setInterval(this.suspend, this._autoSuspendInterval * 60 * 1000);
+      this._saveEnergy && (this._autoSuspendIntervalId = setInterval(this.suspend, this._autoSuspendInterval * 60 * 1000));
       this._scratchBuffer = this._context.createBuffer(1, 1, 22050);
     }
 
@@ -277,7 +295,7 @@ class Buzzer {
    * @param {string|string[]} urls Single or array of audio urls
    * @return {Promise}
    */
-  load(urls) {
+  loadBuffer(urls) {
     return this._bufferLoader.load(urls);
   }
 
@@ -286,7 +304,7 @@ class Buzzer {
    * @param {string|string[]} urls Single or array of audio urls
    * @return {Buzzer}
    */
-  unload(urls) {
+  unloadBuffer(urls) {
     this._bufferLoader.unload(urls);
     return this;
   }
@@ -445,7 +463,7 @@ class Buzzer {
    * @return {Buzzer}
    */
   stop() {
-    Object.keys(this._buzzes).forEach(buzz => buzz.stop());
+    Object.keys(this._buzzes).forEach(buzz => buzz._stop(false));
     this._fire('stop');
     return this;
   }
@@ -474,6 +492,11 @@ class Buzzer {
 
     this._fire('resume');
     return this;
+  }
+
+  // TODO: Need to implement this
+  unload() {
+    throw new Error('Not implemented');
   }
 
   /**

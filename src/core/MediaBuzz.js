@@ -78,7 +78,7 @@ class MediaBuzz extends BaseBuzz {
     this._audio.volume = buzzer.volume() * this._volume;
     this._audio.playbackRate = this._rate;
     this._audio.play();
-    cb();
+    cb(); // TODO: The cb should be called only after the play event is fired!
   }
 
   /**
