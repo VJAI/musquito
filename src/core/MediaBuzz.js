@@ -1,5 +1,6 @@
 import BaseBuzz, { BuzzState } from './BaseBuzz';
 import buzzer from './Buzzer';
+import ErrorType from '../util/ErrorType';
 
 /**
  * Employs the native HTML5 audio element for playing sounds.
@@ -20,15 +21,6 @@ class MediaBuzz extends BaseBuzz {
    * @private
    */
   _mediaElementAudioSourceNode = null;
-
-  /**
-   * Constructor.
-   * @param {object} args The input arguents for the sound
-   */
-  constructor(args) {
-    super(args);
-    this._webAudio = buzzer.isMediaSourceAvailable();
-  }
 
   /**
    * Loads the audio node.
@@ -57,16 +49,25 @@ class MediaBuzz extends BaseBuzz {
    */
   _save(downloadResult) {
     this._audio = downloadResult.value;
+    this._audio.addEventListener('error', this._onAudioError);
     this._duration = this._audio.duration;
+  }
+
+  /**
+   * "error" event handler of audio element.
+   * @param {object} err
+   * @private
+   */
+  _onAudioError(err) { // TODO: Need to revise this method!
+    this._fire('error', { type: ErrorType.LoadError, error: err });
   }
 
   /**
    * Creates a new MediaElementAudioSourceNode passing the audio element if the platform supports it and
    * set the properties of the audio element and play it.
-   * @param {function} cb Callback that should be called after the node started playing.
    * @private
    */
-  _playNode(cb) {
+  _playNode() {
     if (!this._mediaElementAudioSourceNode && this._webAudio) {
       this._mediaElementAudioSourceNode = this._context.createMediaElementSource(this._audio);
       this._mediaElementAudioSourceNode.connect(this._gainNode);
@@ -78,7 +79,19 @@ class MediaBuzz extends BaseBuzz {
     this._audio.volume = buzzer.volume() * this._volume;
     this._audio.playbackRate = this._rate;
     this._audio.play();
-    cb(); // TODO: The cb should be called only after the play event is fired!
+  }
+
+  /**
+   * Removes all the event handlers subscribed to HTML5 audio element.
+   * @private
+   */
+  _removeAllEventHandlers() {
+    if (!this._audio) {
+      return;
+    }
+
+    this._removeCanPlayEventHandler();
+    this._audio.removeEventListener('error', this._onAudioError());
   }
 
   /**
@@ -101,7 +114,9 @@ class MediaBuzz extends BaseBuzz {
    * @private
    */
   _handlePause() {
-    this._audio && this._audio.pause();
+    if (this._audio) {
+      this._audio.pause();
+    }
   }
 
   /**
@@ -164,34 +179,6 @@ class MediaBuzz extends BaseBuzz {
    */
   _getSeek() {
     return this._audio ? this._audio.currentTime : 0;
-  }
-
-  /**
-   * Seek the playback to the passed position.
-   * @param {number} seek The seek position
-   * @param {function} cb The callback function
-   * @protected
-   */
-  _setSeek(seek, cb) {
-    let canPlayThroughEventHandled = false;
-
-    const onCanPlayThrough = () => {
-      if (canPlayThroughEventHandled) {
-        return;
-      }
-
-      canPlayThroughEventHandled = true;
-      this._audio.removeEventListener('canplaythrough');
-      cb();
-    };
-
-    this._audio.addEventListener('canplaythrough', onCanPlayThrough);
-
-    this._currentPos = seek;
-
-    if (this._audio.readyState === 4) {
-      onCanPlayThrough();
-    }
   }
 
   /**

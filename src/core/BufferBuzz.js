@@ -58,10 +58,9 @@ class BufferBuzz extends BaseBuzz {
 
   /**
    * Creates a new AudioBufferSourceNode, set it's properties and play it.
-   * @param {function} cb Callback that should be called after the node started playing.
    * @private
    */
-  _playNode(cb) {
+  _playNode() {
     let [seek, duration] = this._getTimeVars();
 
     // Create a new node
@@ -87,8 +86,6 @@ class BufferBuzz extends BaseBuzz {
     }
 
     this._startTime = this._context.currentTime;
-
-    cb();
   }
 
   /**
@@ -207,17 +204,6 @@ class BufferBuzz extends BaseBuzz {
     const rateElapsed = this._rateSeek ? this._rateSeek - this._currentPos : 0;
 
     return this._currentPos + (rateElapsed + realTime * this._rate);
-  }
-
-  /**
-   * Seek the playback to the passed position.
-   * @param {number} seek The seek position
-   * @param {function} cb The callback function
-   * @protected
-   */
-  _setSeek(seek, cb) {
-    this._currentPos = seek;
-    cb();
   }
 
   /**

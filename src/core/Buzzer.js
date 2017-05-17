@@ -60,13 +60,6 @@ class Buzzer {
   _isMediaSourceAvailable = false;
 
   /**
-   * The supported play event in HTML5 audio.
-   * @type {string|null}
-   * @protected
-   */
-  _canPlayEvent = null;
-
-  /**
    * True to auto-suspend AudioContext when no sounds are playing.
    * @type {boolean}
    * @private
@@ -219,7 +212,6 @@ class Buzzer {
 
     if (typeof Audio !== 'undefined') {
       this._isHTML5AudioAvailable = true;
-      this._canPlayEvent = testAudio.oncanplaythrough === 'undefined' ? 'canplay' : 'canplaythrough';
     }
 
     this._isAudioAvailable = this._isWebAudioAvailable || this._isHTML5AudioAvailable;

@@ -423,12 +423,12 @@ class BaseBuzz {
     let [, , timeout] = this._getTimeVars();
     buzzer._link(this);
 
-    this._playNode(() => {
-      this._endTimer = setTimeout(this._onEnded, timeout);
-      this._state = BuzzState.Playing;
+    this._playNode();
 
-      fireEvent && this._fire('play');
-    });
+    this._endTimer = setTimeout(this._onEnded, timeout);
+    this._state = BuzzState.Playing;
+
+    fireEvent && this._fire('play');
 
     return this;
   }
@@ -697,6 +697,24 @@ class BaseBuzz {
       return this._getSeek();
     }
 
+    return this._setSeek(seek);
+  }
+
+  /**
+   * Returns the current position in the playback.
+   * @protected
+   */
+  _getSeek() {
+    throw new Error('Should be implemented by the derived class');
+  }
+
+  /**
+   * Seek the playback to the passed position.
+   * @param {number} seek The seek position
+   * @return  {BaseBuzz}
+   * @protected
+   */
+  _setSeek(seek) {
     if (typeof seek !== 'number' || seek < 0) {
       return this;
     }
@@ -717,33 +735,11 @@ class BaseBuzz {
       this._pause(false);
     }
 
-    this._setSeek(seek, () => {
-      this._fire('seek', seek);
-
-      if (isPlaying) {
-        this._play(null, false);
-      }
-    });
+    this._currentPos = seek;
+    this._play(null, false);
+    this._fire('seek', seek);
 
     return this;
-  }
-
-  /**
-   * Returns the current position in the playback.
-   * @protected
-   */
-  _getSeek() {
-    throw new Error('Should be implemented by the derived class');
-  }
-
-  /**
-   * Seek the playback to the passed position.
-   * @param {number} seek The seek position
-   * @param {function} cb The callback function
-   * @protected
-   */
-  _setSeek(seek, cb) { // eslint-disable-line no-unused-vars
-    throw new Error('Should be implemented by the derived class');
   }
 
   /**

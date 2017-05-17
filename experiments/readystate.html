@@ -1,0 +1,49 @@
+<html>
+
+<head>
+  <title>
+    HTML5 Audio ReadyState Experimentation
+  </title>
+</head>
+
+<body>
+<h1>HTML5 Audio ReadyState Experimentation</h1>
+
+<button onclick="play()">Play</button>
+<button onclick="pause()">Pause</button>
+<button onclick="seek()">Seek</button>
+<button onclick="stop()">Stop</button>
+
+<script>
+  const audio = new Audio();
+
+  audio.addEventListener('canplaythrough', () => {
+    console.log('canplaythrough fired!');
+    console.log(audio.readyState);
+    console.log(audio.duration);
+  });
+
+  audio.src = 'http://prideparrot.com/demos/hollywood/assets/theme.mp3';
+  console.log(audio.readyState);
+
+  function play() {
+    console.log(audio.readyState);
+    audio.play();
+  }
+
+  function pause() {
+    audio.pause();
+  }
+
+  function seek() {
+    audio.currentTime = 120;
+    console.log(audio.readyState);
+  }
+
+  function stop() {
+    audio.pause();
+    audio.currentTime = 0;
+  }
+</script>
+</body>
+</html>
