@@ -1,20 +1,5 @@
 import buzzer from './Buzzer';
-import codecAid from '../util/CodecAid';
-import DownloadStatus from '../util/DownloadStatus';
-import EventEmitter from '../util/EventEmitter';
-import ActionQueue from '../util/ActionQueue';
 import ErrorType from '../util/ErrorType';
-
-/**
- * Enum that represents the different states occurs while loading a sound.
- * @enum {string}
- */
-const LoadState = {
-  NotLoaded: 'notloaded',
-  Loading: 'loading',
-  Loaded: 'loaded',
-  UnLoaded: 'unloaded'
-};
 
 /**
  * Enum that represents the different states of a sound.
@@ -41,39 +26,11 @@ class BaseBuzz {
   _id = null;
 
   /**
-   * The array of audio urls.
-   * @type {string[]}
-   * @protected
+   * Represents the source of the sound.
+   * @type {*}
+   * @private
    */
-  _src = [];
-
-  /**
-   * The file format of the passed audio source.
-   * @type {string|null}
-   * @protected
-   */
-  _format = null;
-
-  /**
-   * The supported source in the passed array of urls.
-   * @type {string|null}
-   * @protected
-   */
-  _compatibleSrc = null;
-
-  /**
-   * The sprite definition.
-   * @type {object}
-   * @protected
-   */
-  _sprite = null;
-
-  /**
-   * Current playing sound from the sprite.
-   * @type {string|null}
-   * @protected
-   */
-  _spriteSound = null;
+  _src = null;
 
   /**
    * The current volume of the sound.
@@ -81,13 +38,6 @@ class BaseBuzz {
    * @protected
    */
   _volume = 1.0;
-
-  /**
-   * The current playback rate of the sound.
-   * @type {number}
-   * @protected
-   */
-  _rate = 1;
 
   /**
    * Represents whether the sound is currently muted or not.
@@ -104,13 +54,6 @@ class BaseBuzz {
   _loop = false;
 
   /**
-   * Represents whether the sound should be pre-loaded on construction.
-   * @type {boolean}
-   * @protected
-   */
-  _preload = false;
-
-  /**
    * Represents whether the sound should start playing automatically on construction.
    * @type {boolean}
    * @protected
@@ -123,13 +66,6 @@ class BaseBuzz {
    * @protected
    */
   _state = BuzzState.Idle;
-
-  /**
-   * Represents the different states that occurs while loading the sound.
-   * @type {LoadState}
-   * @private
-   */
-  _loadState = LoadState.NotLoaded;
 
   /**
    * Web API's audio context.
@@ -153,53 +89,11 @@ class BaseBuzz {
   _emitter = null;
 
   /**
-   * Action queue to store the actions invoked by user when the sound is in loading state.
-   * @type {ActionQueue}
-   * @protected
-   */
-  _actionQueue = null;
-
-  /**
    * Duration of the sound in seconds.
    * @type {number}
    * @protected
    */
   _duration = 0;
-
-  /**
-   * The sound start position.
-   * @type {number}
-   * @protected
-   */
-  _startPos = 0;
-
-  /**
-   * The sound end position.
-   * @type {number}
-   * @protected
-   */
-  _endPos = 0;
-
-  /**
-   * The current position of the playback.
-   * @type {number}
-   * @protected
-   */
-  _currentPos = 0;
-
-  /**
-   * The position of the playback during rate change.
-   * @type {number}
-   * @protected
-   */
-  _rateSeek = 0;
-
-  /**
-   * Represents the timer that is used to reset the variables once the playback is ended.
-   * @type {number|null}
-   * @protected
-   */
-  _endTimer = null;
 
   /**
    * True if using Web Audio API to play sounds.
@@ -211,16 +105,12 @@ class BaseBuzz {
   /**
    * @param {string|object} args The input parameters of the sound.
    * @param {string=} args.id The unique id of the sound.
-   * @param {string|string[]=} args.src The array of audio urls.
-   * @param {string} args.format The file format of the passed audio source.
-   * @param {object=} args.sprite The sprite definition.
+   * @param {*} args.src The source of the sound.
    * @param {number} [args.volume = 1.0] The initial volume of the sound.
    * @param {number} [args.rate = 1] The initial playback rate of the sound.
    * @param {boolean} [args.muted = false] True to be muted initially.
    * @param {boolean} [args.loop = false] True to play the sound repeatedly.
-   * @param {boolean} [args.preload = false] True to pre-load the sound after construction.
    * @param {boolean} [args.autoplay = false] True to play automatically after construction.
-   * @param {function=} args.onload Event-handler for the "load" event.
    * @param {function=} args.onerror Event-handler for the "error" event.
    * @param {function=} args.onplaystart Event-handler for the "playstart" event.
    * @param {function=} args.onplayend Event-handler for the "playend" event.
@@ -234,29 +124,17 @@ class BaseBuzz {
    * @constructor
    */
   constructor(args) {
-    let options = typeof args === 'string' || Array.isArray(args) ? { src: args } : args || {};
 
-    // If the user hasn't passed any source throw error.
-    if (!options.src || (Array.isArray(options.src) && options.src.length === 0)) {
-      throw new Error('You should pass the source for the audio.');
-    }
+    const options = this._validate(args);
 
-    // Instantiate the event emitter and action queue.
-    this._emitter = new EventEmitter('load,error,playstart,playend,stop,pause,mute,volume');
-    this._actionQueue = new ActionQueue();
+    this._instantiate();
 
-    // Set all the properties of the sound from the passed options
     this._id = typeof options.id === 'string' ? options.id : Math.round(Date.now() * Math.random()).toString();
-    this._src = Array.isArray(options.src) ? options.src : [options.src];
-    typeof options.format === 'string' && (this._format = options.format);
-    typeof options.sprite === 'object' && (this._sprite = options.sprite);
+    this._src = options.src;
     typeof options.volume === 'number' && options.volume >= 0 && options.volume <= 1.0 && (this._volume = options.volume);
-    typeof options.rate === 'number' && options.rate > 0 && options.rate <= 5 && (this._rate = options.rate);
     typeof options.muted === 'boolean' && (this._muted = options.muted);
     typeof options.loop === 'boolean' && (this._loop = options.loop);
-    typeof options.preload === 'boolean' && (this._preload = options.preload);
     typeof options.autoplay === 'boolean' && (this._autoplay = options.autoplay);
-    typeof options.onload === 'function' && this.on('load', options.onload);
     typeof options.onerror === 'function' && this.on('error', options.onerror);
     typeof options.onplaystart === 'function' && this.on('playstart', options.onplaystart);
     typeof options.onplayend === 'function' && this.on('playend', options.onplayend);
@@ -268,7 +146,10 @@ class BaseBuzz {
     typeof options.onrate === 'function' && this.on('rate', options.onrate);
     typeof options.ondestroy === 'function' && this.on('destroy', options.ondestroy);
 
-    // Run the setup for the audio engine
+    // Read other options if there are any required by the derived type.
+    this._read(options);
+
+    // Setup the audio engine
     buzzer.setup();
 
     // If no audio is available throw error.
@@ -286,179 +167,59 @@ class BaseBuzz {
       this._context = buzzer.context();
     }
 
+    // Play the sound if the autoplay is passed as true.
     if (this._autoplay) {
       this.play();
       return this;
     }
-
-    if (this._preload) {
-      this.load();
-    }
   }
 
   /**
-   * Loads the sound.
-   * @returns {BaseBuzz}
-   */
-  load() {
-
-    // If the sound is already loaded return without reloading again.
-    if (this.isLoaded()) {
-      return this;
-    }
-
-    // Set the state to "Loading" to avoid loading the sound multiple times.
-    this._loadState = LoadState.Loading;
-
-    // If the user has passed "format" check if it is supported or else retrieve the supported source from the array.
-    const src = this._format && codecAid.isFormatSupported(this._format) ? this._src[0] : codecAid.getSupportedSource(this._src);
-
-    // If no compatible format found clear the queue and throw error.
-    if (!src) {
-      this._actionQueue.clear();
-      this._loadState = LoadState.NotLoaded;
-      this._fire('error', { type: ErrorType.LoadError, error: 'The audio formats you passed are not supported' });
-      return this;
-    }
-
-    // Store the compatible source
-    this._compatibleSrc = src;
-
-    // Load the sound and store the result
-    this._load().then(downloadResult => {
-      if (downloadResult.status === DownloadStatus.Success) {
-        this._createGainNode();
-        this._save(downloadResult);
-        this._loadState = LoadState.Loaded;
-        this._fire('load', downloadResult);
-        this._actionQueue.run();
-        return;
-      }
-
-      this._actionQueue.clear();
-      this._fire('error', { type: ErrorType.LoadError, error: downloadResult.error });
-    });
-
-    return this;
-  }
-
-  /**
-   * Should be implemented by the derived classes.
+   * Validate the passed arguments and return the constructed options object.
+   * @param {*} args The arguments passed to the sound
    * @protected
    */
-  _load() {
-    throw new Error('Should be implemented by the derived class');
+  _validate(args) { // eslint-disable-line no-unused-vars
+    throw new Error('Should be implemented by the derived type');
   }
 
   /**
-   * Create the gain node if the derived type supports it.
+   * Instantiate the dependencies.
    * @protected
    */
-  _createGainNode() {
-    throw new Error('Should be implemented by the derived class');
+  _instantiate() {
+    return;
   }
 
   /**
-   * Should be implemented by the derived classes.
-   * @param {DownloadResult} downloadResult The audio download result
+   * Read other options required by the derived type.
+   * @param {object} options The options object
    * @protected
    */
-  _save(downloadResult) { // eslint-disable-line no-unused-vars
-    throw new Error('Should be implemented by the derived class');
+  _read(options) { // eslint-disable-line no-unused-vars
+    return;
   }
 
   /**
    * Plays the sound from start or resume it from the paused state.
-   * @param {string=} sound The sound name defined in the sprite
-   * @returns {BaseBuzz}
-   */
-  play(sound) {
-    return this._play(sound);
-  }
-
-  /**
-   * Plays the sound from start or resume it from the paused state.
-   * @param {string|null=} sound The sound name defined in the sprite
-   * @param {boolean} [fireEvent = true] True to fire event
    * @return {BaseBuzz}
-   * @private
    */
-  _play(sound, fireEvent = true) {
-
-    // If the sound is already playing return immediately.
+  play() {
     if (this.isPlaying()) {
       return this;
     }
 
-    // If the sound is not yet loaded push an action to the queue to play the sound once it's loaded.
-    if (!this.isLoaded()) {
-      this._actionQueue.add('play', () => this._play(sound, fireEvent));
-      this.load();
-      return this;
-    }
-
-    const prevSound = this._spriteSound;
-    if (sound && this._sprite && this._sprite[sound]) {
-      this._spriteSound = sound;
-    } else {
-      this._spriteSound = null;
-    }
-
-    // If the sound is not paused and the passed sound name is different
-    // from the last one then start the playback from the start position.
-    if (!this.isPaused() && this._spriteSound !== prevSound) {
-      this._currentPos = 0;
-    }
-
-    // Store the sound start and end positions.
-    if (this._spriteSound) {
-      const soundTimeVars = this._sprite[this._spriteSound];
-      this._startPos = soundTimeVars[0];
-      this._endPos = soundTimeVars[1];
-    } else {
-      this._startPos = 0;
-      this._endPos = this._duration;
-    }
-
-    let [, , timeout] = this._getTimeVars();
-    buzzer._link(this);
-
-    this._playNode();
-
-    this._endTimer = setTimeout(this._onEnded, timeout);
-    this._state = BuzzState.Playing;
-
-    fireEvent && this._fire('play');
+    this._play();
 
     return this;
   }
 
   /**
-   * Returns the seek, duration and timeout for the playback.
-   * @return {[number, number, number]}
+   * Play the sound using the underlying mechanism.
+   * @param {boolean} fireEvent True to fire play events.
    * @protected
    */
-  _getTimeVars() {
-    let seek = Math.max(0, this._currentPos > 0 ? this._currentPos : this._startPos),
-      duration = this._endPos - this._startPos,
-      timeout = (duration * 1000) / this._rate;
-
-    return [seek, duration, timeout];
-  }
-
-  /**
-   * Plays the sound using the underlying audio node.
-   * @protected
-   */
-  _playNode() {
-    throw new Error('Should be implemented by the derived class');
-  }
-
-  /**
-   * Called after the playback ends.
-   * @protected
-   */
-  _onEnded() {
+  _play(fireEvent = true) { // eslint-disable-line no-unused-vars
     throw new Error('Should be implemented by the derived class');
   }
 
@@ -467,45 +228,21 @@ class BaseBuzz {
    * @returns {BaseBuzz}
    */
   pause() {
-    return this._pause();
-  }
-
-  /**
-   * Pause the playing sound and fire event.
-   * @param {boolean=} [fireEvent = true] True to fire event
-   * @return {BaseBuzz}
-   * @protected
-   */
-  _pause(fireEvent = true) {
-
-    // Remove the "play" action from queue if there is one.
-    this._actionQueue.remove('play');
-
-    // We can pause the sound only if it is "playing" state.
-    if (!this.isPlaying()) {
+    if (this.isPaused()) {
       return this;
     }
 
-    // Save the current position and reset rateSeek.
-    this._currentPos = this.seek();
-    this._rateSeek = 0;
-
-    buzzer._unlink(this);
-    this._clearEndTimer();
-    this._pauseNode();
-
-    this._state = BuzzState.Paused;
-
-    fireEvent && this._fire('pause');
+    this._pause();
 
     return this;
   }
 
   /**
-   * Should be implemented by the derived classes.
+   * Pause the sound.
+   * @param {boolean} fireEvent True to fire events.
    * @protected
    */
-  _pauseNode() {
+  _pause(fireEvent = true) { // eslint-disable-line no-unused-vars
     throw new Error('Should be implemented by the derived class');
   }
 
@@ -514,60 +251,26 @@ class BaseBuzz {
    * @returns {BaseBuzz}
    */
   stop() {
-    return this._stop();
-  }
-
-  /**
-   * Stop the sound and fire event.
-   * @param {boolean=} [fireEvent = true] True to fire event
-   * @return {BaseBuzz}
-   * @protected
-   */
-  _stop(fireEvent = true) {
-    // Remove the "play" action from the queue if there is one.
-    this._actionQueue.remove('play');
-
-    // We can stop the sound either if it "playing" or in "paused" state.
     if (!this.isPlaying() && !this.isPaused()) {
       return this;
     }
 
-    // Reset the variables
-    this._currentPos = 0;
-    this._rateSeek = 0;
-
-    buzzer._unlink(this);
-    this._clearEndTimer();
-    this._stopNode();
-
-    this._state = BuzzState.Idle;
-
-    fireEvent && this._fire('stop');
+    this._stop();
 
     return this;
   }
 
   /**
-   * Should be implemented by the derived classes.
+   * Stop the sound.
+   * @param {boolean} fireEvent True to fire events.
    * @protected
    */
-  _stopNode() {
+  _stop(fireEvent = true) { // eslint-disable-line no-unused-vars
     throw new Error('Should be implemented by the derived class');
   }
 
   /**
-   * Clears the play end timer.
-   * @protected
-   */
-  _clearEndTimer() {
-    if (this._endTimer) {
-      clearTimeout(this._endTimer);
-      this._endTimer = null;
-    }
-  }
-
-  /**
-   * Mute the sound.
+   * Mutes the sound.
    * @returns {BaseBuzz}
    */
   mute() {
@@ -575,8 +278,12 @@ class BaseBuzz {
       return this;
     }
 
-    this._gainNode && (this._gainNode.gain.value = 0);
-    this._muteNode();
+    if (this._gainNode) {
+      this._gainNode.gain.value = 0;
+    } else {
+      this._muteNode();
+    }
+
     this._muted = true;
     this._fire('mute', this._muted);
 
@@ -585,7 +292,7 @@ class BaseBuzz {
 
   /**
    * Should be implemented by the derived classes if required.
-   * @private
+   * @protected
    */
   _muteNode() {
     throw new Error('Should be implemented by the derived class');
@@ -600,7 +307,12 @@ class BaseBuzz {
       return this;
     }
 
-    this._gainNode && (this._gainNode.gain.value = this._volume);
+    if (this._gainNode) {
+      this._gainNode.gain.value = this._volume;
+    } else {
+      this._unMuteNode();
+    }
+
     this._unMuteNode();
     this._muted = false;
     this._fire('mute', this._muted);
@@ -610,7 +322,7 @@ class BaseBuzz {
 
   /**
    * Should be implemented by the derived classes if required.
-   * @private
+   * @protected
    */
   _unMuteNode() {
     throw new Error('Should be implemented by the derived class');
@@ -644,7 +356,7 @@ class BaseBuzz {
   /**
    * Set the volume to the underlying node that controls the volume.
    * @param {number} vol Volume
-   * @private
+   * @protected
    */
   _setVolume(vol) { // eslint-disable-line no-unused-vars
     throw new Error('Should be implemented by the derived class');
@@ -665,22 +377,14 @@ class BaseBuzz {
     }
 
     this._rate = rate;
-    this._rateSeek = this.seek();
+    this._setRate(rate);
 
-    if (this.isPlaying()) {
-      this._setRate(rate);
-      this._clearEndTimer();
-      let [, duration] = this._getTimeVars();
-      this._endTimer = setTimeout(this._onEnded, (duration * 1000) / Math.abs(rate));
-    }
-
-    this._fire('rate', this._rate);
     return this;
   }
 
   /**
    * Set the playbackrate for the underlying node that plays the sound.
-   * @param {number=} rate The playback rate
+   * @param {number} rate The playback rate
    * @protected
    */
   _setRate(rate) { // eslint-disable-line no-unused-vars
@@ -715,31 +419,7 @@ class BaseBuzz {
    * @protected
    */
   _setSeek(seek) {
-    if (typeof seek !== 'number' || seek < 0) {
-      return this;
-    }
-
-    if (!this.isLoaded()) {
-      this._actionQueue.add('seek', () => this.seek(seek));
-      this._load();
-      return this;
-    }
-
-    if (seek > this._duration) {
-      return this;
-    }
-
-    const isPlaying = this.isPlaying();
-
-    if (isPlaying) {
-      this._pause(false);
-    }
-
-    this._currentPos = seek;
-    this._play(null, false);
-    this._fire('seek', seek);
-
-    return this;
+    throw new Error('Should be implemented by the derived class');
   }
 
   /**
@@ -762,6 +442,41 @@ class BaseBuzz {
    * @protected
    */
   _setLoop() {
+    return;
+  }
+
+  /**
+   * Destroys the buzz.
+   * @return {BaseBuzz}
+   */
+  destroy() {
+    if (this._state === BuzzState.Destroyed) {
+      return this;
+    }
+
+    this.stop();
+    buzzer.remove(this);
+
+    this._context = null;
+    this._gainNode = null;
+
+    this._destroy();
+
+    this._state = BuzzState.Destroyed;
+
+    this._fire('destroy');
+
+    this._emitter.clear();
+    this._emitter = null;
+
+    return this;
+  }
+
+  /**
+   * Should be implemented by the derived class if required.
+   * @protected
+   */
+  _destroy() {
     return;
   }
 
@@ -790,30 +505,11 @@ class BaseBuzz {
   }
 
   /**
-   * Returns true if the sound is loaded.
-   * @return {boolean}
-   */
-  isLoaded() {
-    return this._loadState === LoadState.Loaded;
-  }
-
-  /**
    * Returns the total duration of the sound or for the passed sound that's defined in the sprite.
-   * @param {string=} sound The sound name defined in the sprite.
    * @return {number}
    */
-  duration(sound) {
-    if (typeof sound === 'undefined') {
-      return this._duration;
-    }
-
-    const times = this._sprite[sound];
-
-    if (!times) {
-      return 0;
-    }
-
-    return times[1] - times[0];
+  duration() {
+    return this._duration;
   }
 
   /**
@@ -874,49 +570,6 @@ class BaseBuzz {
     this._emitter.fire(event, ...args, this);
     return this;
   }
-
-  // TODO: Need to implement this
-  unload() {
-    throw new Error('Not implemented');
-  }
-
-  /**
-   * Destroys the buzz.
-   * @return {BaseBuzz}
-   */
-  destroy() {
-    if (this._state === BuzzState.Destroyed) {
-      return this;
-    }
-
-    this.stop();
-    buzzer.remove(this);
-
-    this._context = null;
-    this._gainNode = null;
-
-    this._actionQueue.clear();
-    this._actionQueue = null;
-
-    this._destroy();
-
-    this._state = BuzzState.Destroyed;
-
-    this._fire('destroy');
-
-    this._emitter.clear();
-    this._emitter = null;
-
-    return this;
-  }
-
-  /**
-   * Should be implemented by the derived class if required.
-   * @protected
-   */
-  _destroy() {
-    return;
-  }
 }
 
-export { BaseBuzz as default, BuzzState, ErrorType };
+export { BaseBuzz as default, BuzzState };

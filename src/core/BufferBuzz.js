@@ -1,11 +1,11 @@
-import BaseBuzz, { BuzzState } from './BaseBuzz';
+import BaseResourceBuzz, { BuzzState } from './BaseResourceBuzz';
 import buzzer from './Buzzer';
 
 /**
  * Employs Web Audio's AudioBufferSourceNode for playing sounds.
  * @class
  */
-class BufferBuzz extends BaseBuzz {
+class BufferBuzz extends BaseResourceBuzz {
 
   /**
    * The audio buffer.
@@ -24,9 +24,27 @@ class BufferBuzz extends BaseBuzz {
   /**
    * The time at which the playback started.
    * @type {number}
-   * @protected
+   * @private
    */
   _startTime = 0;
+
+  /**
+   * Validate if the passed source is a string or array of string.
+   * @param {object} args The arguments passed to the sound
+   * @return {object}
+   * @private
+   */
+  _validate(args) {
+
+    let options = typeof args === 'string' || Array.isArray(args) ? { src: args } : args || {};
+
+    // If the user hasn't passed any source throw error.
+    if (!options.src || (Array.isArray(options.src) && options.src.length === 0)) {
+      throw new Error('You should pass the source for the audio.');
+    }
+
+    return options;
+  }
 
   /**
    * Download the audio file and loads into an audio buffer.
@@ -39,7 +57,7 @@ class BufferBuzz extends BaseBuzz {
 
   /**
    * Create the gain node and set it's gain value.
-   * @protected
+   * @private
    */
   _createGainNode() {
     this._gainNode = this._context.createGain();
@@ -186,10 +204,10 @@ class BufferBuzz extends BaseBuzz {
 
   /**
    * Sets the playbackrate for the buffer source node.
-   * @param {number=} rate The playback rate
+   * @param {number} rate The playback rate
    * @private
    */
-  _setRate(rate) {
+  _setNodeRate(rate) {
     this._startTime = this._context.currentTime;
     this._bufferSourceNode && (this._bufferSourceNode.playbackRate.value = rate);
   }
@@ -225,9 +243,9 @@ class BufferBuzz extends BaseBuzz {
    * Null the buffer.
    * @private
    */
-  _destroy() {
+  _destroyInternals() {
     this._buffer = null;
   }
 }
 
-export { BufferBuzz as default };
+export { BufferBuzz as default, BuzzState };

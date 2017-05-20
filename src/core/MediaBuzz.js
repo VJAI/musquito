@@ -1,4 +1,4 @@
-import BaseBuzz, { BuzzState } from './BaseBuzz';
+import BaseResourceBuzz, { BuzzState } from './BaseResourceBuzz';
 import buzzer from './Buzzer';
 import ErrorType from '../util/ErrorType';
 
@@ -6,7 +6,7 @@ import ErrorType from '../util/ErrorType';
  * Employs the native HTML5 audio element for playing sounds.
  * @class
  */
-class MediaBuzz extends BaseBuzz {
+class MediaBuzz extends BaseResourceBuzz {
 
   /**
    * The HTML5 Audio element.
@@ -23,6 +23,24 @@ class MediaBuzz extends BaseBuzz {
   _mediaElementAudioSourceNode = null;
 
   /**
+   * Validate if the passed source is a string or array of string.
+   * @param {object} args The arguments passed to the sound
+   * @return {object}
+   * @private
+   */
+  _validate(args) {
+
+    let options = typeof args === 'string' || Array.isArray(args) ? { src: args } : args || {};
+
+    // If the user hasn't passed any source throw error.
+    if (!options.src || (Array.isArray(options.src) && options.src.length === 0)) {
+      throw new Error('You should pass the source for the audio.');
+    }
+
+    return options;
+  }
+
+  /**
    * Loads the audio node.
    * @return {Promise<DownloadResult>}
    * @private
@@ -33,7 +51,7 @@ class MediaBuzz extends BaseBuzz {
 
   /**
    * Create the gain node and set it's gain value.
-   * @protected
+   * @private
    */
   _createGainNode() {
     if (this._webAudio) {
@@ -90,7 +108,6 @@ class MediaBuzz extends BaseBuzz {
       return;
     }
 
-    this._removeCanPlayEventHandler();
     this._audio.removeEventListener('error', this._onAudioError());
   }
 
@@ -113,7 +130,7 @@ class MediaBuzz extends BaseBuzz {
    * Pause the audio element.
    * @private
    */
-  _handlePause() {
+  _pauseNode() {
     if (this._audio) {
       this._audio.pause();
     }
@@ -123,7 +140,7 @@ class MediaBuzz extends BaseBuzz {
    * Pause the audio element and resets it's position to 0.
    * @private
    */
-  _handleStop() {
+  _stopNode() {
     if (this._audio) {
       this._audio.pause();
       this._audio.currentTime = this._startPos || 0;
@@ -163,10 +180,10 @@ class MediaBuzz extends BaseBuzz {
 
   /**
    * Set the playbackrate for the audio node.
-   * @param {number=} rate The playback rate
+   * @param {number} rate The playback rate
    * @private
    */
-  _setRate(rate) {
+  _setNodeRate(rate) {
     if (this._audio) {
       this._audio.playbackRate.value = rate;
     }
@@ -182,22 +199,14 @@ class MediaBuzz extends BaseBuzz {
   }
 
   /**
-   * Stops the playing audio element.
-   * @private
-   */
-  _stopNode() {
-    this._audio && this._audio.pause();
-  }
-
-  /**
    * Relinquish the allocated audio node and clears other objects.
    * @private
    */
-  _destroy() {
+  _destroyInternals() {
     buzzer.unloadMedia(this._compatibleSrc, this._id);
     this._audio = null;
     this._mediaElementAudioSourceNode = null;
   }
 }
 
-export { MediaBuzz as default };
+export { MediaBuzz as default, BuzzState };
