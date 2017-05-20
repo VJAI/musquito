@@ -28,7 +28,7 @@ class BaseBuzz {
   /**
    * Represents the source of the sound.
    * @type {*}
-   * @private
+   * @protected
    */
   _src = null;
 
