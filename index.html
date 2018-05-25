@@ -1,0 +1,71 @@
+<html>
+<head>
+  <title>musquito test drive</title>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      font-family: 'Trebuchet MS', serif;
+      font-size: 12px;
+      color: #f4f409;
+      background-color: #191918;
+      padding: 10px;
+    }
+
+    .heading {
+      text-align: center;
+    }
+
+    .playground .top {
+      display: flex;
+      margin-bottom: 10px;
+      align-items: center;
+    }
+
+    .playground .top h2 {
+      flex: 1;
+    }
+
+    .playground .top .buttons {
+      width: auto;
+    }
+
+    .playground .top .buttons button {
+      margin-left: 5px;
+      padding: 10px 15px;
+      background-color: #fff;
+    }
+
+    .playground textarea {
+      display: block;
+      width: 100%;
+      height: auto;
+      margin-top: 10px;
+      min-height: 500px;
+      font-family: 'Courier New', serif;
+      font-size: 1.2rem;
+      background-color: #f7f7f2;
+      border-color: #aaa;
+      border-style: dashed;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+<header>
+  <h1 class="heading"><i>musquito</i> test drive</h1>
+</header>
+
+<main>
+  <section class="playground">
+    <div class="top">
+      <h2>Code Playground</h2>
+      <div class="buttons">
+        <button id="run">Run</button>
+        <button id="clear">Clear</button>
+      </div>
+    </div>
+    <textarea id="code"></textarea>
+  </section>
+</main>
+</body>
+</html>
