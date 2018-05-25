@@ -784,4 +784,4 @@ const $buzz = args => new Buzz(args);
   };
 });
 
-export default $buzz;
+module.exports = $buzz;

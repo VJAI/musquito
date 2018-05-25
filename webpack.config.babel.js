@@ -11,7 +11,7 @@ export default {
   output: {
     path: './dist',
     filename: optimizeMinimize ? `musquito-${version}.min.js` : `musquito-${version}.js`,
-    library: 'musquito',
+    library: '$buzz',
     libraryTarget: 'umd'
   },
   module: {

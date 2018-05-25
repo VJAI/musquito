@@ -51,8 +51,6 @@ buzz.play();
 ### Classic JavaScript
 
 ```js
-var $buzz = musquito.$buzz;
-
 var buzz = $buzz('gunfire.mp3');
 
 buzz.play();
