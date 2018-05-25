@@ -22,8 +22,7 @@
   "homepage": "https://github.com/VJAI/musquito#readme",
   "scripts": {
     "start": "opener http://localhost:8080/index.html && webpack-dev-server --config webpack.dev.config.babel.js",
-    "build": "webpack && webpack -p",
-    "test": "karma start"
+    "build": "webpack && webpack -p"
   },
   "devDependencies": {
     "babel-cli": "^6.22.2",
@@ -39,15 +38,6 @@
     "eslint-loader": "^1.6.1",
     "html-webpack-banner-plugin": "^1.0.0",
     "html-webpack-plugin": "^2.28.0",
-    "jasmine": "^2.5.3",
-    "karma": "^1.4.1",
-    "karma-chrome-launcher": "^2.0.0",
-    "karma-coverage": "^1.1.1",
-    "karma-jasmine": "^1.1.0",
-    "karma-jasmine-ajax": "^0.1.13",
-    "karma-mocha-reporter": "^2.2.2",
-    "karma-sourcemap-loader": "^0.3.7",
-    "karma-webpack": "^2.0.2",
     "opener": "^1.4.2",
     "raw-loader": "^0.5.1",
     "webpack": "^2.2.1",
