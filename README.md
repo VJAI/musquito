@@ -139,7 +139,7 @@ If you need to pass additional information like initial volume, playback speed t
 | Method | Returns | Description |
 |--------|:-------:|-------------|
 | load() | Buzz | Loads the audio buffer. |
-| play(soundOrId?: string, number) | Buzz | Plays the passed sound defined in the sprite or the sound that belongs to the passed id. |
+| play(soundOrId?: string, number) | Buzz | Plays a new sound or the passed sound defined in the sprite or the sound that belongs to the passed id. |
 | pause(id?: number) | Buzz | Pauses the sound belongs to the passed id or all the sounds belongs to this group. |
 | stop(id?: number) | Buzz | Stops the sound belongs to the passed id or all the sounds belongs to this group. |
 | mute(id?: number) | Buzz | Mutes the sound belongs to the passed id or all the sounds belongs to this group. |
