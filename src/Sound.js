@@ -333,8 +333,6 @@ class Sound {
    */
   volume(vol) {
     // If no input parameter is passed then return the volume.
-    // If gain node is available read and return the value from it (helps in returning accurate value during fading)
-    // or else delegate that to the derived type.
     if (typeof vol === 'undefined') {
       return this._volume;
     }
