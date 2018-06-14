@@ -28,6 +28,9 @@ const BuzzEvents = {
   Mute: 'mute',
   Seek: 'seek',
   Rate: 'rate',
+  FadeStart: 'fadestart',
+  FadeEnd: 'fadeend',
+  FadeStop: 'fadestop',
   Error: 'error',
   Destroy: 'destroy'
 };
@@ -50,70 +53,70 @@ class Buzz {
   /**
    * Unique id.
    * @type {number}
-   * @protected
+   * @private
    */
   _id = -1;
 
   /**
    * Represents the source of the sound. The source can be an url or base64 string.
    * @type {*}
-   * @protected
+   * @private
    */
   _src = null;
 
   /**
    * The formats of the passed audio sources.
    * @type {Array<string>}
-   * @protected
+   * @private
    */
   _format = [];
 
   /**
    * The sprite definition.
    * @type {object}
-   * @protected
+   * @private
    */
   _sprite = null;
 
   /**
    * The current volume of the sound. Should be from 0.0 to 1.0.
    * @type {number}
-   * @protected
+   * @private
    */
   _volume = 1.0;
 
   /**
    * The current rate of the playback. Should be from 0.5 to 5.
    * @type {number}
-   * @protected
+   * @private
    */
   _rate = 1;
 
   /**
    * True if the sound is currently muted.
    * @type {boolean}
-   * @protected
+   * @private
    */
   _muted = false;
 
   /**
    * True if the sound should play repeatedly.
    * @type {boolean}
-   * @protected
+   * @private
    */
   _loop = false;
 
   /**
    * True to pre-loaded the sound on construction.
    * @type {boolean}
-   * @protected
+   * @private
    */
   _preload = false;
 
   /**
    * True to auto-play the sound on construction.
    * @type {boolean}
-   * @protected
+   * @private
    */
   _autoplay = false;
 
@@ -127,21 +130,21 @@ class Buzz {
   /**
    * Duration of the playback in seconds.
    * @type {number}
-   * @protected
+   * @private
    */
   _duration = 0;
 
   /**
    * The best compatible source in the audio sources passed.
    * @type {string|null}
-   * @protected
+   * @private
    */
   _compatibleSrc = null;
 
   /**
    * Represents the different states that occurs while loading the sound.
    * @type {LoadState}
-   * @protected
+   * @private
    */
   _loadState = LoadState.NotLoaded;
 
@@ -165,6 +168,20 @@ class Buzz {
    * @private
    */
   _engine = null;
+
+  /**
+   * True if the group is currently fading.
+   * @type {boolean}
+   * @private
+   */
+  _fading = false;
+
+  /**
+   * The timer that runs function after the fading is complete.
+   * @type {number|null}
+   * @private
+   */
+  _fadeTimer = null;
 
   /**
    * Initializes the internal properties.
@@ -342,7 +359,7 @@ class Buzz {
   /**
    * Called on failure of loading audio source.
    * @param {*} error The audio source load error.
-   * @protected
+   * @private
    */
   _onLoadFailure(error) {
     // Remove the queued actions from this class that are supposed to run after load.
@@ -399,7 +416,8 @@ class Buzz {
           destroyCallback: sound => {
             this._fire(BuzzEvents.Destroy, sound.id());
             emitter.clear(sound.id());
-          }
+          },
+          fadeEndCallback: sound => this._fire(BuzzEvents.FadeEnd, sound.id())
         };
 
         if (typeof soundOrId === 'string' && this._sprite && this._sprite.hasOwnProperty(soundOrId)) {
@@ -432,6 +450,7 @@ class Buzz {
    */
   pause(id) {
     this._queue.remove('after-load', id ? `play-${id}` : null);
+    typeof id !== 'number' && this.fadeStop();
     this._sounds(id).forEach(sound => sound.pause());
     this._fire(BuzzEvents.Pause, id);
 
@@ -445,6 +464,7 @@ class Buzz {
    */
   stop(id) {
     this._queue.remove('after-load', id ? `play-${id}` : null);
+    typeof id !== 'number' && this.fadeStop();
     this._sounds(id).forEach(sound => sound.stop());
     this._fire(BuzzEvents.Stop, id);
 
@@ -457,8 +477,11 @@ class Buzz {
    * @return {Buzz}
    */
   mute(id) {
+    const isGroup = typeof id !== 'number';
+    isGroup && this.fadeStop();
     this._sounds(id).forEach(sound => sound.mute());
-    typeof id !== 'number' && (this._muted = true);
+    isGroup && (this._muted = true);
+
     this._fire(BuzzEvents.Mute, id, this._muted);
 
     return this;
@@ -470,8 +493,11 @@ class Buzz {
    * @return {Buzz}
    */
   unmute(id) {
+    const isGroup = typeof id !== 'number';
+    isGroup && this.fadeStop();
     this._sounds(id).forEach(sound => sound.unmute());
-    typeof id !== 'number' && (this._muted = false);
+    isGroup && (this._muted = false);
+
     this._fire(BuzzEvents.Mute, id, this._muted);
 
     return this;
@@ -484,19 +510,84 @@ class Buzz {
    * @return {Buzz|number}
    */
   volume(volume, id) {
+    const isGroup = typeof id !== 'number';
+
     if (typeof volume === 'number' && volume >= 0 && volume <= 1.0) {
+      isGroup && this.fadeStop();
       this._sounds(id).forEach(sound => sound.volume(volume));
       typeof id !== 'number' && (this._volume = volume);
       this._fire(BuzzEvents.Volume, id, this._volume);
       return this;
     }
 
-    if (typeof id === 'number') {
+    if (!isGroup) {
       const sound = this._engine.sound(id);
       return sound ? sound.volume() : null;
     }
 
     return this._volume;
+  }
+
+  /**
+   * Fades the group's or passed sound's volume to the passed value in the passed duration.
+   * @param {number} to The destination volume.
+   * @param {number} duration The period of fade in seconds.
+   * @param {string} [type = linear] The fade type (linear or exponential).
+   * @param {number} [id] The sound id.
+   * @return {Buzz}
+   */
+  fade(to, duration, type = 'linear', id) {
+    const isGroup = typeof id !== 'number';
+
+    if (isGroup && this._fading) {
+      return this;
+    }
+
+    this._fire(BuzzEvents.FadeStart, id);
+
+    this._sounds(id).forEach(sound => sound.fade(to, duration, type));
+
+    if (isGroup) {
+      this._fading = true;
+
+      this._fadeTimer = setTimeout(() => {
+        this.volume(to);
+
+        clearTimeout(this._fadeTimer);
+
+        this._fadeTimer = null;
+        this._fading = false;
+        this._fire(BuzzEvents.FadeEnd);
+      }, duration * 1000);
+    }
+  }
+
+  /**
+   * Stops the group's or passed sound's current running fade.
+   * @param {number} [id] The sound id.
+   * @return {Buzz}
+   */
+  fadeStop(id) {
+    const isGroup = typeof id !== 'number';
+
+    if (isGroup && !this._fading) {
+      return this;
+    }
+
+    this._sounds(id).forEach(sound => sound.fadeStop());
+
+    if (isGroup) {
+      if (this._fadeTimer) {
+        clearTimeout(this._fadeTimer);
+        this._fadeTimer = null;
+      }
+
+      this._fading = false;
+    }
+
+    this._fire(BuzzEvents.FadeStop, id);
+
+    return this;
   }
 
   /**

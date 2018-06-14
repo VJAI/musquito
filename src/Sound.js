@@ -146,6 +146,27 @@ class Sound {
   _destroyCallback = null;
 
   /**
+   * True if the sound is currently fading.
+   * @type {boolean}
+   * @private
+   */
+  _fading = false;
+
+  /**
+   * The timer that runs function after the fading is complete.
+   * @type {number|null}
+   * @private
+   */
+  _fadeTimer = null;
+
+  /**
+   * The callback that will be invoked after the fade is completed.
+   * @type {function}
+   * @private
+   */
+  _fadeEndCallback = null;
+
+  /**
    * Initializes the internal properties of the sound.
    * @param {object} args The input parameters of the sound.
    * @param {string} [args.id] The unique id of the sound.
@@ -158,6 +179,7 @@ class Sound {
    * @param {number} [args.endPos] The playback end position.
    * @param {function} [args.playEndCallback] The callback that will be invoked after the play ends.
    * @param {function} [args.destroyCallback] The callback that will be invoked after destroyed.
+   * @param {function} [args.fadeEndCallback] The callback that will be invoked the fade is completed.
    * @constructor
    */
   constructor(args) {
@@ -171,7 +193,8 @@ class Sound {
       startPos,
       endPos,
       playEndCallback,
-      destroyCallback
+      destroyCallback,
+      fadeEndCallback
     } = args;
 
     // Set the passed id or the random one.
@@ -190,6 +213,7 @@ class Sound {
     endPos && (this._endPos = endPos);
     this._playEndCallback = playEndCallback;
     this._destroyCallback = destroyCallback;
+    this._fadeEndCallback = fadeEndCallback;
 
     // Calculate the duration.
     this._duration = this._endPos - this._startPos;
@@ -266,6 +290,9 @@ class Sound {
       return this;
     }
 
+    // Stop the current running fade.
+    this.fadeStop();
+
     // Save the current position and reset rateSeek.
     this._currentPos = this.seek();
     this._rateSeek = 0;
@@ -287,6 +314,9 @@ class Sound {
       return this;
     }
 
+    // Stop the current running fade.
+    this.fadeStop();
+
     // Reset the variables
     this._currentPos = 0;
     this._rateSeek = 0;
@@ -303,6 +333,9 @@ class Sound {
    * @return {Sound}
    */
   mute() {
+    // Stop the current running fade.
+    this.fadeStop();
+
     // Set the value of gain node to 0.
     this._gainNode.gain.setValueAtTime(0, this._context.currentTime);
 
@@ -317,6 +350,9 @@ class Sound {
    * @return {Sound}
    */
   unmute() {
+    // Stop the current running fade.
+    this.fadeStop();
+
     // Reset the gain node's value back to volume.
     this._gainNode.gain.setValueAtTime(this._volume, this._context.currentTime);
 
@@ -337,11 +373,71 @@ class Sound {
       return this._volume;
     }
 
+    // Stop the current running fade.
+    this.fadeStop();
+
     // Set the gain's value to the passed volume.
     this._gainNode.gain.setValueAtTime(this._muted ? 0 : vol, this._context.currentTime);
 
     // Set the volume to the property.
     this._volume = vol;
+
+    return this;
+  }
+
+  /**
+   * Fades the sound volume to the passed value in the passed duration.
+   * @param {number} to The destination volume.
+   * @param {number} duration The period of fade.
+   * @param {string} [type = linear] The fade type (linear or exponential).
+   * @return {Sound}
+   */
+  fade(to, duration, type = 'linear') {
+    // If a fade is already running stop it.
+    if (this._fading) {
+      this.fadeStop();
+    }
+
+    this._fading = true;
+
+    if (type === 'linear') {
+      this._gainNode.gain.linearRampToValueAtTime(to, this._context.currentTime + duration);
+    } else {
+      this._gainNode.gain.exponentialRampToValueAtTime(to, this._context.currentTime + duration);
+    }
+
+    this._fadeTimer = setTimeout(() => {
+      this.volume(to);
+
+      clearTimeout(this._fadeTimer);
+
+      this._fadeTimer = null;
+      this._fading = false;
+
+      this._fadeEndCallback && this._fadeEndCallback(this);
+    }, duration * 1000);
+
+    return this;
+  }
+
+  /**
+   * Stops the current running fade.
+   * @return {Sound}
+   */
+  fadeStop() {
+    if (!this._fading) {
+      return this;
+    }
+
+    this._gainNode.gain.cancelScheduledValues(this._context.currentTime);
+
+    if (this._fadeTimer) {
+      clearTimeout(this._fadeTimer);
+      this._fadeTimer = null;
+    }
+
+    this._fading = false;
+    this.volume(this._gainNode.gain.value);
 
     return this;
   }
@@ -542,4 +638,4 @@ class Sound {
   }
 }
 
-export { Sound as default, SoundState };
+export {Sound as default, SoundState};

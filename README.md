@@ -8,6 +8,7 @@ Below are some of the core features supported by the library.
 - Simple API to create and play sounds
 - Supports variety of codecs
 - Supports audio sprites
+- Fading
 - Caching
 
 ## Browser Support
@@ -94,6 +95,20 @@ buzz.play('gun');
 buzz.play('bomb');
 ```
 
+## Fading Sounds
+
+You can fade the volume of a playing sound linearly or exponentially as shown below.
+
+```js
+const buzz = $buzz({
+  src: 'bg.mp3'
+});
+
+buzz.play();
+...
+
+buzz.fade(0, 3);
+```
 
 ## API
 
@@ -148,6 +163,8 @@ If you need to pass additional information like initial volume, playback speed t
 | rate(rate?: number, id?: number) | Buzz, number | Gets/sets the rate of the passed sound or the group. The passed value should be from `0.5` to `5.0`. |
 | seek(id: number, seek?: number) | Buzz, number | Gets/sets the current playback position of the sound. |
 | loop(loop?: boolean, id?: number) | Buzz, boolean | Gets/sets the looping behavior of a sound or the group. |
+| fade(to: number, duration: number, type = 'linear', id?: number) | Buzz | Fades the volume of a playing sound or all sounds belongs to the group. |
+| fadeStop(id?: number) | Buzz | Stops the current running fade of the passed sound or all sounds belongs to the group. |
 | playing(id: number) | boolean | Returns true if the passed sound is playing. |
 | muted(id?: number) | boolean | Returns true if the passed sound is muted or the group is muted. |
 | state(id?: number) | BuzzState, SoundState | Returns the state of the passed sound or the group. |
