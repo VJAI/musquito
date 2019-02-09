@@ -2,6 +2,7 @@ import HtmlWebpackPlugin from 'html-webpack-plugin';
 import { HotModuleReplacementPlugin } from 'webpack';
 
 export default {
+  mode: 'development',
   entry: { app: './dev.js' },
   module: {
     rules: [
