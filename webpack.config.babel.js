@@ -7,23 +7,21 @@ const nodeEnv = optimizeMinimize ? 'production' : 'development';
 const version = pkg.version;
 
 export default {
+  mode: 'production',
   entry: { app: './src/Buzz.js' },
   output: {
-    path: './dist',
+    path: __dirname + '/dist',
     filename: optimizeMinimize ? `musquito-${version}.min.js` : `musquito-${version}.js`,
     library: '$buzz',
     libraryTarget: 'umd'
   },
   module: {
-    loaders: [
+    rules: [
       { test: /\.js$/, exclude: /node_modules/, loader: 'eslint-loader', enforce: 'pre' },
       { test: /\.js$/, exclude: /node_modules/, loader: 'babel-loader' }
     ]
   },
   plugins: [
-    new webpack.DefinePlugin({
-      'process.env': { NODE_ENV: JSON.stringify(nodeEnv) }
-    }),
     new webpack.BannerPlugin({
       banner:
 `/*!

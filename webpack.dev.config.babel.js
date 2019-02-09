@@ -4,7 +4,7 @@ import { HotModuleReplacementPlugin } from 'webpack';
 export default {
   entry: { app: './dev.js' },
   module: {
-    loaders: [
+    rules: [
       { test: /\.js$/, exclude: /node_modules/, loader: 'eslint-loader', enforce: 'pre' },
       { test: /\.js$/, exclude: /node_modules/, loader: 'babel-loader' }
     ]
