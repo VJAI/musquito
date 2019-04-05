@@ -842,6 +842,7 @@ class Buzz {
   _fire(eventName, id, ...args) {
     if (id) {
       emitter.fire(id, eventName, ...args, this.sound(id), this);
+      emitter.fire(this._id, eventName, ...args, this.sound(id), this);
     } else {
       emitter.fire(this._id, eventName, ...args, this);
     }
