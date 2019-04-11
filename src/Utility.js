@@ -25,13 +25,6 @@ class Utility {
   _formats = {};
 
   /**
-   * Is audio already enabled or not.
-   * @type {boolean}
-   * @private
-   */
-  _isAudioEnabled = false;
-
-  /**
    * @constructor
    */
   constructor() {
@@ -59,11 +52,11 @@ class Utility {
       aac: Boolean(audio.canPlayType('audio/aac;').replace(/^no$/, '')),
       caf: Boolean(audio.canPlayType('audio/x-caf;').replace(/^no$/, '')),
       m4a: Boolean((audio.canPlayType('audio/x-m4a;') ||
-      audio.canPlayType('audio/m4a;') ||
-      audio.canPlayType('audio/aac;')).replace(/^no$/, '')),
+        audio.canPlayType('audio/m4a;') ||
+        audio.canPlayType('audio/aac;')).replace(/^no$/, '')),
       mp4: Boolean((audio.canPlayType('audio/x-mp4;') ||
-      audio.canPlayType('audio/mp4;') ||
-      audio.canPlayType('audio/aac;')).replace(/^no$/, '')),
+        audio.canPlayType('audio/mp4;') ||
+        audio.canPlayType('audio/aac;')).replace(/^no$/, '')),
       weba: Boolean(audio.canPlayType('audio/webm; codecs="vorbis"').replace(/^no$/, '')),
       webm: Boolean(audio.canPlayType('audio/webm; codecs="vorbis"').replace(/^no$/, '')),
       dolby: Boolean(audio.canPlayType('audio/mp4; codecs="ec-3"').replace(/^no$/, '')),
@@ -156,36 +149,27 @@ class Utility {
   }
 
   /**
-   * Enables playing audio on first touch.
+   * Enables playing audio on first user interaction.
    * @param {AudioContext} context Web API audio context.
+   * @param {Function} cb The callback.
    */
-  enableAudio(context) {
-    if (!this._isMobile() && !this._isTouch() || this._isAudioEnabled) {
+  enableAudio(context, cb) {
+    if (context.state === 'running') {
       return;
     }
 
-    const unlock = () => {
-      let bufferSource = context.createBufferSource();
-      bufferSource.buffer = context.createBuffer(1, 1, 22050);
-      bufferSource.connect(context.destination);
+    // https://developers.google.com/web/updates/2018/11/web-audio-autoplay#moving-forward
+    const userInputEventNames = [
+      'click', 'contextmenu', 'auxclick', 'dblclick', 'mousedown',
+      'mouseup', 'pointerup', 'touchend', 'keydown', 'keyup'
+    ];
 
-      const cleanUp = () => {
-        document.removeEventListener('touchend', unlock);
-        bufferSource.disconnect();
-        bufferSource.removeEventListener('ended', cleanUp);
-        bufferSource = null;
-      };
-
-      bufferSource.addEventListener('ended', cleanUp);
-
-      if (typeof bufferSource.start === 'undefined') {
-        bufferSource.noteOn(0);
-      } else {
-        bufferSource.start(0);
-      }
+    const resumeContext = () => {
+      context.resume().then(cb);
+      userInputEventNames.forEach(eventName => document.addEventListener(eventName, resumeContext));
     };
 
-    document.addEventListener('touchend', unlock);
+    userInputEventNames.forEach(eventName => document.addEventListener(eventName, resumeContext));
   }
 
   /**
@@ -208,8 +192,8 @@ class Utility {
    */
   _isTouch() {
     return typeof window !== 'undefined' && (Boolean(('ontouchend' in window) ||
-        (this._navigator && this._navigator.maxTouchPoints > 0) ||
-        (this._navigator && this._navigator.msMaxTouchPoints > 0)));
+      (this._navigator && this._navigator.maxTouchPoints > 0) ||
+      (this._navigator && this._navigator.msMaxTouchPoints > 0)));
   }
 }
 

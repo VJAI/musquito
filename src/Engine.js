@@ -83,6 +83,13 @@ class Engine {
   _cleanUpInterval = 5;
 
   /**
+   * Auto-enables audio in first user interaction.
+   * @type {boolean}
+   * @private
+   */
+  _autoEnable = true;
+
+  /**
    * The clean-up interval id.
    * @type {number|null}
    * @private
@@ -153,6 +160,7 @@ class Engine {
    * @param {number} [args.volume = 1.0] The global volume of the sound engine.
    * @param {boolean} [args.muted = false] Stay muted initially or not.
    * @param {number} [args.cleanUpInterval = 5] The heap clean-up interval period in minutes.
+   * @param {boolean} [args.autoEnable = true] Auto-enables audio in first user interaction.
    * @param {function} [args.onadd] Event-handler for the "add" event.
    * @param {function} [args.onremove] Event-handler for the "remove" event.
    * @param {function} [args.onstop] Event-handler for the "stop" event.
@@ -188,6 +196,7 @@ class Engine {
       volume,
       muted,
       cleanUpInterval,
+      autoEnable,
       onadd,
       onremove,
       onstop,
@@ -204,6 +213,7 @@ class Engine {
     typeof volume === 'number' && volume >= 0 && volume <= 1.0 && (this._volume = volume);
     typeof muted === 'boolean' && (this._muted = muted);
     typeof cleanUpInterval === 'number' && (this._cleanUpInterval = cleanUpInterval);
+    typeof autoEnable === 'boolean' && (this._autoEnable = autoEnable);
     typeof onadd === 'function' && this.on(EngineEvents.Add, onadd);
     typeof onremove === 'function' && this.on(EngineEvents.Remove, onremove);
     typeof onstop === 'function' && this.on(EngineEvents.Stop, onstop);
@@ -218,8 +228,8 @@ class Engine {
     // Create the buffer loader.
     this._loader = new Loader(this._context);
 
-    // Auto-enable audio for the mobile devices in the first touch.
-    utility.enableAudio(this._context);
+    // Auto-enable audio in first user interaction.
+    this._autoEnable && utility.enableAudio(this._context, () => (this._state = EngineState.Ready));
 
     // Create the audio graph.
     this._gainNode = this._context.createGain();
@@ -228,7 +238,7 @@ class Engine {
 
     this._intervalId = window.setInterval(this._heap.free, this._cleanUpInterval * 60 * 1000);
 
-    this._state = EngineState.Ready;
+    this._state = this._context.state !== 'suspended' ? EngineState.Ready : EngineState.Suspended;
 
     return this;
   }
@@ -381,7 +391,7 @@ class Engine {
       return this;
     }
 
-    if (!this._state !== EngineState.Suspended) {
+    if (this._state !== EngineState.Suspended) {
       return this;
     }
 

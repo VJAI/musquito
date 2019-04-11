@@ -1,8 +1,8 @@
-import engine, { ErrorType } from './Engine';
-import Queue from './Queue';
-import utility from './Utility';
-import emitter from './Emitter';
-import { DownloadStatus } from './Loader';
+import engine, { EngineEvents, EngineState, ErrorType } from './Engine';
+import Queue                                            from './Queue';
+import utility                                          from './Utility';
+import emitter                                          from './Emitter';
+import { DownloadStatus }                               from './Loader';
 
 /**
  * Enum that represents the different states of a sound group (buzz).
@@ -214,6 +214,7 @@ class Buzz {
     // Setup the audio engine.
     this._engine = engine;
     this._engine.setup();
+    this._engine.on(EngineEvents.Resume, this._onEngineResume = this._onEngineResume.bind(this));
 
     // If no audio is available throw error.
     if (!this._engine.isAudioAvailable()) {
@@ -257,7 +258,7 @@ class Buzz {
       // Set the source.
       if (typeof src === 'string') {
         this._src = [src];
-      } else if(Array.isArray(src) && src.length) {
+      } else if (Array.isArray(src) && src.length) {
         this._src = src;
       }
 
@@ -394,12 +395,7 @@ class Buzz {
     // If id is passed then get the sound from the engine and play it.
     if (isIdPassed) {
       const sound = this._engine.sound(soundOrId);
-
-      if (sound) {
-        sound.play();
-        this._fire(BuzzEvents.PlayStart, soundOrId);
-      }
-
+      sound && this._play(sound);
       return this;
     }
 
@@ -427,9 +423,7 @@ class Buzz {
         }
 
         const newSound = this._engine.sound(this._compatibleSrc, this._id, soundArgs);
-        newSound.play();
-
-        this._fire(BuzzEvents.PlayStart, newSound.id());
+        this._play(newSound);
       };
 
     // If the sound is not yet loaded push an action to the queue to play the sound once it's loaded.
@@ -449,7 +443,7 @@ class Buzz {
    * @return {Buzz}
    */
   pause(id) {
-    this._queue.remove('after-load', id ? `play-${id}` : null);
+    this._removePlayActions(id);
     typeof id !== 'number' && this.fadeStop();
     this._sounds(id).forEach(sound => sound.pause());
     this._fire(BuzzEvents.Pause, id);
@@ -463,7 +457,7 @@ class Buzz {
    * @return {Buzz}
    */
   stop(id) {
-    this._queue.remove('after-load', id ? `play-${id}` : null);
+    this._removePlayActions(id);
     typeof id !== 'number' && this.fadeStop();
     this._sounds(id).forEach(sound => sound.stop());
     this._fire(BuzzEvents.Stop, id);
@@ -560,6 +554,8 @@ class Buzz {
         this._fire(BuzzEvents.FadeEnd);
       }, duration * 1000);
     }
+
+    return this;
   }
 
   /**
@@ -679,7 +675,7 @@ class Buzz {
    * @return {boolean}
    */
   muted(id) {
-    if(typeof id === 'number') {
+    if (typeof id === 'number') {
       const sound = this._engine.sound(id);
       return sound ? sound.muted() : null;
     }
@@ -692,7 +688,7 @@ class Buzz {
    * @return {BuzzState|SoundState}
    */
   state(id) {
-    if(typeof id === 'number') {
+    if (typeof id === 'number') {
       const sound = this._engine.sound(id);
       return sound ? sound.state() : null;
     }
@@ -732,11 +728,12 @@ class Buzz {
    */
   destroy() {
     if (this._state === BuzzState.Destroyed) {
-      return this;
+      return;
     }
 
     this.stop();
     this._queue.clear();
+    this._engine.off(EngineEvents.Resume, this._onEngineResume);
     this._engine.free(false, this._id);
 
     this._buffer = null;
@@ -814,6 +811,54 @@ class Buzz {
    */
   alive(id) {
     return Boolean(this.sound(id));
+  }
+
+  /**
+   * Whenever the engine resume run the actions queued for it.
+   * @private
+   */
+  _onEngineResume() {
+    this._queue.run('after-engine-resume');
+  }
+
+  /**
+   * Checks the engine state and plays the passed sound.
+   * @param {Sound} sound The sound.
+   * @private
+   */
+  _play(sound) {
+    if (this._engine.state() === EngineState.Destroying || this._engine.state() === EngineState.Done) {
+      this._fire(BuzzEvents.Error, null, { type: ErrorType.PlayError, error: 'The engine is stopping/stopped' });
+      return;
+    }
+
+    if (this._engine.state() === EngineState.NoAudio) {
+      this._fire(BuzzEvents.Error, null, { type: ErrorType.NoAudio, error: 'Web Audio is un-available' });
+      return;
+    }
+
+    const playAndFire = () => {
+      sound.play();
+      this._fire(BuzzEvents.PlayStart, sound.id());
+    };
+
+    if ([EngineState.Suspending, EngineState.Suspended, EngineState.Resuming].indexOf(this._engine.state()) > -1) {
+      this._queue.add('after-engine-resume', `sound-${sound.id()}`, () => playAndFire());
+      this._engine.state() !== EngineState.Resuming && this._engine.resume();
+      return;
+    }
+
+    playAndFire();
+  }
+
+  /**
+   * Remove the play actions queued from the queue.
+   * @param {number} [id] The sound id.
+   * @private
+   */
+  _removePlayActions(id) {
+    this._queue.remove('after-load', id ? `play-${id}` : null);
+    this._queue.remove('after-engine-resume', id ? `sound-${id}` : null);
   }
 
   /**
