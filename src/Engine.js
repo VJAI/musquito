@@ -49,6 +49,23 @@ const EngineEvents = {
 };
 
 /**
+ * Array of event names.
+ * @type {string[]}
+ */
+const userInputEventNames = [
+  'click',
+  'contextmenu',
+  'auxclick',
+  'dblclick',
+  'mousedown',
+  'mouseup',
+  'pointerup',
+  'touchend',
+  'keydown',
+  'keyup'
+];
+
+/**
  * The audio engine that orchestrates all the sounds.
  * @class
  */
@@ -152,6 +169,7 @@ class Engine {
   constructor() {
     this._heap = new Heap();
     this._queue = new Queue();
+    this._resumeAndRemoveListeners = this._resumeAndRemoveListeners.bind(this);
   }
 
   /**
@@ -229,7 +247,10 @@ class Engine {
     this._loader = new Loader(this._context);
 
     // Auto-enable audio in first user interaction.
-    this._autoEnable && utility.enableAudio(this._context, () => (this._state = EngineState.Ready));
+    // https://developers.google.com/web/updates/2018/11/web-audio-autoplay#moving-forward
+    if (this._autoEnable && this._context.state === 'suspended') {
+      userInputEventNames.forEach(eventName => document.addEventListener(eventName, this._resumeAndRemoveListeners));
+    }
 
     // Create the audio graph.
     this._gainNode = this._context.createGain();
@@ -416,6 +437,9 @@ class Engine {
     }
 
     const cleanUp = () => {
+      // Un-listen from user input events.
+      userInputEventNames.forEach(eventName => document.addEventListener(eventName, this._resumeAndRemoveListeners));
+
       // Stop the timer.
       this._intervalId && window.clearInterval(this._intervalId);
       this._intervalId = null;
@@ -567,6 +591,15 @@ class Engine {
   _fire(eventName, ...args) {
     emitter.fire(this._id, eventName, ...args, this);
     return this;
+  }
+
+  /**
+   * Resume the context and un-listen from user input events.
+   * @private
+   */
+  _resumeAndRemoveListeners() {
+    this.resume();
+    userInputEventNames.forEach(eventName => document.addEventListener(eventName, this._resumeAndRemoveListeners));
   }
 }
 

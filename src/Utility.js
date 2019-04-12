@@ -149,30 +149,6 @@ class Utility {
   }
 
   /**
-   * Enables playing audio on first user interaction.
-   * @param {AudioContext} context Web API audio context.
-   * @param {Function} cb The callback.
-   */
-  enableAudio(context, cb) {
-    if (context.state === 'running') {
-      return;
-    }
-
-    // https://developers.google.com/web/updates/2018/11/web-audio-autoplay#moving-forward
-    const userInputEventNames = [
-      'click', 'contextmenu', 'auxclick', 'dblclick', 'mousedown',
-      'mouseup', 'pointerup', 'touchend', 'keydown', 'keyup'
-    ];
-
-    const resumeContext = () => {
-      context.resume().then(cb);
-      userInputEventNames.forEach(eventName => document.addEventListener(eventName, resumeContext));
-    };
-
-    userInputEventNames.forEach(eventName => document.addEventListener(eventName, resumeContext));
-  }
-
-  /**
    * Returns true if the platform is mobile.
    * @return {boolean}
    * @private
