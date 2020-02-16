@@ -911,6 +911,7 @@ const $buzz = args => new Buzz(args);
   'muted',
   'state',
   'context',
+  'masterGain',
   'isAudioAvailable',
   'on',
   'off'

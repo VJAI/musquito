@@ -574,6 +574,14 @@ class Engine {
   }
 
   /**
+   * Returns the master gain node.
+   * @return {GainNode}
+   */
+  masterGain() {
+    return this._gainNode;
+  }
+
+  /**
    * Returns true if Web Audio API is available.
    * @return {boolean}
    */
