@@ -25,10 +25,10 @@ export default {
     new webpack.BannerPlugin({
       banner:
 `/*!
-*  musquito v1.0.0 
+*  musquito v1.1.4 
 *  http://musquitojs.com
 *
-*  (c) 2018 Vijaya Anand
+*  (c) 2020 Vijaya Anand
 *  http://prideparrot.com
 *
 *  MIT License

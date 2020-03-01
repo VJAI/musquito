@@ -187,11 +187,11 @@ class Loader {
         const data = atob(url.split(',')[1]);
         const dataView = new Uint8Array(data.length); // eslint-disable-line no-undef
 
-        for (let i = 0; i < data.length; ++i) {
+        for (let i = 0; i < data.length; i++) {
           dataView[i] = data.charCodeAt(i);
         }
 
-        decodeAudioData(dataView);
+        decodeAudioData(dataView.buffer);
         return;
       }
 
