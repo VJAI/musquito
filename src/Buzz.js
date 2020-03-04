@@ -121,6 +121,13 @@ class Buzz {
   _autoplay = false;
 
   /**
+   * True to use HTML5 audio node.
+   * @type {boolean}
+   * @private
+   */
+  _stream = false;
+
+  /**
    * The audio buffer.
    * @type {AudioBuffer}
    * @private
@@ -184,6 +191,27 @@ class Buzz {
   _fadeTimer = null;
 
   /**
+   * The HTML5 Audio element.
+   * @type {Audio}
+   * @private
+   */
+  _audio = null;
+
+  /**
+   * Web Audio API's audio node to control media element.
+   * @type {MediaElementAudioSourceNode}
+   * @private
+   */
+  _mediaElementAudioSourceNode = null;
+
+  /**
+   * Represents the timer that is used to reset the variables once the sprite sound is played.
+   * @type {number|null}
+   * @protected
+   */
+  _endTimer = null;
+
+  /**
    * Initializes the internal properties.
    * @param {string|Array<string>|object} args The input parameters of this sound group.
    * @param {string} [args.id] The unique id of the sound.
@@ -194,6 +222,7 @@ class Buzz {
    * @param {boolean} [args.muted = false] True to be muted initially.
    * @param {boolean} [args.preload = false] True to pre-load the sound after construction.
    * @param {boolean} [args.autoplay = false] True to play automatically after construction.
+   * @param {boolean} [args.stream = false] True to use HTML5 audio node.
    * @param {string|string[]} [args.format] The file format(s) of the passed audio source(s).
    * @param {object} [args.sprite] The sprite definition.
    * @param {function} [args.onload] Event-handler for the "load" event.
@@ -237,6 +266,7 @@ class Buzz {
         muted,
         loop,
         autoplay,
+        stream,
         preload,
         onload,
         onunload,
@@ -276,6 +306,7 @@ class Buzz {
       typeof muted === 'boolean' && (this._muted = muted);
       typeof loop === 'boolean' && (this._loop = loop);
       typeof autoplay === 'boolean' && (this._autoplay = autoplay);
+      typeof stream === 'boolean' && (this._stream = stream);
       typeof preload === 'boolean' && (this._preload = preload);
       typeof onload === 'function' && this.on(BuzzEvents.Load, onload);
       typeof onunload === 'function' && this.on(BuzzEvents.UnLoad, onunload);
@@ -343,8 +374,19 @@ class Buzz {
       // iii. Fire the load event.
       // iv. Run the methods that are queued to run after successful load.
       if (downloadResult.status === DownloadStatus.Success) {
-        this._buffer = downloadResult.value;
-        this._duration = this._buffer.duration;
+        if (this._stream) {
+          this._audio = downloadResult.value;
+          this._audio.muted = this._muted;
+          this._audio.volume = this._engine.volume() * this._volume;
+          this._audio.playbackRate = this._rate;
+          // TODO: this._setLoop(this._loop);
+          this._audio.addEventListener('error', this._onAudioError);
+          this._duration = this._audio.duration;
+        } else {
+          this._buffer = downloadResult.value;
+          this._duration = this._buffer.duration;
+        }
+
         this._loadState = LoadState.Loaded;
         this._fire(BuzzEvents.Load, null, downloadResult);
         this._queue.run('after-load');
@@ -361,6 +403,7 @@ class Buzz {
    * Called on failure of loading audio source.
    * @param {*} error The audio source load error.
    * @private
+   * TODO: Need revision
    */
   _onLoadFailure(error) {
     // Remove the queued actions from this class that are supposed to run after load.
@@ -371,6 +414,20 @@ class Buzz {
 
     // Fire the error event.
     this._fire(BuzzEvents.Error, null, { type: ErrorType.LoadError, error: error });
+  }
+
+  /**
+   * The "error" event handler of audio element.
+   * @param {object} err Error object.
+   * @private
+   */
+  _onAudioError(err) {
+    this._fire(BuzzEvents.Error, { type: ErrorType.LoadError, error: err });
+
+    // After error we can't re-use the HTML5 audio element. Call the unload method and so
+    // next time when we try to play we get a new pre-loaded audio element.
+    this.unload();
+    // TODO: this._engine.unloadMediaForSound(this._id, true);
   }
 
   /**

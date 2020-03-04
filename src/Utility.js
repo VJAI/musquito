@@ -25,11 +25,18 @@ class Utility {
   _formats = {};
 
   /**
+   * TODO: Need comment.
+   * @private
+   */
+  _userAgent = null;
+
+  /**
    * @constructor
    */
   constructor() {
     if (typeof navigator !== 'undefined') {
       this._navigator = navigator;
+      this._userAgent = navigator.userAgent;
     }
 
     // Set the available Web Audio Context type available in browser.
@@ -158,7 +165,7 @@ class Utility {
       return false;
     }
 
-    return (/iPhone|iPad|iPod|Android|BlackBerry|BB10|Silk|Mobi/i).test(this._navigator.userAgent);
+    return (/iPhone|iPad|iPod|Android|BlackBerry|BB10|Silk|Mobi/i).test(this._userAgent);
   }
 
   /**
@@ -170,6 +177,14 @@ class Utility {
     return typeof window !== 'undefined' && (Boolean(('ontouchend' in window) ||
       (this._navigator && this._navigator.maxTouchPoints > 0) ||
       (this._navigator && this._navigator.msMaxTouchPoints > 0)));
+  }
+
+  /**
+   * Returns true if the user agent is IE.
+   * @return {boolean}
+   */
+  isIE() {
+    return Boolean(this._userAgent && (/MSIE |Trident\//).test(this._userAgent));
   }
 }
 

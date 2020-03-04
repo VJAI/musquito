@@ -1,9 +1,9 @@
-import Loader from './Loader';
-import emitter from './Emitter';
-import Heap from './Heap';
-import Queue from './Queue';
-import utility from './Utility';
-import Sound from './Sound';
+import BufferLoader from './Loader';
+import emitter      from './Emitter';
+import Heap         from './Heap';
+import Queue        from './Queue';
+import utility      from './Utility';
+import Sound        from './Sound';
 
 /**
  * Enum that represents the different type of errors thrown by Engine and Buzzes.
@@ -114,6 +114,20 @@ class Engine {
   _intervalId = null;
 
   /**
+   * True if HTML5 audio is available.
+   * @type {boolean}
+   * @private
+   */
+  _isHTML5AudioAvailable = false;
+
+  /**
+   * True if Web Audio API is available.
+   * @type {boolean}
+   * @private
+   */
+  _isWebAudioAvailable = false;
+
+  /**
    * True if Web Audio API is available.
    * @type {boolean}
    * @private
@@ -157,7 +171,7 @@ class Engine {
 
   /**
    * Loader - the component that loads audio buffers with audio data.
-   * @type {Loader}
+   * @type {BufferLoader}
    * @private
    */
   _loader = null;
@@ -200,7 +214,9 @@ class Engine {
     this._context = utility.getContext();
 
     // Determine the audio stuff available in the current platform and set the flags accordingly.
-    this._isAudioAvailable = Boolean(this._context);
+    this._isWebAudioAvailable = Boolean(this._context);
+    this._isHTML5AudioAvailable = typeof Audio !== 'undefined';
+    this._isAudioAvailable = this._isWebAudioAvailable || this._isHTML5AudioAvailable;
 
     // If no Web Audio and HTML5 audio is available fire an error event.
     if (!this._isAudioAvailable) {
@@ -244,7 +260,7 @@ class Engine {
     typeof ondone === 'function' && this.on(EngineEvents.Done, ondone);
 
     // Create the buffer loader.
-    this._loader = new Loader(this._context);
+    this._loader = new BufferLoader(this._context);
 
     // Auto-enable audio in first user interaction.
     // https://developers.google.com/web/updates/2018/11/web-audio-autoplay#moving-forward
