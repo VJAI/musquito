@@ -20,12 +20,12 @@ class Html5AudioPool {
    * @return {Audio}
    */
   allocateForGroup(src, groupId) {
-    const nodes = this._resourceAudioNodes[src];
+    let nodes = this._resourceAudioNodes[src];
 
-    this._resourceAudioNodes[src] = nodes || {
+    this._resourceAudioNodes[src] = nodes || (nodes = {
       unallocated: [],
       allocated: {}
-    };
+    });
 
     const { unallocated, allocated } = nodes;
     const audio = unallocated.length ? unallocated.shift() : new Audio();
@@ -56,6 +56,7 @@ class Html5AudioPool {
 
     const notAllocatedAudioObj = allocated[groupId].find(x => x.soundId === null);
     notAllocatedAudioObj.soundId = soundId;
+    return notAllocatedAudioObj.audio;
   }
 
   /**

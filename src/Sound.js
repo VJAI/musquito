@@ -1,7 +1,5 @@
 import engine  from './Engine';
 import utility from './Utility';
-import DownloadStatus from './DownloadStatus';
-import LoadState from './LoadState';
 
 /**
  * Enum that represents the different states of a sound.

@@ -2,7 +2,7 @@ import engine, { EngineEvents, EngineState, ErrorType } from './Engine';
 import Queue                                            from './Queue';
 import utility                                          from './Utility';
 import emitter                                          from './Emitter';
-import { DownloadStatus }                               from './Loader';
+import DownloadStatus                                   from './DownloadStatus';
 
 /**
  * Enum that represents the different states of a sound group (buzz).
@@ -422,7 +422,8 @@ class Buzz {
         const soundArgs = {
           id: newSoundId,
           buffer: this._buffer,
-          audio: this._stream ? this._engine.getAudioForGroup(this._id) : null,
+          stream: this._stream,
+          audio: this._stream ? this._engine.getAudioForGroup(this._compatibleSrc, this._id, newSoundId) : null,
           volume: this._volume,
           rate: this._rate,
           muted: this._muted,

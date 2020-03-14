@@ -301,6 +301,10 @@ class Engine {
     return stream ? this._mediaLoader.load(urls, groupId) : this._bufferLoader.load(urls);
   }
 
+  getAudioForGroup(src, groupId, soundId){
+    return this._mediaLoader.getAudioForGroup(src, groupId, soundId);
+  }
+
   /**
    * Unloads single or multiple loaded audio buffers from cache.
    * @param {string|string[]} [urls] Single or array of audio urls.

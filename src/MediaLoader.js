@@ -116,8 +116,8 @@ class MediaLoader {
     this._bufferingAudios.splice(this._bufferingAudios.indexOf(audioObj), 1);
   }
 
-  getAudioForGroup() {
-    throw new Error('Not Implemented');
+  getAudioForGroup(src, groupId, soundId) {
+    return this._audioPool.allocateForSound(src, groupId, soundId);
   }
 
   /**
