@@ -128,13 +128,6 @@ class Buzz {
   _stream = false;
 
   /**
-   * The audio buffer.
-   * @type {AudioBuffer}
-   * @private
-   */
-  _buffer = null;
-
-  /**
    * Duration of the playback in seconds.
    * @type {number}
    * @private
@@ -189,27 +182,6 @@ class Buzz {
    * @private
    */
   _fadeTimer = null;
-
-  /**
-   * The HTML5 Audio element.
-   * @type {Audio}
-   * @private
-   */
-  _audio = null;
-
-  /**
-   * Web Audio API's audio node to control media element.
-   * @type {MediaElementAudioSourceNode}
-   * @private
-   */
-  _mediaElementAudioSourceNode = null;
-
-  /**
-   * Represents the timer that is used to reset the variables once the sprite sound is played.
-   * @type {number|null}
-   * @protected
-   */
-  _endTimer = null;
 
   /**
    * Initializes the internal properties.
@@ -344,27 +316,22 @@ class Buzz {
    * @return {Buzz}
    */
   load() {
-    // If the sound is already loaded return without reloading again.
-    if (this.isLoaded() || this._loadState === LoadState.Loading) {
+    if (!this._stream && (this.isLoaded() || this._loadState === LoadState.Loading)) {
       return this;
     }
 
-    // Set the state to "Loading" to avoid loading multiple times.
     this._loadState = LoadState.Loading;
 
-    // Get the compatible source.
     const src = this._compatibleSrc || (this._compatibleSrc = this.getCompatibleSource());
 
-    // If no compatible source found call failure method and return.
-    if (!src) {
-      this._onLoadFailure('The audio formats you passed are not supported');
-      return this;
-    }
-
     // Load the audio source.
-    this._engine.load(src).then(downloadResult => {
-      // During the time of loading... if the buzz is unloaded or destroyed then return.
-      if (this._loadState === LoadState.NotLoaded || this._state === BuzzState.Destroyed) {
+    this._engine.load(src, this._stream, this._id).then(downloadResult => {
+      if (this._state === BuzzState.Destroyed) {
+        return;
+      }
+
+      // TODO: Need to handle this case for stream!
+      if (this._loadState === LoadState.NotLoaded) {
         return;
       }
 
@@ -375,13 +342,7 @@ class Buzz {
       // iv. Run the methods that are queued to run after successful load.
       if (downloadResult.status === DownloadStatus.Success) {
         if (this._stream) {
-          this._audio = downloadResult.value;
-          this._audio.muted = this._muted;
-          this._audio.volume = this._engine.volume() * this._volume;
-          this._audio.playbackRate = this._rate;
-          // TODO: this._setLoop(this._loop);
-          this._audio.addEventListener('error', this._onAudioError);
-          this._duration = this._audio.duration;
+          this._duration = downloadResult.value.duration;
         } else {
           this._buffer = downloadResult.value;
           this._duration = this._buffer.duration;
@@ -461,6 +422,7 @@ class Buzz {
         const soundArgs = {
           id: newSoundId,
           buffer: this._buffer,
+          audio: this._stream ? this._engine.getAudioForGroup(this._id) : null,
           volume: this._volume,
           rate: this._rate,
           muted: this._muted,

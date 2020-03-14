@@ -38,12 +38,12 @@ class MediaLoader {
   /**
    * Preload the HTML5 audio nodes with audio and return them.
    * @param {string|string[]} urls Single or array of audio file urls
-   * @param {string} [id] The sound id
+   * @param {string} [groupId] The buzz group id
    * @return {Promise<DownloadResult|Array<DownloadResult>>}
    */
-  load(urls, id) {
+  load(urls, groupId) {
     if (typeof urls === 'string') {
-      return this._load(urls, id);
+      return this._load(urls, groupId);
     }
 
     return Promise.all(urls.map(url => this._load(url)));
@@ -52,13 +52,13 @@ class MediaLoader {
   /**
    * Preload the HTML5 audio element with the passed audio file and allocate it to the passed sound (if any).
    * @param {string} url The audio file url
-   * @param {string} [id] Sound id
+   * @param {string} [groupId] The buzz id
    * @return {Promise}
    * @private
    */
-  _load(url, id) {
+  _load(url, groupId) {
     return new Promise(resolve => {
-      const audio = this._audioPool.allocate(url, id);
+      const audio = this._audioPool.allocateForGroup(url, groupId);
 
       const onCanPlayThrough = () => {
         if (this._disposed) {
@@ -86,7 +86,7 @@ class MediaLoader {
 
       this._bufferingAudios.push({
         url: url,
-        id: id,
+        groupId: groupId,
         audio: audio,
         canplaythrough: onCanPlayThrough,
         error: onError
@@ -114,6 +114,10 @@ class MediaLoader {
   _cleanUp(audioObj) {
     ['canplaythrough', 'error'].forEach(evt => audioObj.audio.removeEventListener(evt, audioObj[audioObj]));
     this._bufferingAudios.splice(this._bufferingAudios.indexOf(audioObj), 1);
+  }
+
+  getAudioForGroup() {
+    throw new Error('Not Implemented');
   }
 
   /**

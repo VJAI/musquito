@@ -1,5 +1,7 @@
-import engine from './Engine';
+import engine  from './Engine';
 import utility from './Utility';
+import DownloadStatus from './DownloadStatus';
+import LoadState from './LoadState';
 
 /**
  * Enum that represents the different states of a sound.
@@ -166,6 +168,45 @@ class Sound {
    */
   _fadeEndCallback = null;
 
+  _loadCallback = null;
+
+  /**
+   * True to use HTML5 audio node.
+   * @type {boolean}
+   * @private
+   */
+  _stream = false;
+
+  /**
+   * The audio buffer.
+   * @type {AudioBuffer}
+   * @private
+   */
+  _buffer = null;
+
+  /**
+   * The HTML5 Audio element.
+   * @type {Audio}
+   * @private
+   */
+  _audio = null;
+
+  /**
+   * Web Audio API's audio node to control media element.
+   * @type {MediaElementAudioSourceNode}
+   * @private
+   */
+  _mediaElementAudioSourceNode = null;
+
+  /**
+   * Represents the timer that is used to reset the variables once the sprite sound is played.
+   * @type {number|null}
+   * @protected
+   */
+  _endTimer = null;
+
+  _src = null;
+
   /**
    * Initializes the internal properties of the sound.
    * @param {object} args The input parameters of the sound.
@@ -186,6 +227,7 @@ class Sound {
     const {
       id,
       buffer,
+      audio,
       volume,
       rate,
       loop,
@@ -194,7 +236,10 @@ class Sound {
       endPos,
       playEndCallback,
       destroyCallback,
-      fadeEndCallback
+      fadeEndCallback,
+      loadCallback,
+      stream,
+      src
     } = args;
 
     // Set the passed id or the random one.
@@ -202,7 +247,7 @@ class Sound {
 
     // Set the passed audio buffer and duration.
     this._buffer = buffer;
-    this._endPos = this._buffer.duration;
+    this._audio = audio;
 
     // Set other properties.
     volume && (this._volume = volume);
@@ -214,14 +259,29 @@ class Sound {
     this._playEndCallback = playEndCallback;
     this._destroyCallback = destroyCallback;
     this._fadeEndCallback = fadeEndCallback;
+    this._loadCallback = loadCallback;
+    this._stream = Boolean(stream);
+    this._src = src;
+
+    this._endPos = this._stream ? this._audio.duration : this._buffer.duration;
 
     // Calculate the duration.
     this._duration = this._endPos - this._startPos;
 
-    // Create gain node and set the volume.
-    this._context = engine.context();
-    this._gainNode = this._context.createGain();
-    this._gainNode.gain.setValueAtTime(this._muted ? 0 : this._volume, this._context.currentTime);
+    // If web audio is available, create gain node and set the volume..
+    if (engine.isWebAudioAvailable()) {
+      this._context = engine.context();
+      this._gainNode = this._context.createGain();
+      this._gainNode.gain.setValueAtTime(this._muted ? 0 : this._volume, this._context.currentTime);
+
+      if (this._stream) {
+        this._mediaElementAudioSourceNode = this._context.createMediaElementSource(this._audio);
+        this._mediaElementAudioSourceNode.connect(this._gainNode);
+      }
+    }
+
+    this._onBufferEnded = this._onBufferEnded.bind(this);
+    this._onHtml5Ended = this._onHtml5Ended.bind(this);
   }
 
   /**
@@ -234,6 +294,20 @@ class Sound {
       return this;
     }
 
+    if (this._stream) {
+      this._playHtml5();
+    } else {
+      this._playBuffer();
+    }
+
+    // Record the starting time and set the state.
+    this._startTime = this._context.currentTime;
+    this._state = SoundState.Playing;
+
+    return this;
+  }
+
+  _playBuffer() {
     // Get the playback starting position.
     let seek = Math.max(0, this._currentPos > 0 ? this._currentPos : this._startPos);
 
@@ -249,20 +323,7 @@ class Sound {
     this._bufferSourceNode.connect(this._gainNode);
 
     // Listen to the "ended" event to reset/clean things.
-    this._bufferSourceNode.addEventListener('ended', () => {
-      // Reset the seek positions
-      this._currentPos = 0;
-      this._rateSeek = 0;
-
-      // Destroy the node (AudioBufferSourceNodes are one-time use and throw objects).
-      this._destroyBufferNode();
-
-      // Reset the state to allow future actions.
-      this._state = SoundState.Ready;
-
-      // Invoke the callback if there is one.
-      this._playEndCallback && this._playEndCallback(this);
-    });
+    this._bufferSourceNode.addEventListener('ended', this._onBufferEnded);
 
     const startTime = this._context.currentTime;
 
@@ -272,12 +333,47 @@ class Sound {
     } else {
       this._bufferSourceNode.noteGrainOn(startTime, seek, this._loop ? undefined : this._duration);
     }
+  }
 
-    // Record the starting time and set the state.
-    this._startTime = startTime;
-    this._state = SoundState.Playing;
+  _playHtml5() {
+    let seek = Math.max(0, this._currentPos > 0 ? this._currentPos : this._startPos),
+      duration = this._endPos - this._startPos,
+      timeout = (duration * 1000) / this._rate;
 
-    return this;
+    this._audio.currentTime = seek;
+
+    if (this._spriteSound) {
+      this._endTimer = setTimeout(this._onHtml5Ended, timeout);
+    } else {
+      this._audio.addEventListener('ended', this._onHtml5Ended);
+    }
+
+    this._audio.play();
+  }
+
+  _onBufferEnded() {
+    // Reset the seek positions
+    this._currentPos = 0;
+    this._rateSeek = 0;
+
+    // Destroy the node (AudioBufferSourceNodes are one-time use and throw objects).
+    this._destroyBufferNode();
+
+    // Reset the state to allow future actions.
+    this._state = SoundState.Ready;
+
+    // Invoke the callback if there is one.
+    this._playEndCallback && this._playEndCallback(this);
+  }
+
+  _onHtml5Ended() {
+    if (this._loop) {
+      this.stop().play();
+    } else {
+      this.stop();
+      this._state = SoundState.Ready;
+      this._playEndCallback && this._playEndCallback(this);
+    }
   }
 
   /**
@@ -638,4 +734,4 @@ class Sound {
   }
 }
 
-export {Sound as default, SoundState};
+export { Sound as default, SoundState };

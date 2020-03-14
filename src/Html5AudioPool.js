@@ -16,44 +16,46 @@ class Html5AudioPool {
   /**
    * Allocates an audio node to a particular resource and sound.
    * @param {string} src The audio url.
-   * @param {string} [id] The sound id.
+   * @param {string} [groupId] The buzz group id.
    * @return {Audio}
    */
-  allocate(src, id) {
-    let nodes = this._resourceAudioNodes[src];
+  allocateForGroup(src, groupId) {
+    const nodes = this._resourceAudioNodes[src];
 
-    this._resourceAudioNodes[src] = nodes || (nodes = []);
-
-    const inActiveNode = this._getInActiveNode(src);
-
-    if (inActiveNode) {
-      inActiveNode.id = id;
-      return inActiveNode.audio;
-    }
-
-    const newNode = {
-      id: id,
-      audio: new Audio()
+    this._resourceAudioNodes[src] = nodes || {
+      unallocated: [],
+      allocated: {}
     };
 
-    nodes.push(newNode);
+    const { unallocated, allocated } = nodes;
+    const audio = unallocated.length ? unallocated.shift() : new Audio();
 
-    return newNode.audio;
-  }
+    let groupSounds = [];
 
-  /**
-   * Returns the first inactive node allocated for the source.
-   * @param {string} src The audio url.
-   * @return {object}
-   * @private
-   */
-  _getInActiveNode(src) {
-    if (!this._resourceAudioNodes[src]) {
-      return null;
+    if (allocated.hasOwnProperty(groupId)) {
+      groupSounds = allocated[groupId];
+    } else {
+      allocated[groupId] = groupSounds;
     }
 
-    const nodes = this._resourceAudioNodes[src];
-    return nodes.find(node => node.id === null);
+    groupSounds.push({
+      audio: audio,
+      soundId: null
+    });
+
+    return audio;
+  }
+
+  allocateForSound(src, groupId, soundId) {
+    const nodes = this._resourceAudioNodes[src],
+      { allocated } = nodes;
+
+    if (!allocated.hasOwnProperty(groupId)) {
+      return;
+    }
+
+    const notAllocatedAudioObj = allocated[groupId].find(x => x.soundId === null);
+    notAllocatedAudioObj.soundId = soundId;
   }
 
   /**
@@ -62,7 +64,7 @@ class Html5AudioPool {
    * @param {boolean} [onlyFree = true] Release only the un-allocated audio nodes.
    */
   release(urls, onlyFree = true) {
-    if (!urls) {
+    /*if (!urls) {
       Object.keys(this._resourceAudioNodes).forEach(url => {
         this._destroyNodes(url, onlyFree);
       });
@@ -75,7 +77,8 @@ class Html5AudioPool {
       return;
     }
 
-    this._destroyNodes(urls, onlyFree);
+    this._destroyNodes(urls, onlyFree);*/
+    throw new Error('Not implemented');
   }
 
   /**

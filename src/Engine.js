@@ -1,4 +1,5 @@
-import BufferLoader from './Loader';
+import BufferLoader from './BufferLoader';
+import MediaLoader  from './MediaLoader';
 import emitter      from './Emitter';
 import Heap         from './Heap';
 import Queue        from './Queue';
@@ -174,7 +175,14 @@ class Engine {
    * @type {BufferLoader}
    * @private
    */
-  _loader = null;
+  _bufferLoader = null;
+
+  /**
+   * MediaLoader - the component that loads HTML5 audio nodes with audio.
+   * @type {MediaLoader}
+   * @private
+   */
+  _mediaLoader = null;
 
   /**
    * Instantiates the heap and action queue.
@@ -260,7 +268,10 @@ class Engine {
     typeof ondone === 'function' && this.on(EngineEvents.Done, ondone);
 
     // Create the buffer loader.
-    this._loader = new BufferLoader(this._context);
+    this._bufferLoader = new BufferLoader(this._context);
+
+    // Create the media loader.
+    this._mediaLoader = new MediaLoader();
 
     // Auto-enable audio in first user interaction.
     // https://developers.google.com/web/updates/2018/11/web-audio-autoplay#moving-forward
@@ -284,19 +295,37 @@ class Engine {
    * Loads single or multiple audio resources into audio buffers and returns them.
    * @param {string|string[]} urls Single or array of audio urls.
    * @return {Promise}
+   * TODO
    */
-  load(urls) {
-    return this._loader.load(urls);
+  load(urls, stream = false, groupId = null) {
+    return stream ? this._mediaLoader.load(urls, groupId) : this._bufferLoader.load(urls);
   }
 
   /**
    * Unloads single or multiple loaded audio buffers from cache.
    * @param {string|string[]} [urls] Single or array of audio urls.
    * @return {Engine}
+   * // TODO
    */
-  unload(urls) {
-    this._loader.unload(urls);
+  unload(urls, stream = false, onlyFree = true) {
+    if (urls) {
+      stream ? this._bufferLoader.unload(urls) : this._mediaLoader.unload(urls, onlyFree);
+      return this;
+    }
+
+    this._bufferLoader.unload();
+    this._mediaLoader.unload();
+
     return this;
+  }
+
+  /**
+   * Release the allocated audio element for the sound.
+   * @param {string} id The sound id.
+   * @param {boolean} destroy True to destroy the audio node.
+   */
+  unloadMediaForSound(id, destroy = false) {
+    this._mediaLoader.unloadForSound(id, destroy);
   }
 
   /**
@@ -465,9 +494,15 @@ class Engine {
       this._heap = null;
 
       // Clear the cache and remove the loader.
-      if (this._loader) {
-        this._loader.dispose();
-        this._loader = null;
+      if (this._bufferLoader) {
+        this._bufferLoader.dispose();
+        this._bufferLoader = null;
+      }
+
+      // Dispose the MediaLoader.
+      if (this._mediaLoader) {
+        this._mediaLoader.dispose();
+        this._mediaLoader = null;
       }
 
       this._context = null;
@@ -603,6 +638,14 @@ class Engine {
    */
   isAudioAvailable() {
     return this._isAudioAvailable;
+  }
+
+  /**
+   * Returns true if Web Audio API is available.
+   * @return {boolean}
+   */
+  isWebAudioAvailable() {
+    return this._isWebAudioAvailable;
   }
 
   /**
