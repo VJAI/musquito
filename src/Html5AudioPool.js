@@ -14,29 +14,35 @@ class Html5AudioPool {
   _resourceAudioNodes = {};
 
   /**
+   * Allocates an audio node for particular source.
+   * @param {string} src The audio url.
+   * @return {Audio}
+   */
+  allocateForSource(src) {
+    this._createSrc(src);
+
+    const nodes = this._resourceAudioNodes[src],
+      { allocated } = nodes;
+
+    const audio = new Audio();
+    allocated.push(audio);
+
+    return audio;
+  }
+
+  /**
    * Allocates a HTML5 audio node to a particular resource and group.
    * @param {string} src The audio url.
    * @param {string} [groupId] The buzz group id.
    * @return {Audio}
    */
   allocateForGroup(src, groupId) {
-    let nodes = this._resourceAudioNodes[src];
+    this._createGroup(src, groupId);
 
-    this._resourceAudioNodes[src] = nodes || (nodes = {
-      unallocated: [],
-      allocated: {}
-    });
-
-    const { unallocated, allocated } = nodes;
-    const audio = unallocated.length ? unallocated.shift() : new Audio();
-
-    let groupSounds = [];
-
-    if (allocated.hasOwnProperty(groupId)) {
+    const nodes = this._resourceAudioNodes[src],
+      { unallocated, allocated } = nodes,
+      audio = unallocated.length ? unallocated.shift() : new Audio(),
       groupSounds = allocated[groupId];
-    } else {
-      allocated[groupId] = groupSounds;
-    }
 
     groupSounds.push({
       audio: audio,
@@ -54,17 +60,32 @@ class Html5AudioPool {
    * @return {Audio}
    */
   allocateForSound(src, groupId, soundId) {
+    this._createGroup(src, groupId);
+
     const nodes = this._resourceAudioNodes[src],
-      { allocated } = nodes;
+      { allocated } = nodes,
+      notAllocatedAudioObj = allocated[groupId].find(x => x.soundId === null);
 
-    if (!allocated.hasOwnProperty(groupId)) {
-      throw new Error(`No audio nodes allocated for the group ${groupId}`);
-    }
-
-    const notAllocatedAudioObj = allocated[groupId].find(x => x.soundId === null);
     notAllocatedAudioObj.soundId = soundId;
 
     return notAllocatedAudioObj.audio;
+  }
+
+  /**
+   * Releases all the audio nodes created for a resource.
+   * @param {string} src The audio url.
+   */
+  releaseForSource(src) {
+    const nodes = this._resourceAudioNodes[src],
+      { allocated, unallocated } = nodes;
+
+    allocated.forEach(x => this._destroyNode(x));
+
+    Object.keys(unallocated).forEach(groupId => {
+      unallocated[groupId].forEach(x => this._destroyNode(x.audio));
+    });
+
+    delete this._resourceAudioNodes[src];
   }
 
   /**
@@ -96,20 +117,45 @@ class Html5AudioPool {
   }
 
   /**
-   * Releases all the audio nodes created for a resource.
-   * @param {string} src The audio url.
+   * Releases all the audio nodes.
    */
-  release(src) {
+  dispose() {
+    Object.keys(this._resourceAudioNodes).forEach(src => this.release(src));
+  }
+
+  /**
+   * Creates an entry for the passed source in object if not exists.
+   * @param {string} src The audio file.
+   * @private
+   */
+  _createSrc(src) {
+    if (this._resourceAudioNodes.hasOwnProperty(src)) {
+      return;
+    }
+
+    this._resourceAudioNodes[src] = {
+      unallocated: [],
+      allocated: {}
+    };
+  }
+
+  /**
+   * Creates an entry for the passed source and group if not exists.
+   * @param {string} src The audio file.
+   * @param {string} groupId The group id.
+   * @private
+   */
+  _createGroup(src, groupId) {
+    this._createSrc(src);
+
     const nodes = this._resourceAudioNodes[src],
-      { allocated, unallocated } = nodes;
+      { unallocated } = nodes;
 
-    allocated.forEach(x => this._destroyNode(x));
+    if (unallocated.hasOwnProperty(groupId)) {
+      return;
+    }
 
-    Object.keys(unallocated).forEach(groupId => {
-      unallocated[groupId].forEach(x => this._destroyNode(x.audio));
-    });
-
-    delete this._resourceAudioNodes[src];
+    unallocated[groupId] = [];
   }
 
   /**
@@ -123,13 +169,6 @@ class Html5AudioPool {
     audio.onerror = null;
     audio.onend = null;
     audio.canplaythrough = null;
-  }
-
-  /**
-   * Releases all the audio nodes.
-   */
-  dispose() {
-    Object.keys(this._resourceAudioNodes).forEach(src => this.release(src));
   }
 }
 

@@ -36,13 +36,13 @@ class MediaLoader {
   }
 
   /**
-   * Preload the HTML5 audio nodes with audio and return them.
-   * @param {string|string[]} urls Single or array of audio file urls
-   * @param {string} [groupId] The buzz group id
+   * Preloads the HTML5 audio nodes with audio and return them.
+   * @param {string|string[]} urls Single or array of audio file urls.
+   * @param {string} [groupId] The buzz group id.
    * @return {Promise<DownloadResult|Array<DownloadResult>>}
    */
   load(urls, groupId) {
-    if (typeof urls === 'string') {
+    if (groupId) {
       return this._load(urls, groupId);
     }
 
@@ -50,15 +50,80 @@ class MediaLoader {
   }
 
   /**
+   * Allocates an audio node for sound and returns it.
+   * @param {string} src The audio file url.
+   * @param {string} [groupId] The buzz id.
+   * @param {string} soundId The sound id.
+   * @return {Audio}
+   */
+  allocateForSound(src, groupId, soundId) {
+    return this._audioPool.allocateForSound(src, groupId, soundId);
+  }
+
+  /**
+   * Releases the allocated audio node(s).
+   * @param {string|string[]} [urls] Single or array of audio file urls.
+   * @param {string} [groupId] The buzz id.
+   */
+  unload(urls, groupId) {
+    const removeAudioObjOfUrl = url => {
+      const audioObj = this._bufferingAudios.find(a => a.url === url);
+      audioObj && this._cleanUp(audioObj);
+    };
+
+    if (!urls) {
+      [...this._bufferingAudios].forEach(audioObj => this._cleanUp(audioObj));
+    } else if (typeof urls === 'string') {
+      removeAudioObjOfUrl(urls);
+    } else if (Array.isArray(urls) && urls.length) {
+      urls.forEach(url => removeAudioObjOfUrl(url));
+    }
+
+    if (groupId) {
+      this._audioPool.releaseForGroup(urls, groupId);
+      return;
+    }
+
+    urls.forEach(url => this._audioPool.releaseForSource(url));
+  }
+
+  /**
+   * Unallocates the audio node reserved for sound.
+   * @param {string} src The audio file url.
+   * @param {string} [groupId] The buzz id.
+   * @param {string} soundId The sound id.
+   */
+  releaseForSound(src, groupId, soundId) {
+    const audioObj = this._bufferingAudios.find(obj => obj.id === id);
+    audioObj && this._cleanUp(audioObj);
+    this._audioPool.releaseForSound(id, destroy);
+  }
+
+  /**
+   * Clear the event handlers of buffering audio elements and dispose the pool.
+   */
+  dispose() {
+    if (this._disposed) {
+      return;
+    }
+
+    [...this._bufferingAudios].forEach(audioObj => this._cleanUp(audioObj));
+    this._bufferingAudios = null;
+    this._audioPool.dispose();
+    this._audioPool = null;
+    this._disposed = true;
+  }
+
+  /**
    * Preload the HTML5 audio element with the passed audio file and allocate it to the passed sound (if any).
-   * @param {string} url The audio file url
-   * @param {string} [groupId] The buzz id
+   * @param {string} url The audio file url.
+   * @param {string} [groupId] The buzz id.
    * @return {Promise}
    * @private
    */
   _load(url, groupId) {
     return new Promise(resolve => {
-      const audio = this._audioPool.allocateForGroup(url, groupId);
+      const audio = groupId ? this._audioPool.allocateForGroup(url, groupId) : this._audioPool.allocateForSource(url);
 
       const onCanPlayThrough = () => {
         if (this._disposed) {
@@ -114,58 +179,6 @@ class MediaLoader {
   _cleanUp(audioObj) {
     ['canplaythrough', 'error'].forEach(evt => audioObj.audio.removeEventListener(evt, audioObj[audioObj]));
     this._bufferingAudios.splice(this._bufferingAudios.indexOf(audioObj), 1);
-  }
-
-  getAudioForGroup(src, groupId, soundId) {
-    return this._audioPool.allocateForSound(src, groupId, soundId);
-  }
-
-  /**
-   * Releases the allocated audio node(s).
-   * @param {string|string[]} [urls] Single or array of audio file urls.
-   * @param {boolean} [onlyFree = true] Release only the un-allocated audio nodes.
-   */
-  unload(urls, onlyFree = true) {
-    const removeAudioObjOfUrl = url => {
-      const audioObj = this._bufferingAudios.find(a => a.url === url);
-      audioObj && this._cleanUp(audioObj);
-    };
-
-    if (!urls) {
-      [...this._bufferingAudios].forEach(audioObj => this._cleanUp(audioObj));
-    } else if (typeof urls === 'string') {
-      removeAudioObjOfUrl(urls);
-    } else if (Array.isArray(urls) && urls.length) {
-      urls.forEach(url => removeAudioObjOfUrl(url));
-    }
-
-    this._audioPool.release(urls, onlyFree);
-  }
-
-  /**
-   * Release the allocated audio element for the sound.
-   * @param {string} id The sound id.
-   * @param {boolean} destroy True to destroy the audio node.
-   */
-  unloadForSound(id, destroy = false) {
-    const audioObj = this._bufferingAudios.find(obj => obj.id === id);
-    audioObj && this._cleanUp(audioObj);
-    this._audioPool.releaseForSound(id, destroy);
-  }
-
-  /**
-   * Clear the event handlers of buffering audio elements and dispose the pool.
-   */
-  dispose() {
-    if (this._disposed) {
-      return;
-    }
-
-    [...this._bufferingAudios].forEach(audioObj => this._cleanUp(audioObj));
-    this._bufferingAudios = null;
-    this._audioPool.dispose();
-    this._audioPool = null;
-    this._disposed = true;
   }
 }
 

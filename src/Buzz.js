@@ -361,37 +361,6 @@ class Buzz {
   }
 
   /**
-   * Called on failure of loading audio source.
-   * @param {*} error The audio source load error.
-   * @private
-   * TODO: Need revision
-   */
-  _onLoadFailure(error) {
-    // Remove the queued actions from this class that are supposed to run after load.
-    this._queue.remove('after-load');
-
-    // Set the load state back to not loaded.
-    this._loadState = LoadState.NotLoaded;
-
-    // Fire the error event.
-    this._fire(BuzzEvents.Error, null, { type: ErrorType.LoadError, error: error });
-  }
-
-  /**
-   * The "error" event handler of audio element.
-   * @param {object} err Error object.
-   * @private
-   */
-  _onAudioError(err) {
-    this._fire(BuzzEvents.Error, { type: ErrorType.LoadError, error: err });
-
-    // After error we can't re-use the HTML5 audio element. Call the unload method and so
-    // next time when we try to play we get a new pre-loaded audio element.
-    this.unload();
-    // TODO: this._engine.unloadMediaForSound(this._id, true);
-  }
-
-  /**
    * Returns the first compatible source based on the passed sources and the format.
    * @return {string}
    */
@@ -756,6 +725,7 @@ class Buzz {
     this._engine.off(EngineEvents.Resume, this._onEngineResume);
     this._engine.free(false, this._id);
 
+
     this._buffer = null;
     this._queue = null;
     this._engine = null;
@@ -831,6 +801,37 @@ class Buzz {
    */
   alive(id) {
     return Boolean(this.sound(id));
+  }
+
+  /**
+   * Called on failure of loading audio source.
+   * @param {*} error The audio source load error.
+   * @private
+   * TODO: Need revision
+   */
+  _onLoadFailure(error) {
+    // Remove the queued actions from this class that are supposed to run after load.
+    this._queue.remove('after-load');
+
+    // Set the load state back to not loaded.
+    this._loadState = LoadState.NotLoaded;
+
+    // Fire the error event.
+    this._fire(BuzzEvents.Error, null, { type: ErrorType.LoadError, error: error });
+  }
+
+  /**
+   * The "error" event handler of audio element.
+   * @param {object} err Error object.
+   * @private
+   */
+  _onAudioError(err) {
+    this._fire(BuzzEvents.Error, { type: ErrorType.LoadError, error: err });
+
+    // After error we can't re-use the HTML5 audio element. Call the unload method and so
+    // next time when we try to play we get a new pre-loaded audio element.
+    this.unload();
+    // TODO: this._engine.unloadMediaForSound(this._id, true);
   }
 
   /**

@@ -286,11 +286,6 @@ class Sound {
     this._onHtml5Ended = this._onHtml5Ended.bind(this);
   }
 
-  // TODO: Need to implement this!
-  _onAudioError() {
-    console.log('Audio error');
-  }
-
   /**
    * Plays the sound or the sound defined in the sprite.
    * @return {Sound}
@@ -308,101 +303,6 @@ class Sound {
     this._state = SoundState.Playing;
 
     return this;
-  }
-
-  /**
-   * Returns the seek, duration and timeout for the playback.
-   * @return {[number, number, number]}
-   * @private
-   */
-  _getTimeVars() {
-    let seek = Math.max(0, this._currentPos > 0 ? this._currentPos : this._startPos),
-      duration = this._endPos - this._startPos,
-      timeout = (duration * 1000) / this._rate;
-
-    return [seek, duration, timeout];
-  }
-
-  /**
-   * Plays the audio using audio buffer.
-   * @private
-   */
-  _playBuffer() {
-    let [seek, duration] = this._getTimeVars();
-
-    // Create a new buffersourcenode to play the sound.
-    this._bufferSourceNode = this._context.createBufferSource();
-
-    // Set the buffer, playback rate and loop parameters
-    this._bufferSourceNode.buffer = this._buffer;
-    this._bufferSourceNode.playbackRate.setValueAtTime(this._rate, this._context.currentTime);
-    this._setLoop(this._loop);
-
-    // Connect the node to the audio graph.
-    this._bufferSourceNode.connect(this._gainNode);
-
-    // Listen to the "ended" event to reset/clean things.
-    this._bufferSourceNode.addEventListener('ended', this._onBufferEnded);
-
-    const startTime = this._context.currentTime;
-
-    // Call the supported method to play the sound.
-    if (typeof this._bufferSourceNode.start !== 'undefined') {
-      this._bufferSourceNode.start(startTime, seek, this._loop ? undefined : duration);
-    } else {
-      this._bufferSourceNode.noteGrainOn(startTime, seek, this._loop ? undefined : duration);
-    }
-  }
-
-  /**
-   * Plays the audio using HTML5 audio object.
-   * @private
-   */
-  _playHtml5() {
-    let [seek, , timeout] = this._getTimeVars();
-
-    this._audio.currentTime = seek;
-
-    if (this._isSprite) {
-      this._endTimer = workerTimer.setTimeout(this._onHtml5Ended, timeout);
-    } else {
-      this._audio.addEventListener('ended', this._onHtml5Ended);
-    }
-
-    this._audio.play();
-  }
-
-  /**
-   * Callback that is invoked after the buffer playback is ended.
-   * @private
-   */
-  _onBufferEnded() {
-    // Reset the seek positions
-    this._currentPos = 0;
-    this._rateSeek = 0;
-
-    // Destroy the node (AudioBufferSourceNodes are one-time use and throw objects).
-    this._destroyBufferNode();
-
-    // Reset the state to allow future actions.
-    this._state = SoundState.Ready;
-
-    // Invoke the callback if there is one.
-    this._playEndCallback && this._playEndCallback(this);
-  }
-
-  /**
-   * Callback that is invoked after the html audio playback is ended.
-   * @private
-   */
-  _onHtml5Ended() {
-    if (this._loop) {
-      this.stop().play();
-    } else {
-      this.stop();
-      this._state = SoundState.Ready;
-      this._playEndCallback && this._playEndCallback(this);
-    }
   }
 
   /**
@@ -750,6 +650,106 @@ class Sound {
    */
   isPaused() {
     return this._state === SoundState.Paused;
+  }
+
+  // TODO: Need to implement this!
+  _onAudioError() {
+    console.log('Audio error');
+  }
+
+  /**
+   * Returns the seek, duration and timeout for the playback.
+   * @return {[number, number, number]}
+   * @private
+   */
+  _getTimeVars() {
+    let seek = Math.max(0, this._currentPos > 0 ? this._currentPos : this._startPos),
+      duration = this._endPos - this._startPos,
+      timeout = (duration * 1000) / this._rate;
+
+    return [seek, duration, timeout];
+  }
+
+  /**
+   * Plays the audio using audio buffer.
+   * @private
+   */
+  _playBuffer() {
+    let [seek, duration] = this._getTimeVars();
+
+    // Create a new buffersourcenode to play the sound.
+    this._bufferSourceNode = this._context.createBufferSource();
+
+    // Set the buffer, playback rate and loop parameters
+    this._bufferSourceNode.buffer = this._buffer;
+    this._bufferSourceNode.playbackRate.setValueAtTime(this._rate, this._context.currentTime);
+    this._setLoop(this._loop);
+
+    // Connect the node to the audio graph.
+    this._bufferSourceNode.connect(this._gainNode);
+
+    // Listen to the "ended" event to reset/clean things.
+    this._bufferSourceNode.addEventListener('ended', this._onBufferEnded);
+
+    const startTime = this._context.currentTime;
+
+    // Call the supported method to play the sound.
+    if (typeof this._bufferSourceNode.start !== 'undefined') {
+      this._bufferSourceNode.start(startTime, seek, this._loop ? undefined : duration);
+    } else {
+      this._bufferSourceNode.noteGrainOn(startTime, seek, this._loop ? undefined : duration);
+    }
+  }
+
+  /**
+   * Plays the audio using HTML5 audio object.
+   * @private
+   */
+  _playHtml5() {
+    let [seek, , timeout] = this._getTimeVars();
+
+    this._audio.currentTime = seek;
+
+    if (this._isSprite) {
+      this._endTimer = workerTimer.setTimeout(this._onHtml5Ended, timeout);
+    } else {
+      this._audio.addEventListener('ended', this._onHtml5Ended);
+    }
+
+    this._audio.play();
+  }
+
+  /**
+   * Callback that is invoked after the buffer playback is ended.
+   * @private
+   */
+  _onBufferEnded() {
+    // Reset the seek positions
+    this._currentPos = 0;
+    this._rateSeek = 0;
+
+    // Destroy the node (AudioBufferSourceNodes are one-time use and throw objects).
+    this._destroyBufferNode();
+
+    // Reset the state to allow future actions.
+    this._state = SoundState.Ready;
+
+    // Invoke the callback if there is one.
+    this._playEndCallback && this._playEndCallback(this);
+  }
+
+  /**
+   * Callback that is invoked after the html audio playback is ended.
+   * @private
+   */
+  _onHtml5Ended() {
+    if (this._loop) {
+      this.stop().play();
+    } else {
+      this.stop();
+      this._state = SoundState.Ready;
+      this._playEndCallback && this._playEndCallback(this);
+    }
   }
 
   /**
