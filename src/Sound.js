@@ -266,6 +266,12 @@ class Sound {
     // Calculate the duration.
     this._duration = this._endPos - this._startPos;
 
+    if (this._stream) {
+      this._audio.playbackRate = this._rate;
+      this._setLoop(this._loop);
+      this._audio.addEventListener('error', this._onAudioError);
+    }
+
     // If web audio is available, create gain node and set the volume..
     if (engine.isWebAudioAvailable()) {
       this._context = engine.context();
@@ -282,6 +288,10 @@ class Sound {
     this._onHtml5Ended = this._onHtml5Ended.bind(this);
   }
 
+  _onAudioError() {
+    console.log('Audio error');
+  }
+
   /**
    * Plays the sound or the sound defined in the sprite.
    * @return {Sound}
@@ -292,11 +302,7 @@ class Sound {
       return this;
     }
 
-    if (this._stream) {
-      this._playHtml5();
-    } else {
-      this._playBuffer();
-    }
+    this._stream ? this._playHtml5() : this._playBuffer();
 
     // Record the starting time and set the state.
     this._startTime = this._context.currentTime;
@@ -305,9 +311,16 @@ class Sound {
     return this;
   }
 
+  _getTimeVars() {
+    let seek = Math.max(0, this._currentPos > 0 ? this._currentPos : this._startPos),
+      duration = this._endPos - this._startPos,
+      timeout = (duration * 1000) / this._rate;
+
+    return [seek, duration, timeout];
+  }
+
   _playBuffer() {
-    // Get the playback starting position.
-    let seek = Math.max(0, this._currentPos > 0 ? this._currentPos : this._startPos);
+    let [seek, duration] = this._getTimeVars();
 
     // Create a new buffersourcenode to play the sound.
     this._bufferSourceNode = this._context.createBufferSource();
@@ -327,16 +340,14 @@ class Sound {
 
     // Call the supported method to play the sound.
     if (typeof this._bufferSourceNode.start !== 'undefined') {
-      this._bufferSourceNode.start(startTime, seek, this._loop ? undefined : this._duration);
+      this._bufferSourceNode.start(startTime, seek, this._loop ? undefined : duration);
     } else {
-      this._bufferSourceNode.noteGrainOn(startTime, seek, this._loop ? undefined : this._duration);
+      this._bufferSourceNode.noteGrainOn(startTime, seek, this._loop ? undefined : duration);
     }
   }
 
   _playHtml5() {
-    let seek = Math.max(0, this._currentPos > 0 ? this._currentPos : this._startPos),
-      duration = this._endPos - this._startPos,
-      timeout = (duration * 1000) / this._rate;
+    let [seek, , timeout] = this._getTimeVars();
 
     this._audio.currentTime = seek;
 
@@ -387,15 +398,28 @@ class Sound {
     // Stop the current running fade.
     this.fadeStop();
 
-    // Save the current position and reset rateSeek.
-    this._currentPos = this.seek();
-    this._rateSeek = 0;
-
-    this._destroyBufferNode();
+    if (this._stream) {
+      this._audio.removeEventListener('ended', this._onHtml5Ended);
+      this._clearEndTimer();
+      this._audio.pause();
+    } else {
+      this._currentPos = this.seek();
+      this._rateSeek = 0;
+      this._destroyBufferNode();
+    }
 
     this._state = SoundState.Paused;
 
     return this;
+  }
+
+  _clearEndTimer() {
+    if (!this._endTimer) {
+      return;
+    }
+
+    clearTimeout(this._endTimer);
+    this._endTimer = null;
   }
 
   /**
@@ -411,11 +435,16 @@ class Sound {
     // Stop the current running fade.
     this.fadeStop();
 
-    // Reset the variables
-    this._currentPos = 0;
-    this._rateSeek = 0;
-
-    this._destroyBufferNode();
+    if (this._stream) {
+      this._audio.removeEventListener('ended', this._onEnded);
+      this._clearEndTimer();
+      this._audio.pause();
+      this._audio.currentTime = this._startPos || 0;
+    } else {
+      this._currentPos = this.seek();
+      this._rateSeek = 0;
+      this._destroyBufferNode();
+    }
 
     this._state = SoundState.Ready;
 
@@ -551,8 +580,18 @@ class Sound {
     this._rateSeek = this.seek();
 
     if (this.isPlaying()) {
-      this._startTime = this._context.currentTime;
-      this._bufferSourceNode && (this._bufferSourceNode.playbackRate.setValueAtTime(rate, this._context.currentTime));
+      if (this._stream) {
+        this._audio.playbackRate.value = rate;
+
+        if (this._spriteSound) {
+          this._clearEndTimer();
+          let [, duration] = this._getTimeVars();
+          this._endTimer = setTimeout(this._onEnded, (duration * 1000) / Math.abs(rate));
+        }
+      } else {
+        this._startTime = this._context.currentTime;
+        this._bufferSourceNode && (this._bufferSourceNode.playbackRate.setValueAtTime(rate, this._context.currentTime));
+      }
     }
 
     return this;
@@ -566,9 +605,12 @@ class Sound {
   seek(seek) {
     // If no parameter is passed return the current position.
     if (typeof seek === 'undefined') {
+      if (this._stream) {
+        return this._audio.currentTime;
+      }
+
       const realTime = this.isPlaying() ? this._context.currentTime - this._startTime : 0;
       const rateElapsed = this._rateSeek ? this._rateSeek - this._currentPos : 0;
-
       return this._currentPos + (rateElapsed + realTime * this._rate);
     }
 
@@ -621,6 +663,8 @@ class Sound {
 
     // Stop the sound.
     this.stop();
+
+    this._destroyMediaSourceNode();
 
     this._gainNode.disconnect();
 
@@ -713,21 +757,30 @@ class Sound {
     this._bufferSourceNode = null;
   }
 
+  _destroyMediaSourceNode() {
+    if (!this._mediaElementAudioSourceNode) {
+      return;
+    }
+
+    this._mediaElementAudioSourceNode.disconnect();
+    this._mediaElementAudioSourceNode = null;
+  }
+
   /**
    * Sets the sound to play repeatedly or not.
    * @param {boolean} loop True to play the sound repeatedly.
    * @private
    */
   _setLoop(loop) {
-    if (!this._bufferSourceNode) {
-      return;
-    }
+    if (this._stream) {
+      this._audio.loop = loop;
+    } else {
+      this._bufferSourceNode.loop = loop;
 
-    this._bufferSourceNode.loop = loop;
-
-    if (loop) {
-      this._bufferSourceNode.loopStart = this._startPos;
-      this._bufferSourceNode.loopEnd = this._endPos;
+      if (loop) {
+        this._bufferSourceNode.loopStart = this._startPos;
+        this._bufferSourceNode.loopEnd = this._endPos;
+      }
     }
   }
 }
