@@ -1,5 +1,6 @@
 import engine  from './Engine';
 import utility from './Utility';
+import workerTimer from './WorkerTimer';
 
 /**
  * Enum that represents the different states of a sound.
@@ -75,11 +76,25 @@ class Sound {
   _gainNode = null;
 
   /**
+   * True to use HTML5 audio node.
+   * @type {boolean}
+   * @private
+   */
+  _stream = false;
+
+  /**
    * The audio buffer.
    * @type {AudioBuffer}
    * @private
    */
   _buffer = null;
+
+  /**
+   * The HTML5 Audio element.
+   * @type {Audio}
+   * @private
+   */
+  _audio = null;
 
   /**
    * The AudioBufferSourceNode that plays the audio buffer assigned to it.
@@ -166,29 +181,6 @@ class Sound {
    */
   _fadeEndCallback = null;
 
-  _loadCallback = null;
-
-  /**
-   * True to use HTML5 audio node.
-   * @type {boolean}
-   * @private
-   */
-  _stream = false;
-
-  /**
-   * The audio buffer.
-   * @type {AudioBuffer}
-   * @private
-   */
-  _buffer = null;
-
-  /**
-   * The HTML5 Audio element.
-   * @type {Audio}
-   * @private
-   */
-  _audio = null;
-
   /**
    * Web Audio API's audio node to control media element.
    * @type {MediaElementAudioSourceNode}
@@ -199,16 +191,23 @@ class Sound {
   /**
    * Represents the timer that is used to reset the variables once the sprite sound is played.
    * @type {number|null}
-   * @protected
+   * @private
    */
   _endTimer = null;
 
-  _src = null;
+  /**
+   * True for sprite.
+   * @type {boolean}
+   * @private
+   */
+  _isSprite = false;
 
   /**
    * Initializes the internal properties of the sound.
    * @param {object} args The input parameters of the sound.
-   * @param {string} [args.id] The unique id of the sound.
+   * @param {string} args.id The unique id of the sound.
+   * @param {boolean} [args.stream = false] True to use HTML5 audio node for playing sound.
+   * @param {Audio} [args.audio] The pre-loaded HTML5 audio object.
    * @param {AudioBuffer} [args.buffer] Audio source buffer.
    * @param {number} [args.volume = 1.0] The initial volume of the sound. Should be from 0.0 to 1.0.
    * @param {number} [args.rate = 1] The initial playback rate of the sound. Should be from 0.5 to 5.0.
@@ -224,6 +223,7 @@ class Sound {
   constructor(args) {
     const {
       id,
+      stream,
       buffer,
       audio,
       volume,
@@ -235,9 +235,7 @@ class Sound {
       playEndCallback,
       destroyCallback,
       fadeEndCallback,
-      loadCallback,
-      stream,
-      src
+      loadCallback
     } = args;
 
     // Set the passed id or the random one.
@@ -259,13 +257,12 @@ class Sound {
     this._fadeEndCallback = fadeEndCallback;
     this._loadCallback = loadCallback;
     this._stream = Boolean(stream);
-    this._src = src;
 
     this._endPos = this._stream ? this._audio.duration : this._buffer.duration;
-
-    // Calculate the duration.
     this._duration = this._endPos - this._startPos;
+    this._isSprite = this._duration < this._endPos;
 
+    // If stream is `true` then set the playback rate, looping and listen to `error` event.
     if (this._stream) {
       this._audio.playbackRate = this._rate;
       this._setLoop(this._loop);
@@ -278,6 +275,7 @@ class Sound {
       this._gainNode = this._context.createGain();
       this._gainNode.gain.setValueAtTime(this._muted ? 0 : this._volume, this._context.currentTime);
 
+      // Create media element audio source node.
       if (this._stream) {
         this._mediaElementAudioSourceNode = this._context.createMediaElementSource(this._audio);
         this._mediaElementAudioSourceNode.connect(this._gainNode);
@@ -288,6 +286,7 @@ class Sound {
     this._onHtml5Ended = this._onHtml5Ended.bind(this);
   }
 
+  // TODO: Need to implement this!
   _onAudioError() {
     console.log('Audio error');
   }
@@ -311,6 +310,11 @@ class Sound {
     return this;
   }
 
+  /**
+   * Returns the seek, duration and timeout for the playback.
+   * @return {[number, number, number]}
+   * @private
+   */
   _getTimeVars() {
     let seek = Math.max(0, this._currentPos > 0 ? this._currentPos : this._startPos),
       duration = this._endPos - this._startPos,
@@ -319,6 +323,10 @@ class Sound {
     return [seek, duration, timeout];
   }
 
+  /**
+   * Plays the audio using audio buffer.
+   * @private
+   */
   _playBuffer() {
     let [seek, duration] = this._getTimeVars();
 
@@ -346,13 +354,17 @@ class Sound {
     }
   }
 
+  /**
+   * Plays the audio using HTML5 audio object.
+   * @private
+   */
   _playHtml5() {
     let [seek, , timeout] = this._getTimeVars();
 
     this._audio.currentTime = seek;
 
-    if (this._spriteSound) {
-      this._endTimer = setTimeout(this._onHtml5Ended, timeout);
+    if (this._isSprite) {
+      this._endTimer = workerTimer.setTimeout(this._onHtml5Ended, timeout);
     } else {
       this._audio.addEventListener('ended', this._onHtml5Ended);
     }
@@ -360,6 +372,10 @@ class Sound {
     this._audio.play();
   }
 
+  /**
+   * Callback that is invoked after the buffer playback is ended.
+   * @private
+   */
   _onBufferEnded() {
     // Reset the seek positions
     this._currentPos = 0;
@@ -375,6 +391,10 @@ class Sound {
     this._playEndCallback && this._playEndCallback(this);
   }
 
+  /**
+   * Callback that is invoked after the html audio playback is ended.
+   * @private
+   */
   _onHtml5Ended() {
     if (this._loop) {
       this.stop().play();
@@ -413,12 +433,16 @@ class Sound {
     return this;
   }
 
+  /**
+   * Clears the end-timer.
+   * @private
+   */
   _clearEndTimer() {
     if (!this._endTimer) {
       return;
     }
 
-    clearTimeout(this._endTimer);
+    workerTimer.clearTimeout(this._endTimer);
     this._endTimer = null;
   }
 
@@ -529,10 +553,10 @@ class Sound {
       this._gainNode.gain.exponentialRampToValueAtTime(to, this._context.currentTime + duration);
     }
 
-    this._fadeTimer = setTimeout(() => {
+    this._fadeTimer = workerTimer.setTimeout(() => {
       this.volume(to);
 
-      clearTimeout(this._fadeTimer);
+      workerTimer.clearTimeout(this._fadeTimer);
 
       this._fadeTimer = null;
       this._fading = false;
@@ -555,7 +579,7 @@ class Sound {
     this._gainNode.gain.cancelScheduledValues(this._context.currentTime);
 
     if (this._fadeTimer) {
-      clearTimeout(this._fadeTimer);
+      workerTimer.clearTimeout(this._fadeTimer);
       this._fadeTimer = null;
     }
 
@@ -583,10 +607,10 @@ class Sound {
       if (this._stream) {
         this._audio.playbackRate.value = rate;
 
-        if (this._spriteSound) {
+        if (this._isSprite) {
           this._clearEndTimer();
           let [, duration] = this._getTimeVars();
-          this._endTimer = setTimeout(this._onEnded, (duration * 1000) / Math.abs(rate));
+          this._endTimer = workerTimer.setTimeout(this._onEnded, (duration * 1000) / Math.abs(rate));
         }
       } else {
         this._startTime = this._context.currentTime;
@@ -757,6 +781,10 @@ class Sound {
     this._bufferSourceNode = null;
   }
 
+  /**
+   * Destroys the media audio source node.
+   * @private
+   */
   _destroyMediaSourceNode() {
     if (!this._mediaElementAudioSourceNode) {
       return;
