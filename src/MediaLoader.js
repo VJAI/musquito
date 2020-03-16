@@ -30,9 +30,10 @@ class MediaLoader {
 
   /**
    * Creates the audio pool.
+   * @param {number} maxNodesPerSource Maximum number of audio nodes allowed for a url.
    */
-  constructor() {
-    this._audioPool = new Html5AudioPool();
+  constructor(maxNodesPerSource) {
+    this._audioPool = new Html5AudioPool(maxNodesPerSource);
   }
 
   /**

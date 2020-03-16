@@ -593,6 +593,7 @@ class Sound {
     this._gainNode.disconnect();
 
     this._buffer = null;
+    this._audio = null;
     this._context = null;
     this._gainNode = null;
 

@@ -184,13 +184,6 @@ class Buzz {
   _fadeTimer = null;
 
   /**
-   * Buffer or media loader.
-   * @type {BufferLoader|MediaLoader}
-   * @private
-   */
-  _loader = null;
-
-  /**
    * Initializes the internal properties.
    * @param {string|Array<string>|object} args The input parameters of this sound group.
    * @param {string} [args.id] The unique id of the sound.
@@ -311,8 +304,6 @@ class Buzz {
     // Instantiate the dependencies.
     this._queue = new Queue();
 
-    this._loader = this._stream ? this._engine.mediaLoader() : this._engine.bufferLoader();
-
     if (this._autoplay) {
       this.play();
     } else if (this._preload) {
@@ -334,7 +325,7 @@ class Buzz {
     const src = this._compatibleSrc || (this._compatibleSrc = this.getCompatibleSource());
 
     // Load the audio source.
-    const load$ = this._stream ? this._loader.allocateForGroup(src, this._id) : this._loader.load(src);
+    const load$ = this._stream ? this._engine.allocateForGroup(src, this._id) : this._engine.load(src);
     load$.then(downloadResult => {
       if (this._state === BuzzState.Destroyed) {
         return;
@@ -409,6 +400,7 @@ class Buzz {
           loop: this._loop,
           playEndCallback: sound => this._fire(BuzzEvents.PlayEnd, sound.id()),
           destroyCallback: sound => {
+            this._engine.releaseForSound(this._compatibleSrc, this._id, sound.id);
             this._fire(BuzzEvents.Destroy, sound.id());
             emitter.clear(sound.id());
           },
@@ -734,12 +726,12 @@ class Buzz {
     this._queue.clear();
     this._engine.off(EngineEvents.Resume, this._onEngineResume);
     this._engine.free(false, this._id);
+    this._engine.releaseForGroup(this._compatibleSrc, this._id);
 
 
     this._buffer = null;
     this._queue = null;
     this._engine = null;
-    this._loader = null;
     this._state = BuzzState.Destroyed;
 
     this._fire(BuzzEvents.Destroy);

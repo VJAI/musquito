@@ -7,11 +7,26 @@ import utility from './Utility';
 class Html5AudioPool {
 
   /**
+   * Maximum number of audio nodes allowed for a url.
+   * @type {number}
+   * @private
+   */
+  _maxNodesPerSource = Infinity;
+
+  /**
    * Created audio nodes for each resource.
    * @type {object}
    * @private
    */
   _resourceAudioNodes = {};
+
+  /**
+   * Constructor
+   * @param {number} maxNodesPerSource Maximum number of audio nodes allowed for a url.
+   */
+  constructor(maxNodesPerSource) {
+    typeof maxNodesPerSource === 'number' && (this._maxNodesPerSource = maxNodesPerSource);
+  }
 
   /**
    * Allocates an audio node for particular source.

@@ -94,6 +94,13 @@ class Engine {
   _volume = 1.0;
 
   /**
+   * Maximum number of HTML5 audio objects allowed for a url.
+   * @type {number}
+   * @private
+   */
+  _maxNodesPerSource = 10;
+
+  /**
    * The heap clean-up period.
    * @type {number}
    * @private
@@ -199,6 +206,7 @@ class Engine {
    * @param {object} [args] Input parameters object.
    * @param {number} [args.volume = 1.0] The global volume of the sound engine.
    * @param {boolean} [args.muted = false] Stay muted initially or not.
+   * @param {number} [args.maxNodesPerSource = 10] Maximum number of HTML5 audio objects allowed for a url.
    * @param {number} [args.cleanUpInterval = 5] The heap clean-up interval period in minutes.
    * @param {boolean} [args.autoEnable = true] Auto-enables audio in first user interaction.
    * @param {function} [args.onadd] Event-handler for the "add" event.
@@ -237,6 +245,7 @@ class Engine {
     const {
       volume,
       muted,
+      maxNodesPerSource,
       cleanUpInterval,
       autoEnable,
       onadd,
@@ -254,6 +263,7 @@ class Engine {
     // Set the properties from the read parameters.
     typeof volume === 'number' && volume >= 0 && volume <= 1.0 && (this._volume = volume);
     typeof muted === 'boolean' && (this._muted = muted);
+    typeof maxNodesPerSource === 'number' && (this._maxNodesPerSource = maxNodesPerSource);
     typeof cleanUpInterval === 'number' && (this._cleanUpInterval = cleanUpInterval);
     typeof autoEnable === 'boolean' && (this._autoEnable = autoEnable);
     typeof onadd === 'function' && this.on(EngineEvents.Add, onadd);
@@ -271,7 +281,7 @@ class Engine {
     this._bufferLoader = new BufferLoader(this._context);
 
     // Create the media loader.
-    this._mediaLoader = new MediaLoader();
+    this._mediaLoader = new MediaLoader(this._maxNodesPerSource);
 
     // Auto-enable audio in first user interaction.
     // https://developers.google.com/web/updates/2018/11/web-audio-autoplay#moving-forward
@@ -310,6 +320,27 @@ class Engine {
   }
 
   /**
+   * Loads audio node for group.
+   * @param {string} url The audio file url.
+   * @param {number} groupId The group id.
+   * @return {Promise<DownloadResult>}
+   */
+  allocateForGroup(url, groupId) {
+    return this._mediaLoader.allocateForGroup(url, groupId);
+  }
+
+  /**
+   * Allocates an audio node for sound and returns it.
+   * @param {string} src The audio file url.
+   * @param {number} groupId The buzz id.
+   * @param {number} soundId The sound id.
+   * @return {Audio}
+   */
+  allocateForSound(src, groupId, soundId) {
+    return this._mediaLoader.allocateForSound(src, groupId, soundId);
+  }
+
+  /**
    * Unloads single or multiple loaded audio buffers from cache.
    * @param {string|string[]} [urls] Single or array of audio urls.
    * @return {Engine}
@@ -338,6 +369,29 @@ class Engine {
 
     this._mediaLoader.unload();
 
+    return this;
+  }
+
+  /**
+   * Releases the allocated audio node for the group.
+   * @param {string} url The audio file url.
+   * @param {number} groupId The group id.
+   * @return {Engine}
+   */
+  releaseForGroup(url, groupId) {
+    this._mediaLoader.releaseForGroup(url, groupId);
+    return this;
+  }
+
+  /**
+   * Unallocates the audio node reserved for sound.
+   * @param {string} src The audio file url.
+   * @param {number} groupId The buzz id.
+   * @param {number} soundId The sound id.
+   * @return {Engine}
+   */
+  releaseForSound(src, groupId, soundId) {
+    this._mediaLoader.releaseForSound(src, groupId, soundId);
     return this;
   }
 
