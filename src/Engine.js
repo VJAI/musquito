@@ -295,41 +295,50 @@ class Engine {
    * Loads single or multiple audio resources into audio buffers and returns them.
    * @param {string|string[]} urls Single or array of audio urls.
    * @return {Promise}
-   * TODO
    */
-  load(urls, stream = false, groupId = null) {
-    return stream ? this._mediaLoader.load(urls, groupId) : this._bufferLoader.load(urls);
+  load(urls) {
+    return this._bufferLoader.load(urls);
   }
 
-  getAudioForGroup(src, groupId, soundId){
-    return this._mediaLoader.getAudioForGroup(src, groupId, soundId);
+  /**
+   * Loads HTML5 audio nodes for the passed urls.
+   * @param {string|string[]} urls Single or array of audio urls.
+   * @return {Promise<DownloadResult|Array<DownloadResult>>}
+   */
+  loadMedia(urls) {
+    return this._mediaLoader.load(urls);
   }
 
   /**
    * Unloads single or multiple loaded audio buffers from cache.
    * @param {string|string[]} [urls] Single or array of audio urls.
    * @return {Engine}
-   * // TODO
    */
-  unload(urls, stream = false, onlyFree = true) {
+  unload(urls) {
     if (urls) {
-      stream ? this._bufferLoader.unload(urls) : this._mediaLoader.unload(urls, onlyFree);
+      this._bufferLoader.unload(urls);
       return this;
     }
 
     this._bufferLoader.unload();
-    this._mediaLoader.unload();
 
     return this;
   }
 
   /**
-   * Release the allocated audio element for the sound.
-   * @param {string} id The sound id.
-   * @param {boolean} destroy True to destroy the audio node.
+   * Releases audio nodes allocated for the passed urls.
+   * @param {string|string[]} [urls] Single or array of audio urls.
+   * @return {Engine}
    */
-  unloadMediaForSound(id, destroy = false) {
-    this._mediaLoader.unloadForSound(id, destroy);
+  unloadMedia(urls) {
+    if (urls) {
+      this._mediaLoader.unload(urls);
+      return this;
+    }
+
+    this._mediaLoader.unload();
+
+    return this;
   }
 
   /**
@@ -650,6 +659,22 @@ class Engine {
    */
   isWebAudioAvailable() {
     return this._isWebAudioAvailable;
+  }
+
+  /**
+   * Returns the buffer loader.
+   * @return {BufferLoader}
+   */
+  bufferLoader() {
+    return this._bufferLoader;
+  }
+
+  /**
+   * Returns the HTML5 media loader.
+   * @return {MediaLoader}
+   */
+  mediaLoader() {
+    return this._mediaLoader;
   }
 
   /**

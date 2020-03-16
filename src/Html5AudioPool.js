@@ -33,7 +33,7 @@ class Html5AudioPool {
   /**
    * Allocates a HTML5 audio node to a particular resource and group.
    * @param {string} src The audio url.
-   * @param {string} [groupId] The buzz group id.
+   * @param {number} [groupId] The buzz group id.
    * @return {Audio}
    */
   allocateForGroup(src, groupId) {
@@ -55,8 +55,8 @@ class Html5AudioPool {
   /**
    * Allocates the pre-laoded HTML5 audio node to a sound.
    * @param {string} src The audio file url.
-   * @param {string} groupId The group id.
-   * @param {string} soundId The sound id.
+   * @param {number} groupId The group id.
+   * @param {number} soundId The sound id.
    * @return {Audio}
    */
   allocateForSound(src, groupId, soundId) {
@@ -91,7 +91,7 @@ class Html5AudioPool {
   /**
    * Releases all the audio nodes allocated for a group.
    * @param {string} src The audio file url.
-   * @param {string} groupId The group id.
+   * @param {number} groupId The group id.
    */
   releaseForGroup(src, groupId) {
     const nodes = this._resourceAudioNodes[src],
@@ -104,8 +104,8 @@ class Html5AudioPool {
   /**
    * Release the audio element that is allocated for the sound.
    * @param {string} src The audio file url.
-   * @param {string} groupId The group id.
-   * @param {string} soundId The sound id.
+   * @param {number} groupId The group id.
+   * @param {number} soundId The sound id.
    */
   releaseForSound(src, groupId, soundId) {
     const nodes = this._resourceAudioNodes[src],
@@ -142,7 +142,7 @@ class Html5AudioPool {
   /**
    * Creates an entry for the passed source and group if not exists.
    * @param {string} src The audio file.
-   * @param {string} groupId The group id.
+   * @param {number} groupId The group id.
    * @private
    */
   _createGroup(src, groupId) {
