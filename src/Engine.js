@@ -396,6 +396,16 @@ class Engine {
   }
 
   /**
+   * Returns if there are free audio nodes available for a group.
+   * @param {string} src The audio file url.
+   * @param {number} groupId The group id.
+   * @return {boolean}
+   */
+  hasFreeNodes(src, groupId) {
+    return this._mediaLoader.hasFreeNodes(src, groupId);
+  }
+
+  /**
    * Mutes the engine.
    * @return {Engine}
    */

@@ -785,7 +785,7 @@ class Buzz {
    * @return {boolean}
    */
   isLoaded() {
-    return this._loadState === LoadState.Loaded;
+    return this._stream ? this._engine.hasFreeNodes(this._compatibleSrc, this._id) : this._loadState === LoadState.Loaded;
   }
 
   /**

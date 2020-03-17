@@ -134,16 +134,21 @@ class Html5AudioPool {
   }
 
   /**
-   *
+   * Returns if there are free audio nodes available for a group.
    * @param {string} src The audio file url.
    * @param {number} groupId The group id.
+   * @return {boolean}
    */
   hasFreeNodes(src, groupId) {
     if (!this._resourceAudioNodes.hasOwnProperty(src)) {
       return false;
     }
 
-    
+    const nodes = this._resourceAudioNodes[src],
+      { allocated } = nodes;
+
+    const unallocatedObjects = allocated[groupId].filter(x => x.soundId === null);
+    return unallocatedObjects.length > 0;
   }
 
   /**
