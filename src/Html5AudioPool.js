@@ -114,6 +114,8 @@ class Html5AudioPool {
 
     const audioNodes = allocated[groupId].map(x => x.audio);
     nodes.unallocated = [...unallocated, ...audioNodes];
+
+    delete allocated[groupId];
   }
 
   /**
@@ -129,6 +131,19 @@ class Html5AudioPool {
     const allocatedAudioObj = allocated[groupId].find(x => x.soundId === soundId);
     allocatedAudioObj.soundId = null;
     delete allocated[groupId];
+  }
+
+  /**
+   *
+   * @param {string} src The audio file url.
+   * @param {number} groupId The group id.
+   */
+  hasFreeNodes(src, groupId) {
+    if (!this._resourceAudioNodes.hasOwnProperty(src)) {
+      return false;
+    }
+
+    
   }
 
   /**
