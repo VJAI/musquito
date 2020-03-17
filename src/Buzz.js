@@ -327,12 +327,8 @@ class Buzz {
     // Load the audio source.
     const load$ = this._stream ? this._engine.allocateForGroup(src, this._id) : this._engine.load(src);
     load$.then(downloadResult => {
-      if (this._state === BuzzState.Destroyed) {
-        return;
-      }
-
-      // TODO: Need to handle this case for stream!
-      if (this._loadState === LoadState.NotLoaded) {
+      if (this._state === BuzzState.Destroyed || this._loadState === LoadState.NotLoaded) {
+        this._stream && this._engine.releaseForGroup(this._compatibleSrc, this._id);
         return;
       }
 
@@ -707,7 +703,7 @@ class Buzz {
    */
   unload() {
     this._queue.remove('after-load');
-    this._engine.unload(this._compatibleSrc);
+    this._stream && this._engine.releaseForGroup(this._compatibleSrc, this._id);
     this._buffer = null;
     this._duration = 0;
     this._loadState = LoadState.NotLoaded;

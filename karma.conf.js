@@ -7,21 +7,18 @@ module.exports = function (config) {
       { pattern: 'sounds/*.*', included: false }
     ],
     preprocessors: {
-      'src/**/*.spec.js': ['webpack', 'sourcemap', 'coverage']
+      'src/**/*.spec.js': ['webpack', 'sourcemap']
     },
     webpack: {
       module: {
-        loaders: [
+        rules: [
           { test: /\.js$/, exclude: /node_modules/, loader: 'eslint-loader', enforce: 'pre' },
           { test: /\.js$/, exclude: /node_modules/, loader: 'babel-loader' }
         ]
       },
       devtool: 'inline-source-map'
     },
-    coverageReporter: {
-      type: 'text'
-    },
-    reporters: ['mocha', 'coverage'],
+    reporters: ['mocha'],
     port: 9876,
     colors: true,
     logLevel: config.LOG_INFO,
@@ -32,7 +29,6 @@ module.exports = function (config) {
       'karma-jasmine-ajax',
       'karma-webpack',
       'karma-mocha-reporter',
-      'karma-coverage',
       'karma-sourcemap-loader'
     ],
     browsers: ['Chrome'],

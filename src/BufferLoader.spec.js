@@ -1,4 +1,4 @@
-import utility from '../Utility';
+import utility from './Utility';
 import BufferLoader from './BufferLoader';
 import DownloadStatus from './DownloadStatus';
 
