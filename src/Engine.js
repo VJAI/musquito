@@ -674,6 +674,7 @@ class Engine {
    */
   free(idle, groupId) {
     this._heap.free(idle, groupId);
+    this._mediaLoader.cleanUp();
     return this;
   }
 

@@ -125,6 +125,13 @@ class MediaLoader {
   }
 
   /**
+   * Acquires the unallocated audio nodes and removes the excess ones.
+   */
+  cleanUp() {
+    this._audioPool.cleanUp();
+  }
+
+  /**
    * Clear the event handlers of buffering audio elements and dispose the pool.
    */
   dispose() {

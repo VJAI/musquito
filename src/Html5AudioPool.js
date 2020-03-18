@@ -152,6 +152,25 @@ class Html5AudioPool {
   }
 
   /**
+   * Acquires the unallocated audio nodes and removes the excess ones.
+   */
+  cleanUp() {
+    Object.keys(this._resourceAudioNodes).forEach(src => {
+      const nodes = this._resourceAudioNodes[src],
+        { allocated, unallocated } = nodes;
+
+      let audioNodes = [];
+
+      Object.keys(unallocated).forEach(groupId => {
+        audioNodes = [...audioNodes, ...unallocated[groupId].filter(x => x.soundId === null)];
+        unallocated[groupId] = unallocated[groupId].filter(x => x.soundId !== null);
+      });
+
+      nodes.allocated = [...allocated, ...audioNodes].slice(0, this._maxNodesPerSource);
+    });
+  }
+
+  /**
    * Releases all the audio nodes.
    */
   dispose() {
