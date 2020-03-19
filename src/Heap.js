@@ -44,6 +44,22 @@ class HeapItemCollection {
   items = {};
 
   /**
+   * The inactive time of sound.
+   * @type {number}
+   * @private
+   */
+  _inactiveTime = 0;
+
+  /**
+   * Initialize stuff.
+   * @param {number} inactiveTime The inactive time of sound.
+   */
+  constructor(inactiveTime) {
+    this._inactiveTime = inactiveTime;
+    this.free = this.free.bind(this);
+  }
+
+  /**
    * Adds a new sound item to the collection.
    * @param {number} groupId The group id.
    * @param {Sound} sound The sound instance.
@@ -64,10 +80,13 @@ class HeapItemCollection {
    * @param {number} [groupId] The group id.
    */
   free(idle = true, groupId) {
+    const now = Date.now();
+
     Object.values(this.items).forEach(item => {
       const { sound, soundGroupId } = item;
+      const inactiveDuration = (now - sound.lastPlayed()) / 1000;
 
-      if(idle && (sound.isPlaying() || sound.isPaused())) {
+      if (idle && ((sound.isPlaying() || sound.isPaused()) || inactiveDuration < this._inactiveTime * 60)) {
         return;
       }
 
@@ -104,6 +123,13 @@ class HeapItemCollection {
 class Heap {
 
   /**
+   * The inactive time of sound.
+   * @type {number}
+   * @private
+   */
+  _inactiveTime = 5;
+
+  /**
    * The sound collections.
    * @type {object}
    * @private
@@ -112,8 +138,10 @@ class Heap {
 
   /**
    * Initialize stuff.
+   * @param {number} inactiveTime The inactive time of sound.
    */
-  constructor() {
+  constructor(inactiveTime) {
+    typeof inactiveTime === 'number' && (this._inactiveTime = inactiveTime);
     this.free = this.free.bind(this);
   }
 
@@ -134,6 +162,7 @@ class Heap {
   /**
    * Returns the sound based on the id.
    * @param {number} id The sound id.
+   * @return {Sound}
    */
   sound(id) {
     return this.sounds().find(sound => sound.id() === id);

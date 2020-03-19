@@ -203,6 +203,13 @@ class Sound {
   _isSprite = false;
 
   /**
+   * Last played time.
+   * @type {number}
+   * @private
+   */
+  _lastPlayed = Date.now();
+
+  /**
    * Initializes the internal properties of the sound.
    * @param {object} args The input parameters of the sound.
    * @param {string} args.id The unique id of the sound.
@@ -369,6 +376,8 @@ class Sound {
       this._rateSeek = 0;
       this._destroyBufferNode();
     }
+
+    this._lastPlayed = Date.now();
 
     this._state = SoundState.Ready;
 
@@ -653,6 +662,14 @@ class Sound {
     return this._state === SoundState.Paused;
   }
 
+  /**
+   * Returns last played time.
+   * @return {number}
+   */
+  lastPlayed() {
+    return this._lastPlayed;
+  }
+
   // TODO: Need to implement this!
   _onAudioError() {
     console.log('Audio error');
@@ -725,6 +742,8 @@ class Sound {
    * @private
    */
   _onBufferEnded() {
+    this._lastPlayed = Date.now();
+
     // Reset the seek positions
     this._currentPos = 0;
     this._rateSeek = 0;

@@ -35,12 +35,13 @@ class Html5AudioPool {
    */
   allocateForSource(src) {
     this._createSrc(src);
+    this._checkMaxNodesForSrc(src);
 
     const nodes = this._resourceAudioNodes[src],
-      { allocated } = nodes;
+      { unallocated } = nodes;
 
     const audio = new Audio();
-    allocated.push(audio);
+    unallocated.push(audio);
 
     return audio;
   }
@@ -53,6 +54,7 @@ class Html5AudioPool {
    */
   allocateForGroup(src, groupId) {
     this._createGroup(src, groupId);
+    this._checkMaxNodesForSrc(src);
 
     const nodes = this._resourceAudioNodes[src],
       { unallocated, allocated } = nodes,
@@ -68,7 +70,7 @@ class Html5AudioPool {
   }
 
   /**
-   * Allocates the pre-laoded HTML5 audio node to a sound.
+   * Allocates the pre-loaded HTML5 audio node to a sound.
    * @param {string} src The audio file url.
    * @param {number} groupId The group id.
    * @param {number} soundId The sound id.
@@ -92,12 +94,13 @@ class Html5AudioPool {
    */
   releaseForSource(src) {
     const nodes = this._resourceAudioNodes[src],
-      { allocated, unallocated } = nodes;
+      { unallocated, allocated } = nodes;
 
-    allocated.forEach(x => this._destroyNode(x));
+    unallocated.forEach(x => this._destroyNode(x));
 
     Object.keys(unallocated).forEach(groupId => {
-      unallocated[groupId].forEach(x => this._destroyNode(x.audio));
+      allocated[groupId].forEach(x => this._destroyNode(x.audio));
+      delete allocated[groupId];
     });
 
     delete this._resourceAudioNodes[src];
@@ -110,7 +113,7 @@ class Html5AudioPool {
    */
   releaseForGroup(src, groupId) {
     const nodes = this._resourceAudioNodes[src],
-      { allocated, unallocated } = nodes;
+      { unallocated, allocated } = nodes;
 
     const audioNodes = allocated[groupId].map(x => x.audio);
     nodes.unallocated = [...unallocated, ...audioNodes];
@@ -157,16 +160,16 @@ class Html5AudioPool {
   cleanUp() {
     Object.keys(this._resourceAudioNodes).forEach(src => {
       const nodes = this._resourceAudioNodes[src],
-        { allocated, unallocated } = nodes;
+        { unallocated, allocated } = nodes;
 
       let audioNodes = [];
 
-      Object.keys(unallocated).forEach(groupId => {
-        audioNodes = [...audioNodes, ...unallocated[groupId].filter(x => x.soundId === null)];
-        unallocated[groupId] = unallocated[groupId].filter(x => x.soundId !== null);
+      Object.keys(allocated).forEach(groupId => {
+        audioNodes = [...audioNodes, ...allocated[groupId].filter(x => x.soundId === null)];
+        allocated[groupId] = allocated[groupId].filter(x => x.soundId !== null);
       });
 
-      nodes.allocated = [...allocated, ...audioNodes].slice(0, this._maxNodesPerSource);
+      nodes.unallocated = [...unallocated, ...audioNodes].slice(0, this._maxNodesPerSource);
     });
   }
 
@@ -174,7 +177,7 @@ class Html5AudioPool {
    * Releases all the audio nodes.
    */
   dispose() {
-    Object.keys(this._resourceAudioNodes).forEach(src => this.release(src));
+    Object.keys(this._resourceAudioNodes).forEach(src => this.releaseForSource(src));
   }
 
   /**
@@ -203,13 +206,39 @@ class Html5AudioPool {
     this._createSrc(src);
 
     const nodes = this._resourceAudioNodes[src],
-      { unallocated } = nodes;
+      { allocated } = nodes;
 
-    if (unallocated.hasOwnProperty(groupId)) {
+    if (allocated.hasOwnProperty(groupId)) {
       return;
     }
 
-    unallocated[groupId] = [];
+    allocated[groupId] = [];
+  }
+
+  /**
+   * Chekcks and throws error if max audio nodes reached for the passed resource.
+   * @param {string} src The source url.
+   * @private
+   */
+  _checkMaxNodesForSrc(src) {
+    if (!this._resourceAudioNodes.hasOwnProperty(src)) {
+      return;
+    }
+
+    const nodes = this._resourceAudioNodes[src],
+      { unallocated, allocated } = nodes;
+
+    let totalAllocatedLength = 0;
+
+    Object.keys(allocated).forEach(groupId => {
+      totalAllocatedLength = totalAllocatedLength + allocated[groupId].length;
+    });
+
+    if (unallocated.length + totalAllocatedLength < this._maxNodesPerSource) {
+      return;
+    }
+
+    throw new Error(`Maximum nodes reached for resource ${src}`);
   }
 
   /**
