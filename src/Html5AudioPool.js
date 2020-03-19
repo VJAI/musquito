@@ -40,7 +40,7 @@ class Html5AudioPool {
    * @param {Heap} heap The sounds store.
    */
   constructor(maxNodesPerSource, heap) {
-    typeof maxNodesPerSource === 'number' && (this._maxNodesPerSource = maxNodesPerSource);
+    this._maxNodesPerSource = maxNodesPerSource;
     this._heap = heap;
   }
 

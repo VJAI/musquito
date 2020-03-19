@@ -84,7 +84,7 @@ class BufferLoader {
     }
 
     this.unload();
-    this._bufferCache = {};
+    this._bufferCache = null;
     this._progressCallsAndCallbacks = null;
     this._context = null;
     this._disposed = true;
