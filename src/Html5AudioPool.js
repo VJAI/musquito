@@ -14,6 +14,13 @@ class Html5AudioPool {
   _maxNodesPerSource = Infinity;
 
   /**
+   * The sounds store.
+   * @type {Heap}
+   * @private
+   */
+  _heap = null;
+
+  /**
    * Created audio nodes for each resource.
    * @type {object}
    * @private
@@ -21,11 +28,20 @@ class Html5AudioPool {
   _resourceAudioNodes = {};
 
   /**
+   * True if the heap is cleaned manually.
+   * @type {boolean}
+   * @private
+   */
+  _heapCleaned = false;
+
+  /**
    * Constructor
    * @param {number} maxNodesPerSource Maximum number of audio nodes allowed for a url.
+   * @param {Heap} heap The sounds store.
    */
-  constructor(maxNodesPerSource) {
+  constructor(maxNodesPerSource, heap) {
     typeof maxNodesPerSource === 'number' && (this._maxNodesPerSource = maxNodesPerSource);
+    this._heap = heap;
   }
 
   /**
@@ -237,6 +253,14 @@ class Html5AudioPool {
     if (unallocated.length + totalAllocatedLength < this._maxNodesPerSource) {
       return;
     }
+
+    if (!this._heapCleaned) {
+      this._heap.free(src);
+      this._heapCleaned = true;
+      this._checkMaxNodesForSrc(src);
+    }
+
+    this._heapCleaned = false;
 
     throw new Error(`Maximum nodes reached for resource ${src}`);
   }

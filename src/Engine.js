@@ -108,6 +108,13 @@ class Engine {
   _cleanUpInterval = 5;
 
   /**
+   * Inactive time of sound.
+   * @type {number}
+   * @private
+   */
+  _inactiveTime = 2;
+
+  /**
    * Auto-enables audio in first user interaction.
    * @type {boolean}
    * @private
@@ -196,7 +203,7 @@ class Engine {
    * @constructor
    */
   constructor() {
-    this._heap = new Heap();
+    this._heap = new Heap(this._inactiveTime);
     this._queue = new Queue();
     this._resumeAndRemoveListeners = this._resumeAndRemoveListeners.bind(this);
   }
@@ -281,7 +288,7 @@ class Engine {
     this._bufferLoader = new BufferLoader(this._context);
 
     // Create the media loader.
-    this._mediaLoader = new MediaLoader(this._maxNodesPerSource);
+    this._mediaLoader = new MediaLoader(this._maxNodesPerSource, this._heap);
 
     // Auto-enable audio in first user interaction.
     // https://developers.google.com/web/updates/2018/11/web-audio-autoplay#moving-forward

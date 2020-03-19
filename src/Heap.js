@@ -127,7 +127,7 @@ class Heap {
    * @type {number}
    * @private
    */
-  _inactiveTime = 5;
+  _inactiveTime = 0;
 
   /**
    * The sound collections.
@@ -141,7 +141,7 @@ class Heap {
    * @param {number} inactiveTime The inactive time of sound.
    */
   constructor(inactiveTime) {
-    typeof inactiveTime === 'number' && (this._inactiveTime = inactiveTime);
+    this._inactiveTime = inactiveTime;
     this.free = this.free.bind(this);
   }
 
@@ -182,9 +182,15 @@ class Heap {
   /**
    * Removes sounds from the collections.
    * @param {boolean} [idle = true] True to destroy only the idle sounds.
+   * @param {string} [src] The audio resource url.
    * @param {number} [groupId] The group id.
    */
-  free(idle = true, groupId) {
+  free(idle = true, src, groupId) {
+    if (src) {
+      this._collections[src].free(idle, groupId);
+      return;
+    }
+
     Object.values(this._collections).forEach(col => col.free(idle, groupId));
   }
 
