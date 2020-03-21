@@ -142,6 +142,13 @@ class Buzz {
   _compatibleSrc = null;
 
   /**
+   * Minimum number of audio nodes that should be resvered for this group.
+   * @type {number}
+   * @private
+   */
+  _minNodes = 1;
+
+  /**
    * Represents the different states that occurs while loading the sound.
    * @type {LoadState}
    * @private
@@ -197,6 +204,7 @@ class Buzz {
    * @param {boolean} [args.stream = false] True to use HTML5 audio node.
    * @param {string|string[]} [args.format] The file format(s) of the passed audio source(s).
    * @param {object} [args.sprite] The sprite definition.
+   * @param {number} [args.minNodes] Minimum number of audio nodes that should be resvered for this group.
    * @param {function} [args.onload] Event-handler for the "load" event.
    * @param {function} [args.onunload] Event-handler for the "unload" event.
    * @param {function} [args.onplaystart] Event-handler for the "playstart" event.
@@ -240,6 +248,7 @@ class Buzz {
         autoplay,
         stream,
         preload,
+        minNodes,
         onload,
         onunload,
         onplaystart,
@@ -280,10 +289,11 @@ class Buzz {
       typeof autoplay === 'boolean' && (this._autoplay = autoplay);
       typeof stream === 'boolean' && (this._stream = stream);
       typeof preload === 'boolean' && (this._preload = preload);
-      typeof onload === 'function' && this.on(BuzzEvents.Load, onload);
-      typeof onunload === 'function' && this.on(BuzzEvents.UnLoad, onunload);
+      typeof minNodes === 'number' && minNodes > 1 && (this._minNodes = minNodes);
 
       // Bind the passed event handlers to events.
+      typeof onload === 'function' && this.on(BuzzEvents.Load, onload);
+      typeof onunload === 'function' && this.on(BuzzEvents.UnLoad, onunload);
       typeof onplaystart === 'function' && this.on(BuzzEvents.PlayStart, onplaystart);
       typeof onplayend === 'function' && this.on(BuzzEvents.PlayEnd, onplayend);
       typeof onstop === 'function' && this.on(BuzzEvents.Stop, onstop);
@@ -672,6 +682,7 @@ class Buzz {
 
   /**
    * Returns the state of the passed sound or the group.
+   * @param {number} [id] The sound id.
    * @return {BuzzState|SoundState}
    */
   state(id) {
@@ -712,8 +723,15 @@ class Buzz {
 
   /**
    * Stops and destroys all the sounds belong to this group and release other dependencies.
+   * @param {number} [soundId] The sound id.
    */
-  destroy() {
+  destroy(soundId) {
+    if (soundId) {
+      const sound = this.sound(soundId);
+      sound && sound.destroy();
+      return;
+    }
+
     if (this._state === BuzzState.Destroyed) {
       return;
     }
@@ -733,6 +751,22 @@ class Buzz {
     this._fire(BuzzEvents.Destroy);
 
     emitter.clear(this._id);
+  }
+
+  /**
+   * Makes the passed sound persistent that means it can't be auto-destroyed.
+   * @param {number} soundId The sound id.
+   */
+  persist(soundId) {
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * Makes the passed sound un-persistent that means it can be auto-destroyed.
+   * @param {number} soundId The sound id.
+   */
+  abandon(soundId) {
+    throw new Error('Not implemented');
   }
 
   /**

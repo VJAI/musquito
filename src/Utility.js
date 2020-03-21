@@ -25,7 +25,7 @@ class Utility {
   _formats = {};
 
   /**
-   * TODO: Need comment.
+   * User agent.
    * @private
    */
   _userAgent = null;

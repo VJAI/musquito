@@ -11,7 +11,7 @@ class Html5AudioPool {
    * @type {number}
    * @private
    */
-  _maxNodesPerSource = Infinity;
+  _maxNodesPerSource = 100;
 
   /**
    * The sounds store.

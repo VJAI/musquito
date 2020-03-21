@@ -86,7 +86,7 @@ class HeapItemCollection {
       const { sound, soundGroupId } = item;
       const inactiveDuration = (now - sound.lastPlayed()) / 1000;
 
-      if (idle && ((sound.isPlaying() || sound.isPaused()) || inactiveDuration < this._inactiveTime * 60)) {
+      if (idle && (sound.isPersistent() || sound.isPlaying() || sound.isPaused() || inactiveDuration < this._inactiveTime * 60)) {
         return;
       }
 

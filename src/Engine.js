@@ -499,6 +499,20 @@ class Engine {
   }
 
   /**
+   * Makes the passed sound persistent that means it can't be auto-destroyed.
+   */
+  persist() {
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * Makes the passed sound un-persistent that means it can be auto-destroyed.
+   */
+  abandon(soundId) {
+    throw new Error('Not implemented');
+  }
+
+  /**
    * Stops all the playing sounds and suspends the audio context immediately.
    * @return {Engine}
    */

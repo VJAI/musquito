@@ -210,6 +210,13 @@ class Sound {
   _lastPlayed = Date.now();
 
   /**
+   * True to not auto-destroy.
+   * @type {boolean}
+   * @private
+   */
+  _persist = false;
+
+  /**
    * Initializes the internal properties of the sound.
    * @param {object} args The input parameters of the sound.
    * @param {string} args.id The unique id of the sound.
@@ -668,6 +675,36 @@ class Sound {
    */
   lastPlayed() {
     return this._lastPlayed;
+  }
+
+  /**
+   * Disables auto-destroy.
+   */
+  persist() {
+    if (this._state === SoundState.Destroyed) {
+      return;
+    }
+
+    this._persist = true;
+  }
+
+  /**
+   * Enables auto-destroy.
+   */
+  abandon() {
+    if (this._state === SoundState.Destroyed) {
+      return;
+    }
+
+    this._persist = false;
+  }
+
+  /**
+   * Returns true if auto-destroy enabled.
+   * @return {boolean}
+   */
+  isPersistent() {
+    return this._persist;
   }
 
   // TODO: Need to implement this!
