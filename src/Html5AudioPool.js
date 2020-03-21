@@ -25,7 +25,7 @@ class Html5AudioPool {
    * @type {object}
    * @private
    */
-  _resourceAudioNodes = {};
+  _resourceNodesMap = {};
 
   /**
    * True if the heap is cleaned manually.
@@ -53,7 +53,7 @@ class Html5AudioPool {
     this._createSrc(src);
     this._checkMaxNodesForSrc(src);
 
-    const nodes = this._resourceAudioNodes[src],
+    const nodes = this._resourceNodesMap[src],
       { unallocated } = nodes;
 
     const audio = new Audio();
@@ -72,7 +72,7 @@ class Html5AudioPool {
     this._createGroup(src, groupId);
     this._checkMaxNodesForSrc(src);
 
-    const nodes = this._resourceAudioNodes[src],
+    const nodes = this._resourceNodesMap[src],
       { unallocated, allocated } = nodes,
       audio = unallocated.length ? unallocated.shift() : new Audio(),
       groupSounds = allocated[groupId];
@@ -95,9 +95,13 @@ class Html5AudioPool {
   allocateForSound(src, groupId, soundId) {
     this._createGroup(src, groupId);
 
-    const nodes = this._resourceAudioNodes[src],
+    const nodes = this._resourceNodesMap[src],
       { allocated } = nodes,
       notAllocatedAudioObj = allocated[groupId].find(x => x.soundId === null);
+
+    if (!notAllocatedAudioObj) {
+      throw new Error(`No free audio nodes available in the group ${groupId}`);
+    }
 
     notAllocatedAudioObj.soundId = soundId;
 
@@ -109,17 +113,17 @@ class Html5AudioPool {
    * @param {string} src The audio url.
    */
   releaseForSource(src) {
-    const nodes = this._resourceAudioNodes[src],
+    const nodes = this._resourceNodesMap[src],
       { unallocated, allocated } = nodes;
 
     unallocated.forEach(x => this._destroyNode(x));
 
-    Object.keys(unallocated).forEach(groupId => {
+    Object.keys(allocated).forEach(groupId => {
       allocated[groupId].forEach(x => this._destroyNode(x.audio));
       delete allocated[groupId];
     });
 
-    delete this._resourceAudioNodes[src];
+    delete this._resourceNodesMap[src];
   }
 
   /**
@@ -128,7 +132,7 @@ class Html5AudioPool {
    * @param {number} groupId The group id.
    */
   releaseForGroup(src, groupId) {
-    const nodes = this._resourceAudioNodes[src],
+    const nodes = this._resourceNodesMap[src],
       { unallocated, allocated } = nodes;
 
     const audioNodes = allocated[groupId].map(x => x.audio);
@@ -144,7 +148,7 @@ class Html5AudioPool {
    * @param {number} soundId The sound id.
    */
   releaseForSound(src, groupId, soundId) {
-    const nodes = this._resourceAudioNodes[src],
+    const nodes = this._resourceNodesMap[src],
       { allocated } = nodes;
 
     const allocatedAudioObj = allocated[groupId].find(x => x.soundId === soundId);
@@ -159,11 +163,11 @@ class Html5AudioPool {
    * @return {boolean}
    */
   hasFreeNodes(src, groupId) {
-    if (!this._resourceAudioNodes.hasOwnProperty(src)) {
+    if (!this._resourceNodesMap.hasOwnProperty(src)) {
       return false;
     }
 
-    const nodes = this._resourceAudioNodes[src],
+    const nodes = this._resourceNodesMap[src],
       { allocated } = nodes;
 
     const unallocatedObjects = allocated[groupId].filter(x => x.soundId === null);
@@ -174,8 +178,8 @@ class Html5AudioPool {
    * Acquires the unallocated audio nodes and removes the excess ones.
    */
   cleanUp() {
-    Object.keys(this._resourceAudioNodes).forEach(src => {
-      const nodes = this._resourceAudioNodes[src],
+    Object.keys(this._resourceNodesMap).forEach(src => {
+      const nodes = this._resourceNodesMap[src],
         { unallocated, allocated } = nodes;
 
       let audioNodes = [];
@@ -193,7 +197,7 @@ class Html5AudioPool {
    * Releases all the audio nodes.
    */
   dispose() {
-    Object.keys(this._resourceAudioNodes).forEach(src => this.releaseForSource(src));
+    Object.keys(this._resourceNodesMap).forEach(src => this.releaseForSource(src));
   }
 
   /**
@@ -202,11 +206,11 @@ class Html5AudioPool {
    * @private
    */
   _createSrc(src) {
-    if (this._resourceAudioNodes.hasOwnProperty(src)) {
+    if (this._resourceNodesMap.hasOwnProperty(src)) {
       return;
     }
 
-    this._resourceAudioNodes[src] = {
+    this._resourceNodesMap[src] = {
       unallocated: [],
       allocated: {}
     };
@@ -221,7 +225,7 @@ class Html5AudioPool {
   _createGroup(src, groupId) {
     this._createSrc(src);
 
-    const nodes = this._resourceAudioNodes[src],
+    const nodes = this._resourceNodesMap[src],
       { allocated } = nodes;
 
     if (allocated.hasOwnProperty(groupId)) {
@@ -237,11 +241,11 @@ class Html5AudioPool {
    * @private
    */
   _checkMaxNodesForSrc(src) {
-    if (!this._resourceAudioNodes.hasOwnProperty(src)) {
+    if (!this._resourceNodesMap.hasOwnProperty(src)) {
       return;
     }
 
-    const nodes = this._resourceAudioNodes[src],
+    const nodes = this._resourceNodesMap[src],
       { unallocated, allocated } = nodes;
 
     let totalAllocatedLength = 0;
