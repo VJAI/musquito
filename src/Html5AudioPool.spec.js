@@ -138,13 +138,37 @@ describe('Html5AudioPool', () => {
     });
 
     it('should release the audio nodes allocated for group', () => {
-      expect(html5AudioPool._resourceNodesMap[url].unallocated.length).toBe(2);
-      expect(html5AudioPool._resourceNodesMap[url].allocated.hasOwnProperty(groupId)).toBe(false);
+      const nodes = html5AudioPool._resourceNodesMap[url],
+        { unallocated, allocated } = nodes;
+
+      expect(unallocated.length).toBe(2);
+      expect(allocated.hasOwnProperty(groupId)).toBe(false);
     });
   });
 
   describe('on releasing audio nodes for sound', () => {
 
+    beforeEach(() => {
+      html5AudioPool._resourceNodesMap[url] = {
+        unallocated: [new Audio()],
+        allocated: {
+          1: [{
+            audio: new Audio(),
+            soundId: soundId
+          }]
+        }
+      };
+
+      html5AudioPool.releaseForSound(url, groupId, soundId);
+    });
+
+    it('should remove the soundid', () => {
+      const nodes = html5AudioPool._resourceNodesMap[url],
+        { allocated } = nodes;
+
+      const t = allocated[groupId].find(x => x.soundId === soundId);
+      expect(t).toBeNull();
+    });
   });
 
   describe('on calling clean-up', () => {
@@ -153,5 +177,33 @@ describe('Html5AudioPool', () => {
 
   describe('on calling dispose', () => {
 
+    beforeEach(() => {
+      html5AudioPool._resourceNodesMap = {
+        url1: {
+          unallocated: [new Audio()],
+          allocated: {
+            1: [{
+              audio: new Audio(),
+              soundId: 101
+            }]
+          }
+        },
+        url2: {
+          unallocated: [new Audio()],
+          allocated: {
+            1: [{
+              audio: new Audio(),
+              soundId: 102
+            }]
+          }
+        }
+      };
+
+      html5AudioPool.dispose();
+    });
+
+    it('should remove all the audio nodes', () => {
+      expect(Object.keys(html5AudioPool._resourceNodesMap).length).toBe(0);
+    });
   });
 });

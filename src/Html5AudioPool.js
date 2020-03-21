@@ -198,6 +198,7 @@ class Html5AudioPool {
    */
   dispose() {
     Object.keys(this._resourceNodesMap).forEach(src => this.releaseForSource(src));
+    this._heap = null;
   }
 
   /**
