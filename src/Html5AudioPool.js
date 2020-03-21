@@ -153,7 +153,6 @@ class Html5AudioPool {
 
     const allocatedAudioObj = allocated[groupId].find(x => x.soundId === soundId);
     allocatedAudioObj.soundId = null;
-    delete allocated[groupId];
   }
 
   /**

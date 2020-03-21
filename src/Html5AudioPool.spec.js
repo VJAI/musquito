@@ -1,31 +1,63 @@
 import Html5AudioPool from './Html5AudioPool';
+import Heap from './Heap';
 
 describe('Html5AudioPool', () => {
 
   let html5AudioPool = null;
-  const url = '/base/sounds/bg.mp3',
+
+  const heap = new Heap(1),
+    url = '/base/sounds/bg.mp3',
     groupId = 1,
     soundId = 100;
 
   beforeEach(() => {
-    html5AudioPool = new Html5AudioPool(5, null);
+    html5AudioPool = new Html5AudioPool(2, heap);
   });
 
   afterEach(() => {
-    html5AudioPool.dispose();
+    html5AudioPool && html5AudioPool.dispose();
   });
 
   describe('on allocating audio node for resource', () => {
 
-    beforeEach(() => {
-      html5AudioPool.allocateForSource(url);
+    describe('when the total nodes are with in the limit', () => {
+
+      beforeEach(() => {
+        html5AudioPool.allocateForSource(url);
+      });
+
+      it('should allocate a new audio node for the passed resource', () => {
+        const nodes = html5AudioPool._resourceNodesMap[url],
+          { unallocated } = nodes;
+
+        expect(unallocated.length).toBe(1);
+      });
     });
 
-    it('should allocate a new audio node for the passed resource', () => {
-      const nodes = html5AudioPool._resourceNodesMap[url],
-        { unallocated } = nodes;
+    describe('when the total nodes reached the limit', () => {
+      beforeEach(() => {
+        html5AudioPool._resourceNodesMap = {
+          url1: {
+            unallocated: [],
+            allocated: {
+              1: [{
+                audio: new Audio(),
+                soundId: 101
+              }],
+              2: [{
+                audio: new Audio(),
+                soundId: 102
+              }]
+            }
+          }
+        };
+      });
 
-      expect(unallocated.length).toBe(1);
+      it('should throw error', () => {
+        expect(() => {
+          html5AudioPool.allocateForSource('url1');
+        }).toThrowError(`Maximum nodes reached for resource url1`);
+      });
     });
   });
 
@@ -95,7 +127,9 @@ describe('Html5AudioPool', () => {
     describe('with no allocated nodes in group', () => {
 
       it('should throw error', () => {
-        expect(html5AudioPool.allocateForSound(url, groupId, soundId)).toThrowError(`No free audio nodes available in the group ${groupId}`);
+        expect(() => {
+          html5AudioPool.allocateForSound(url, groupId, soundId);
+        }).toThrowError(`No free audio nodes available in the group ${groupId}`);
       });
     });
   });
@@ -167,7 +201,7 @@ describe('Html5AudioPool', () => {
         { allocated } = nodes;
 
       const t = allocated[groupId].find(x => x.soundId === soundId);
-      expect(t).toBeNull();
+      expect(t).toBeUndefined();
     });
   });
 

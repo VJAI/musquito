@@ -676,7 +676,7 @@ class Engine {
   /**
    * Destroys the sounds belong to the passed group.
    * @param {boolean} idle True to destroy only the idle sounds.
-   * @param {number} groupId The group id.
+   * @param {number} [groupId] The group id.
    * @return {Engine}
    */
   free(idle, groupId) {
