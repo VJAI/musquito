@@ -329,22 +329,22 @@ class Engine {
   /**
    * Loads audio node for group.
    * @param {string} url The audio file url.
-   * @param {number} groupId The group id.
+   * @param {Buzz} group The buzz.
    * @return {Promise<DownloadResult>}
    */
-  allocateForGroup(url, groupId) {
-    return this._mediaLoader.allocateForGroup(url, groupId);
+  allocateForGroup(url, group) {
+    return this._mediaLoader.allocateForGroup(url, group);
   }
 
   /**
    * Allocates an audio node for sound and returns it.
    * @param {string} src The audio file url.
-   * @param {number} groupId The buzz id.
-   * @param {number} soundId The sound id.
+   * @param {Buzz} group The buzz.
+   * @param {Sound} sound The sound.
    * @return {Audio}
    */
-  allocateForSound(src, groupId, soundId) {
-    return this._mediaLoader.allocateForSound(src, groupId, soundId);
+  allocateForSound(src, group, sound) {
+    return this._mediaLoader.allocateForSound(src, group, sound);
   }
 
   /**
@@ -382,23 +382,23 @@ class Engine {
   /**
    * Releases the allocated audio node for the group.
    * @param {string} url The audio file url.
-   * @param {number} groupId The group id.
+   * @param {Buzz} group The buzz.
    * @return {Engine}
    */
-  releaseForGroup(url, groupId) {
-    this._mediaLoader.releaseForGroup(url, groupId);
+  releaseForGroup(url, group) {
+    this._mediaLoader.releaseForGroup(url, group);
     return this;
   }
 
   /**
    * Unallocates the audio node reserved for sound.
    * @param {string} src The audio file url.
-   * @param {number} groupId The buzz id.
-   * @param {number} soundId The sound id.
+   * @param {Buzz} group The buzz.
+   * @param {Sound} sound The sound.
    * @return {Engine}
    */
-  releaseForSound(src, groupId, soundId) {
-    this._mediaLoader.releaseForSound(src, groupId, soundId);
+  releaseForSound(src, group, sound) {
+    this._mediaLoader.releaseForSound(src, group, sound);
     return this;
   }
 
@@ -496,20 +496,6 @@ class Engine {
     this._fire(EngineEvents.Stop);
 
     return this;
-  }
-
-  /**
-   * Makes the passed sound persistent that means it can't be auto-destroyed.
-   */
-  persist() {
-    throw new Error('Not implemented');
-  }
-
-  /**
-   * Makes the passed sound un-persistent that means it can be auto-destroyed.
-   */
-  abandon(soundId) {
-    throw new Error('Not implemented');
   }
 
   /**

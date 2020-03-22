@@ -335,10 +335,10 @@ class Buzz {
     const src = this._compatibleSrc || (this._compatibleSrc = this.getCompatibleSource());
 
     // Load the audio source.
-    const load$ = this._stream ? this._engine.allocateForGroup(src, this._id) : this._engine.load(src);
+    const load$ = this._stream ? this._engine.allocateForGroup(src, this) : this._engine.load(src);
     load$.then(downloadResult => {
       if (this._state === BuzzState.Destroyed || this._loadState === LoadState.NotLoaded) {
-        this._stream && this._engine.releaseForGroup(this._compatibleSrc, this._id);
+        this._stream && this._engine.releaseForGroup(this._compatibleSrc, this);
         return;
       }
 
@@ -406,7 +406,7 @@ class Buzz {
           loop: this._loop,
           playEndCallback: sound => this._fire(BuzzEvents.PlayEnd, sound.id()),
           destroyCallback: sound => {
-            this._engine.releaseForSound(this._compatibleSrc, this._id, sound.id);
+            this._engine.releaseForSound(this._compatibleSrc, this, sound);
             this._fire(BuzzEvents.Destroy, sound.id());
             emitter.clear(sound.id());
           },
@@ -714,7 +714,7 @@ class Buzz {
    */
   unload() {
     this._queue.remove('after-load');
-    this._stream && this._engine.releaseForGroup(this._compatibleSrc, this._id);
+    this._stream && this._engine.releaseForGroup(this._compatibleSrc, this);
     this._buffer = null;
     this._duration = 0;
     this._loadState = LoadState.NotLoaded;
@@ -740,7 +740,7 @@ class Buzz {
     this._queue.clear();
     this._engine.off(EngineEvents.Resume, this._onEngineResume);
     this._engine.free(false, this._id);
-    this._engine.releaseForGroup(this._compatibleSrc, this._id);
+    this._engine.releaseForGroup(this._compatibleSrc, this);
 
 
     this._buffer = null;
