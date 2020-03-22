@@ -714,13 +714,14 @@ class Buzz {
   }
 
   /**
-   * Stops and destroys all the sounds belong to this group and release other dependencies.
+   * Stops and destroys all the sounds belongs to this group and release other dependencies.
    * @param {number} [soundId] The sound id.
    */
   destroy(soundId) {
     if (soundId) {
       const sound = this.sound(soundId);
       sound && sound.destroy();
+      this._engine.removeSound(this._compatibleSrc, this._id, soundId);
       return;
     }
 
@@ -750,7 +751,8 @@ class Buzz {
    * @param {number} soundId The sound id.
    */
   persist(soundId) {
-    throw new Error('Not implemented');
+    const sound = this.sound(soundId);
+    sound && sound.persist();
   }
 
   /**
@@ -758,7 +760,8 @@ class Buzz {
    * @param {number} soundId The sound id.
    */
   abandon(soundId) {
-    throw new Error('Not implemented');
+    const sound = this.sound(soundId);
+    sound && sound.abandon();
   }
 
   /**

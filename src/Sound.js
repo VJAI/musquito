@@ -605,8 +605,9 @@ class Sound {
     this.stop();
 
     this._destroyMediaSourceNode();
+    this._audio && this._audio.removeEventListener('error', this._onAudioError);
 
-    this._gainNode.disconnect();
+    this._gainNode && this._gainNode.disconnect();
 
     this._buffer = null;
     this._audio = null;

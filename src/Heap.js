@@ -153,7 +153,7 @@ class Heap {
    */
   add(url, groupId, sound) {
     if (!this._collections.hasOwnProperty(url)) {
-      this._collections[url] = new HeapItemCollection();
+      this._collections[url] = new HeapItemCollection(this._inactiveTime);
     }
 
     this._collections[url].add(groupId, sound);
@@ -192,6 +192,16 @@ class Heap {
     }
 
     Object.values(this._collections).forEach(col => col.free(idle, groupId));
+  }
+
+  /**
+   * Removes the destroyed sound.
+   * @param {string} src The audio url.
+   * @param {number} groupId The group id.
+   * @param {number} soundId The sound id.
+   */
+  removeSound(src, groupId, soundId) {
+    throw new Error('Not implemented');
   }
 
   /**

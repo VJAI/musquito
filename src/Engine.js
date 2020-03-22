@@ -665,6 +665,16 @@ class Engine {
   }
 
   /**
+   * Removes the destroyed sound.
+   * @param {string} src The audio url.
+   * @param {number} groupId The group id.
+   * @param {number} soundId The sound id.
+   */
+  removeSound(src, groupId, soundId) {
+    this._heap.removeSound(src, groupId, soundId);
+  }
+
+  /**
    * Returns the sounds belongs to a group or all the sounds from the heap.
    * @param {number} [groupId] The group id.
    * @return {Array<Sound>}
