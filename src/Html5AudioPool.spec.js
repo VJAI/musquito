@@ -242,6 +242,29 @@ describe('Html5AudioPool', () => {
 
   describe('on calling clean-up', () => {
 
+    beforeEach(() => {
+      html5AudioPool._resourceNodesMap[url] = {
+        unallocated: [],
+        allocated: {
+          groups: [
+            group
+          ],
+          1: [{
+            audio: new Audio(),
+            soundId: null
+          }, {
+            audio: new Audio(),
+            soundId: null
+          }]
+        }
+      };
+
+      html5AudioPool.cleanUp();
+    });
+
+    it('should remove the un-used audio nodes and store it in unallocated collection', () => {
+      expect(html5AudioPool._resourceNodesMap[url].unallocated.length).toBe(2);
+    });
   });
 
   describe('on calling dispose', () => {

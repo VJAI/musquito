@@ -142,13 +142,6 @@ class Buzz {
   _compatibleSrc = null;
 
   /**
-   * Minimum number of audio nodes that should be resvered for this group.
-   * @type {number}
-   * @private
-   */
-  _minNodes = 1;
-
-  /**
    * Represents the different states that occurs while loading the sound.
    * @type {LoadState}
    * @private
@@ -289,7 +282,6 @@ class Buzz {
       typeof autoplay === 'boolean' && (this._autoplay = autoplay);
       typeof stream === 'boolean' && (this._stream = stream);
       typeof preload === 'boolean' && (this._preload = preload);
-      typeof minNodes === 'number' && minNodes > 1 && (this._minNodes = minNodes);
 
       // Bind the passed event handlers to events.
       typeof onload === 'function' && this.on(BuzzEvents.Load, onload);
