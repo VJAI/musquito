@@ -197,7 +197,6 @@ class Buzz {
    * @param {boolean} [args.stream = false] True to use HTML5 audio node.
    * @param {string|string[]} [args.format] The file format(s) of the passed audio source(s).
    * @param {object} [args.sprite] The sprite definition.
-   * @param {number} [args.minNodes] Minimum number of audio nodes that should be resvered for this group.
    * @param {function} [args.onload] Event-handler for the "load" event.
    * @param {function} [args.onunload] Event-handler for the "unload" event.
    * @param {function} [args.onplaystart] Event-handler for the "playstart" event.
@@ -241,7 +240,6 @@ class Buzz {
         autoplay,
         stream,
         preload,
-        minNodes,
         onload,
         onunload,
         onplaystart,
@@ -396,13 +394,19 @@ class Buzz {
           rate: this._rate,
           muted: this._muted,
           loop: this._loop,
-          playEndCallback: sound => this._fire(BuzzEvents.PlayEnd, newSoundId),
-          destroyCallback: sound => {
+          playEndCallback: () => this._fire(BuzzEvents.PlayEnd, newSoundId),
+          destroyCallback: () => {
             this._engine.releaseForSound(this._compatibleSrc, this._id, newSoundId);
-            this._fire(BuzzEvents.Destroy, sound.id());
-            emitter.clear(sound.id());
+            this._engine.removeSound(this._compatibleSrc, this._id, newSoundId);
+            this._fire(BuzzEvents.Destroy, newSoundId);
+            emitter.clear(newSoundId);
           },
-          fadeEndCallback: sound => this._fire(BuzzEvents.FadeEnd, newSoundId)
+          fadeEndCallback: () => this._fire(BuzzEvents.FadeEnd, newSoundId),
+          audioErrorCallback: (sound, err) => {
+            this._fire(BuzzEvents.Error, { type: ErrorType.LoadError, soundId: newSoundId, error: err });
+            this._engine.destroyAllocatedAudio(this._compatibleSrc, this._id, newSoundId);
+            sound.destroy();
+          }
         };
 
         if (typeof soundOrId === 'string' && this._sprite && this._sprite.hasOwnProperty(soundOrId)) {

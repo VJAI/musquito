@@ -100,7 +100,7 @@ class MediaLoader {
   releaseForGroup(url, groupId) {
     this._bufferingAudios
       .filter(a => a.groupId === groupId)
-      .forEach(a =>  this._cleanUp(a));
+      .forEach(a => this._cleanUp(a));
 
     this._audioPool.releaseForGroup(url, groupId);
   }
@@ -123,6 +123,16 @@ class MediaLoader {
    */
   hasFreeNodes(src, groupId) {
     return this._audioPool.hasFreeNodes(src, groupId);
+  }
+
+  /**
+   * Destroys the audio node reserved for sound.
+   * @param {string} src The audio file url.
+   * @param {number} groupId The buzz id.
+   * @param {number} soundId The sound id.
+   */
+  destroyAllocatedAudio(src, groupId, soundId) {
+    this._audioPool.destroyAllocatedAudio(src, groupId, soundId);
   }
 
   /**

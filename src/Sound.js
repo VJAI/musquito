@@ -182,6 +182,13 @@ class Sound {
   _fadeEndCallback = null;
 
   /**
+   * The callback that will be invoked when there is error in HTML5 audio node.
+   * @type {function}
+   * @private
+   */
+  _audioErrorCallback = null;
+
+  /**
    * Web Audio API's audio node to control media element.
    * @type {MediaElementAudioSourceNode}
    * @private
@@ -232,6 +239,7 @@ class Sound {
    * @param {function} [args.playEndCallback] The callback that will be invoked after the play ends.
    * @param {function} [args.destroyCallback] The callback that will be invoked after destroyed.
    * @param {function} [args.fadeEndCallback] The callback that will be invoked the fade is completed.
+   * @param {function} [args.audioErrorCallback] The callback that will be invoked when there is error in HTML5 audio node.
    * @constructor
    */
   constructor(args) {
@@ -249,7 +257,7 @@ class Sound {
       playEndCallback,
       destroyCallback,
       fadeEndCallback,
-      loadCallback
+      audioErrorCallback
     } = args;
 
     // Set the passed id or the random one.
@@ -269,7 +277,7 @@ class Sound {
     this._playEndCallback = playEndCallback;
     this._destroyCallback = destroyCallback;
     this._fadeEndCallback = fadeEndCallback;
-    this._loadCallback = loadCallback;
+    this._audioErrorCallback = audioErrorCallback;
     this._stream = Boolean(stream);
 
     this._endPos = this._stream ? this._audio.duration : this._buffer.duration;
@@ -708,9 +716,13 @@ class Sound {
     return this._persist;
   }
 
-  // TODO: Need to implement this!
-  _onAudioError() {
-    console.log('Audio error');
+  /**
+   * HTML5 Audio error handler.
+   * @param {object} err Error object.
+   * @private
+   */
+  _onAudioError(err) {
+    this._audioErrorCallback && this._audioErrorCallback(this, err);
   }
 
   /**

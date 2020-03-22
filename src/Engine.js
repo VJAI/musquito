@@ -413,6 +413,16 @@ class Engine {
   }
 
   /**
+   * Destroys the audio node reserved for sound.
+   * @param {string} src The audio file url.
+   * @param {number} groupId The buzz id.
+   * @param {number} soundId The sound id.
+   */
+  destroyAllocatedAudio(src, groupId, soundId) {
+    this._mediaLoader.destroyAllocatedAudio(src, groupId, soundId);
+  }
+
+  /**
    * Mutes the engine.
    * @return {Engine}
    */
