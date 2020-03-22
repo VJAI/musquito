@@ -1,7 +1,5 @@
 import Html5AudioPool from './Html5AudioPool';
 import Heap from './Heap';
-import Buzz from './Buzz';
-import Sound from './Sound';
 
 describe('Html5AudioPool', () => {
 
@@ -9,17 +7,8 @@ describe('Html5AudioPool', () => {
 
   const heap = new Heap(1),
     url = '/base/sounds/bg.mp3',
-    group = new Buzz({
-      src: url,
-      id: 1
-    }),
-    sound = new Sound({
-      stream: true,
-      audio: new Audio(),
-      id: 100
-    }),
-    groupId = group.id(),
-    soundId = sound.id();
+    groupId = 1,
+    soundId = 100;
 
   beforeEach(() => {
     html5AudioPool = new Html5AudioPool(2, heap);
@@ -51,16 +40,6 @@ describe('Html5AudioPool', () => {
           url1: {
             unallocated: [],
             allocated: {
-              groups: [
-                new Buzz({
-                  src: url,
-                  id: 1
-                }),
-                new Buzz({
-                  src: url,
-                  id: 2
-                })
-              ],
               1: [{
                 audio: new Audio(),
                 soundId: 101
@@ -89,11 +68,9 @@ describe('Html5AudioPool', () => {
       beforeEach(() => {
         html5AudioPool._resourceNodesMap[url] = {
           unallocated: [new Audio()],
-          allocated: {
-            groups: []
-          }
+          allocated: {}
         };
-        html5AudioPool.allocateForGroup(url, group);
+        html5AudioPool.allocateForGroup(url, groupId);
       });
 
       it('should take the node from the reserve', () => {
@@ -101,21 +78,21 @@ describe('Html5AudioPool', () => {
           { unallocated, allocated } = nodes;
 
         expect(unallocated.length).toBe(0);
-        expect(allocated[groupId]).toBeDefined();
+        expect(Object.keys(allocated).length).toBe(1);
       });
     });
 
     describe('with no unallocated nodes', () => {
 
       beforeEach(() => {
-        html5AudioPool.allocateForGroup(url, group);
+        html5AudioPool.allocateForGroup(url, groupId);
       });
 
       it('should create a new audio node', () => {
         const nodes = html5AudioPool._resourceNodesMap[url],
           { allocated } = nodes;
 
-        expect(allocated[groupId]).toBeDefined();
+        expect(Object.keys(allocated).length).toBe(1);
       });
     });
   });
@@ -128,9 +105,6 @@ describe('Html5AudioPool', () => {
         html5AudioPool._resourceNodesMap[url] = {
           unallocated: [],
           allocated: {
-            groups: [
-              group
-            ],
             1: [{
               audio: new Audio(),
               soundId: null
@@ -138,7 +112,7 @@ describe('Html5AudioPool', () => {
           }
         };
 
-        html5AudioPool.allocateForSound(url, group, sound);
+        html5AudioPool.allocateForSound(url, groupId, soundId);
       });
 
       it('should assign the first allocated node to the sound', () => {
@@ -154,7 +128,7 @@ describe('Html5AudioPool', () => {
 
       it('should throw error', () => {
         expect(() => {
-          html5AudioPool.allocateForSound(url, group, sound);
+          html5AudioPool.allocateForSound(url, groupId, soundId);
         }).toThrowError(`No free audio nodes available in the group ${groupId}`);
       });
     });
@@ -166,9 +140,6 @@ describe('Html5AudioPool', () => {
       html5AudioPool._resourceNodesMap[url] = {
         unallocated: [new Audio()],
         allocated: {
-          groups: [
-            group
-          ],
           1: [{
             audio: new Audio(),
             soundId: null
@@ -190,9 +161,6 @@ describe('Html5AudioPool', () => {
       html5AudioPool._resourceNodesMap[url] = {
         unallocated: [new Audio()],
         allocated: {
-          groups: [
-            group
-          ],
           1: [{
             audio: new Audio(),
             soundId: null
@@ -200,7 +168,7 @@ describe('Html5AudioPool', () => {
         }
       };
 
-      html5AudioPool.releaseForGroup(url, group);
+      html5AudioPool.releaseForGroup(url, groupId);
     });
 
     it('should release the audio nodes allocated for group', () => {
@@ -218,9 +186,6 @@ describe('Html5AudioPool', () => {
       html5AudioPool._resourceNodesMap[url] = {
         unallocated: [new Audio()],
         allocated: {
-          groups: [
-            group
-          ],
           1: [{
             audio: new Audio(),
             soundId: soundId
@@ -228,7 +193,7 @@ describe('Html5AudioPool', () => {
         }
       };
 
-      html5AudioPool.releaseForSound(url, group, sound);
+      html5AudioPool.releaseForSound(url, groupId, soundId);
     });
 
     it('should remove the soundid', () => {
@@ -246,9 +211,6 @@ describe('Html5AudioPool', () => {
       html5AudioPool._resourceNodesMap[url] = {
         unallocated: [],
         allocated: {
-          groups: [
-            group
-          ],
           1: [{
             audio: new Audio(),
             soundId: null
@@ -274,16 +236,6 @@ describe('Html5AudioPool', () => {
         url1: {
           unallocated: [new Audio()],
           allocated: {
-            groups: [
-              new Buzz({
-                src: url,
-                id: 1
-              }),
-              new Buzz({
-                src: url,
-                id: 2
-              })
-            ],
             1: [{
               audio: new Audio(),
               soundId: 101

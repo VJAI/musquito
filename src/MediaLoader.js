@@ -53,22 +53,22 @@ class MediaLoader {
   /**
    * Loads audio node for group.
    * @param {string} url The audio file url.
-   * @param {Buzz} group The buzz.
+   * @param {number} groupId The group id.
    * @return {Promise<DownloadResult>}
    */
-  allocateForGroup(url, group) {
-    return this._load(url, group);
+  allocateForGroup(url, groupId) {
+    return this._load(url, groupId);
   }
 
   /**
    * Allocates an audio node for sound and returns it.
    * @param {string} src The audio file url.
-   * @param {Buzz} group The buzz.
-   * @param {Sound} sound The sound.
+   * @param {number} groupId The buzz id.
+   * @param {number} soundId The sound id.
    * @return {Audio}
    */
-  allocateForSound(src, group, sound) {
-    return this._audioPool.allocateForSound(src, group, sound);
+  allocateForSound(src, groupId, soundId) {
+    return this._audioPool.allocateForSound(src, groupId, soundId);
   }
 
   /**
@@ -95,24 +95,24 @@ class MediaLoader {
   /**
    * Releases the allocated audio node for the group.
    * @param {string} url The audio file url.
-   * @param {Buzz} group The buzz.
+   * @param {number} groupId The group id.
    */
-  releaseForGroup(url, group) {
+  releaseForGroup(url, groupId) {
     this._bufferingAudios
-      .filter(a => a.groupId === group.id())
-      .forEach(a => this._cleanUp(a));
+      .filter(a => a.groupId === groupId)
+      .forEach(a =>  this._cleanUp(a));
 
-    this._audioPool.releaseForGroup(url, group.id());
+    this._audioPool.releaseForGroup(url, groupId);
   }
 
   /**
    * Unallocates the audio node reserved for sound.
    * @param {string} src The audio file url.
-   * @param {Buzz} group The buzz.
-   * @param {Sound} sound The sound.
+   * @param {number} groupId The buzz id.
+   * @param {number} soundId The sound id.
    */
-  releaseForSound(src, group, sound) {
-    this._audioPool.releaseForSound(src, group, sound);
+  releaseForSound(src, groupId, soundId) {
+    this._audioPool.releaseForSound(src, groupId, soundId);
   }
 
   /**
@@ -150,13 +150,13 @@ class MediaLoader {
   /**
    * Preload the HTML5 audio element with the passed audio file and allocate it to the passed sound (if any).
    * @param {string} url The audio file url.
-   * @param {Buzz} [group] The buzz.
+   * @param {number} [groupId] The buzz id.
    * @return {Promise}
    * @private
    */
-  _load(url, group) {
+  _load(url, groupId) {
     return new Promise(resolve => {
-      const audio = group ? this._audioPool.allocateForGroup(url, group) : this._audioPool.allocateForSource(url);
+      const audio = groupId ? this._audioPool.allocateForGroup(url, groupId) : this._audioPool.allocateForSource(url);
 
       const onCanPlayThrough = () => {
         if (this._disposed) {
@@ -184,7 +184,7 @@ class MediaLoader {
 
       this._bufferingAudios.push({
         url: url,
-        groupId: group.id(),
+        groupId: groupId,
         audio: audio,
         canplaythrough: onCanPlayThrough,
         error: onError

@@ -327,10 +327,10 @@ class Buzz {
     const src = this._compatibleSrc || (this._compatibleSrc = this.getCompatibleSource());
 
     // Load the audio source.
-    const load$ = this._stream ? this._engine.allocateForGroup(src, this) : this._engine.load(src);
+    const load$ = this._stream ? this._engine.allocateForGroup(src, this._id) : this._engine.load(src);
     load$.then(downloadResult => {
       if (this._state === BuzzState.Destroyed || this._loadState === LoadState.NotLoaded) {
-        this._stream && this._engine.releaseForGroup(this._compatibleSrc, this);
+        this._stream && this._engine.releaseForGroup(this._compatibleSrc, this._id);
         return;
       }
 
@@ -391,18 +391,18 @@ class Buzz {
           id: newSoundId,
           buffer: this._buffer,
           stream: this._stream,
-          audio: this._stream ? this._engine.getAudioForGroup(this._compatibleSrc, this._id, newSoundId) : null,
+          audio: this._stream ? this._engine.allocateForSound(this._compatibleSrc, this._id, newSoundId) : null,
           volume: this._volume,
           rate: this._rate,
           muted: this._muted,
           loop: this._loop,
-          playEndCallback: sound => this._fire(BuzzEvents.PlayEnd, sound.id()),
+          playEndCallback: sound => this._fire(BuzzEvents.PlayEnd, newSoundId),
           destroyCallback: sound => {
-            this._engine.releaseForSound(this._compatibleSrc, this, sound);
+            this._engine.releaseForSound(this._compatibleSrc, this._id, newSoundId);
             this._fire(BuzzEvents.Destroy, sound.id());
             emitter.clear(sound.id());
           },
-          fadeEndCallback: sound => this._fire(BuzzEvents.FadeEnd, sound.id())
+          fadeEndCallback: sound => this._fire(BuzzEvents.FadeEnd, newSoundId)
         };
 
         if (typeof soundOrId === 'string' && this._sprite && this._sprite.hasOwnProperty(soundOrId)) {
@@ -706,7 +706,7 @@ class Buzz {
    */
   unload() {
     this._queue.remove('after-load');
-    this._stream && this._engine.releaseForGroup(this._compatibleSrc, this);
+    this._stream && this._engine.releaseForGroup(this._compatibleSrc, this._id);
     this._buffer = null;
     this._duration = 0;
     this._loadState = LoadState.NotLoaded;
@@ -733,7 +733,7 @@ class Buzz {
     this._queue.clear();
     this._engine.off(EngineEvents.Resume, this._onEngineResume);
     this._engine.free(false, this._id);
-    this._engine.releaseForGroup(this._compatibleSrc, this);
+    this._engine.releaseForGroup(this._compatibleSrc, this._id);
 
 
     this._buffer = null;

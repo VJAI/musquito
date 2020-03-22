@@ -65,17 +65,17 @@ class Html5AudioPool {
   /**
    * Allocates a HTML5 audio node to a particular resource and group.
    * @param {string} src The audio url.
-   * @param {Buzz} [group] The buzz.
+   * @param {number} [groupId] The buzz group id.
    * @return {Audio}
    */
-  allocateForGroup(src, group) {
-    this._createGroup(src, group);
+  allocateForGroup(src, groupId) {
+    this._createGroup(src, groupId);
     this._checkMaxNodesForSrc(src);
 
     const nodes = this._resourceNodesMap[src],
       { unallocated, allocated } = nodes,
       audio = unallocated.length ? unallocated.shift() : new Audio(),
-      groupSounds = allocated[group.id()];
+      groupSounds = allocated[groupId];
 
     groupSounds.push({
       audio: audio,
@@ -88,16 +88,14 @@ class Html5AudioPool {
   /**
    * Allocates the pre-loaded HTML5 audio node to a sound.
    * @param {string} src The audio file url.
-   * @param {Buzz} group The buzz.
-   * @param {Sound} sound The sound.
+   * @param {number} groupId The group id.
+   * @param {number} soundId The sound id.
    * @return {Audio}
    */
-  allocateForSound(src, group, sound) {
-    this._createGroup(src, group);
+  allocateForSound(src, groupId, soundId) {
+    this._createGroup(src, groupId);
 
-    const groupId = group.id(),
-      soundId = sound.id(),
-      nodes = this._resourceNodesMap[src],
+    const nodes = this._resourceNodesMap[src],
       { allocated } = nodes,
       notAllocatedAudioObj = allocated[groupId].find(x => x.soundId === null);
 
@@ -121,7 +119,7 @@ class Html5AudioPool {
     unallocated.forEach(x => this._destroyNode(x));
 
     Object.keys(allocated).forEach(groupId => {
-      groupId !== 'groups' && allocated[groupId].forEach(x => this._destroyNode(x.audio));
+      allocated[groupId].forEach(x => this._destroyNode(x.audio));
       delete allocated[groupId];
     });
 
@@ -131,30 +129,26 @@ class Html5AudioPool {
   /**
    * Releases all the audio nodes allocated for a group.
    * @param {string} src The audio file url.
-   * @param {Buzz} group The buzz.
+   * @param {number} groupId The group id.
    */
-  releaseForGroup(src, group) {
-    const groupId = group.id(),
-      nodes = this._resourceNodesMap[src],
+  releaseForGroup(src, groupId) {
+    const nodes = this._resourceNodesMap[src],
       { unallocated, allocated } = nodes;
 
     const audioNodes = allocated[groupId].map(x => x.audio);
     nodes.unallocated = [...unallocated, ...audioNodes];
 
-    allocated.groups = allocated.groups.filter(x => x.id() !== groupId);
     delete allocated[groupId];
   }
 
   /**
    * Release the audio element that is allocated for the sound.
    * @param {string} src The audio file url.
-   * @param {Buzz} group The buzz.
-   * @param {Sound} sound The sound.
+   * @param {number} groupId The group id.
+   * @param {number} soundId The sound id.
    */
-  releaseForSound(src, group, sound) {
-    const groupId = group.id(),
-      soundId = sound.id(),
-      nodes = this._resourceNodesMap[src],
+  releaseForSound(src, groupId, soundId) {
+    const nodes = this._resourceNodesMap[src],
       { allocated } = nodes;
 
     const allocatedAudioObj = allocated[groupId].find(x => x.soundId === soundId);
@@ -190,10 +184,6 @@ class Html5AudioPool {
       let audioNodes = [];
 
       Object.keys(allocated).forEach(groupId => {
-        if (groupId === 'groups') {
-          return;
-        }
-
         audioNodes = [...audioNodes, ...allocated[groupId].filter(x => x.soundId === null).map(x => x.audio)];
         allocated[groupId] = allocated[groupId].filter(x => x.soundId !== null);
       });
@@ -222,23 +212,20 @@ class Html5AudioPool {
 
     this._resourceNodesMap[src] = {
       unallocated: [],
-      allocated: {
-        groups: []
-      }
+      allocated: {}
     };
   }
 
   /**
    * Creates an entry for the passed source and group if not exists.
    * @param {string} src The audio file.
-   * @param {Buzz} group The buzz.
+   * @param {number} groupId The group id.
    * @private
    */
-  _createGroup(src, group) {
+  _createGroup(src, groupId) {
     this._createSrc(src);
 
-    const groupId = group.id(),
-      nodes = this._resourceNodesMap[src],
+    const nodes = this._resourceNodesMap[src],
       { allocated } = nodes;
 
     if (allocated.hasOwnProperty(groupId)) {
@@ -246,7 +233,6 @@ class Html5AudioPool {
     }
 
     allocated[groupId] = [];
-    allocated.groups.indexOf(group) === -1 && allocated.groups.push(group);
   }
 
   /**
@@ -265,7 +251,7 @@ class Html5AudioPool {
     let totalAllocatedLength = 0;
 
     Object.keys(allocated).forEach(groupId => {
-      groupId !== 'groups' && (totalAllocatedLength = totalAllocatedLength + allocated[groupId].length);
+      totalAllocatedLength = totalAllocatedLength + allocated[groupId].length;
     });
 
     if (unallocated.length + totalAllocatedLength < this._maxNodesPerSource) {

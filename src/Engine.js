@@ -329,22 +329,22 @@ class Engine {
   /**
    * Loads audio node for group.
    * @param {string} url The audio file url.
-   * @param {Buzz} group The buzz.
+   * @param {number} groupId The group id.
    * @return {Promise<DownloadResult>}
    */
-  allocateForGroup(url, group) {
-    return this._mediaLoader.allocateForGroup(url, group);
+  allocateForGroup(url, groupId) {
+    return this._mediaLoader.allocateForGroup(url, groupId);
   }
 
   /**
    * Allocates an audio node for sound and returns it.
    * @param {string} src The audio file url.
-   * @param {Buzz} group The buzz.
-   * @param {Sound} sound The sound.
+   * @param {number} groupId The buzz id.
+   * @param {number} soundId The sound id.
    * @return {Audio}
    */
-  allocateForSound(src, group, sound) {
-    return this._mediaLoader.allocateForSound(src, group, sound);
+  allocateForSound(src, groupId, soundId) {
+    return this._mediaLoader.allocateForSound(src, groupId, soundId);
   }
 
   /**
@@ -382,23 +382,23 @@ class Engine {
   /**
    * Releases the allocated audio node for the group.
    * @param {string} url The audio file url.
-   * @param {Buzz} group The buzz.
+   * @param {number} groupId The group id.
    * @return {Engine}
    */
-  releaseForGroup(url, group) {
-    this._mediaLoader.releaseForGroup(url, group);
+  releaseForGroup(url, groupId) {
+    this._mediaLoader.releaseForGroup(url, groupId);
     return this;
   }
 
   /**
    * Unallocates the audio node reserved for sound.
    * @param {string} src The audio file url.
-   * @param {Buzz} group The buzz.
-   * @param {Sound} sound The sound.
+   * @param {number} groupId The buzz id.
+   * @param {number} soundId The sound id.
    * @return {Engine}
    */
-  releaseForSound(src, group, sound) {
-    this._mediaLoader.releaseForSound(src, group, sound);
+  releaseForSound(src, groupId, soundId) {
+    this._mediaLoader.releaseForSound(src, groupId, soundId);
     return this;
   }
 
