@@ -152,7 +152,7 @@ class Html5AudioPool {
       { allocated } = nodes;
 
     const allocatedAudioObj = allocated[groupId].find(x => x.soundId === soundId);
-    allocatedAudioObj.soundId = null;
+    allocatedAudioObj && (allocatedAudioObj.soundId = null);
   }
 
   /**
@@ -177,19 +177,25 @@ class Html5AudioPool {
    * Destroys the audio node reserved for sound.
    * @param {string} src The audio file url.
    * @param {number} groupId The buzz id.
-   * @param {number} soundId The sound id.
+   * @param {number|Audio} soundIdOrAudio The sound id.
    */
-  destroyAllocatedAudio(src, groupId, soundId) {
+  destroyAllocatedAudio(src, groupId, soundIdOrAudio) {
     const nodes = this._resourceNodesMap[src],
-      { allocated } = nodes;
+      { allocated, unallocated } = nodes;
 
-    const allocatedAudioObj = allocated[groupId].find(x => x.soundId === soundId);
+    if (soundIdOrAudio instanceof Audio) {
+      this._destroyNode(soundIdOrAudio);
+      nodes.unallocated = unallocated.filter(x => x !== soundIdOrAudio);
+      return;
+    }
+
+    const allocatedAudioObj = allocated[groupId].find(x => x.soundId === soundIdOrAudio);
     if (!allocatedAudioObj) {
       return;
     }
 
     this._destroyNode(allocatedAudioObj.audio);
-    allocatedAudioObj.audio = null;
+    allocated[groupId] = allocated[groupId].find(x => x.soundId !== soundIdOrAudio);
   }
 
   /**

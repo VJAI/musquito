@@ -185,7 +185,7 @@ class MediaLoader {
 
         const audioObj = this._bufferingAudios.find(obj => obj.audio === audio);
         audioObj && this._cleanUp(audioObj);
-        this._audioPool.destroy(audio, url);
+        this._audioPool.destroyAllocatedAudio(url, groupId, audio);
         resolve(new DownloadResult(url, null, err));
       };
 
