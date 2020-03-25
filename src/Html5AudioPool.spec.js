@@ -163,20 +163,41 @@ describe('Html5AudioPool', () => {
         allocated: {
           1: [{
             audio: new Audio(),
+            soundId: soundId
+          }, {
+            audio: new Audio(),
             soundId: null
           }]
         }
       };
-
-      html5AudioPool.releaseForGroup(url, groupId);
     });
 
-    it('should release the audio nodes allocated for group', () => {
-      const nodes = html5AudioPool._resourceNodesMap[url],
-        { unallocated, allocated } = nodes;
+    describe('for all audio nodes', () => {
 
-      expect(unallocated.length).toBe(2);
-      expect(allocated.hasOwnProperty(groupId)).toBe(false);
+      beforeEach(() => {
+        html5AudioPool.releaseForGroup(url, groupId);
+      });
+
+      it('should release the audio nodes allocated for group', () => {
+        const nodes = html5AudioPool._resourceNodesMap[url],
+          { unallocated, allocated } = nodes;
+
+        expect(unallocated.length).toBe(3);
+        expect(allocated.hasOwnProperty(groupId)).toBe(false);
+      });
+    });
+
+    describe('only free nodes', () => {
+      beforeEach(() => {
+        html5AudioPool.releaseForGroup(url, groupId, true);
+      });
+
+      it('should release the audio nodes allocated for group', () => {
+        const nodes = html5AudioPool._resourceNodesMap[url],
+          { unallocated } = nodes;
+
+        expect(unallocated.length).toBe(2);
+      });
     });
   });
 

@@ -136,10 +136,15 @@ class Html5AudioPool {
     const nodes = this._resourceNodesMap[src],
       { unallocated, allocated } = nodes;
 
-    const audioNodes = allocated[groupId].map(x => x.audio);
-    nodes.unallocated = [...unallocated, ...audioNodes];
+    if (!free) {
+      nodes.unallocated = [...unallocated, ...allocated[groupId].map(x => x.audio)];
+      delete allocated[groupId];
+      return;
+    }
 
-    delete allocated[groupId];
+    const audioNodes = allocated[groupId].filter(x => x.soundId === null).map(x => x.audio);
+    allocated[groupId] = allocated[groupId].filter(x => x.soundId !== null);
+    nodes.unallocated = [...unallocated, ...audioNodes];
   }
 
   /**
