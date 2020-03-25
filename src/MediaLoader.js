@@ -66,6 +66,7 @@ class MediaLoader {
    * @param {number} groupId The buzz id.
    * @param {number} soundId The sound id.
    * @return {Audio}
+   * TODO: Handle load process!
    */
   allocateForSound(src, groupId, soundId) {
     return this._audioPool.allocateForSound(src, groupId, soundId);

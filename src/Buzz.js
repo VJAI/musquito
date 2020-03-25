@@ -1,8 +1,8 @@
 import engine, { EngineEvents, EngineState, ErrorType } from './Engine';
-import Queue                                            from './Queue';
-import utility                                          from './Utility';
-import emitter                                          from './Emitter';
-import DownloadStatus                                   from './DownloadStatus';
+import Queue from './Queue';
+import utility from './Utility';
+import emitter from './Emitter';
+import DownloadStatus from './DownloadStatus';
 
 /**
  * Enum that represents the different states of a sound group (buzz).
@@ -184,6 +184,8 @@ class Buzz {
    */
   _fadeTimer = null;
 
+  _noOfLoadCalls = 0;
+
   /**
    * Initializes the internal properties.
    * @param {string|Array<string>|object} args The input parameters of this sound group.
@@ -323,11 +325,16 @@ class Buzz {
 
     this._loadState = LoadState.Loading;
 
+    this._noOfLoadCalls = this._noOfLoadCalls + 1;
+
     const src = this._compatibleSrc || (this._compatibleSrc = this.getCompatibleSource());
 
     // Load the audio source.
     const load$ = this._stream ? this._engine.allocateForGroup(src, this._id) : this._engine.load(src);
     load$.then(downloadResult => {
+
+      this._noOfLoadCalls > 0 && (this._noOfLoadCalls = this._noOfLoadCalls - 1);
+
       if (this._stream && this._state === BuzzState.Destroyed) {
         this._engine.releaseForGroup(this._compatibleSrc, this._id, this._loadState === LoadState.AudioUnLoad);
         return;
@@ -708,10 +715,8 @@ class Buzz {
   }
 
   /**
-   * Unloads the loaded audio buffer.
+   * Unloads the loaded audio buffer or free audio nodes.
    * @return {Buzz}
-   *
-   * TODO: Need revision
    */
   unload() {
     this._queue.remove('after-load');
@@ -719,6 +724,7 @@ class Buzz {
     this._buffer = null;
     this._stream && (this._duration = 0);
     this._loadState = this._stream ? LoadState.AudioUnLoad : LoadState.NotLoaded;
+    this._noOfLoadCalls = 0;
     return this;
   }
 
@@ -844,11 +850,10 @@ class Buzz {
    * Called on failure of loading audio source.
    * @param {*} error The audio source load error.
    * @private
-   * TODO: Need revision
    */
   _onLoadFailure(error) {
     // Remove the queued actions from this class that are supposed to run after load.
-    this._queue.remove('after-load');
+    this._noOfLoadCalls === 0 && this._queue.remove('after-load');
 
     // Set the load state back to not loaded.
     this._loadState = LoadState.NotLoaded;
