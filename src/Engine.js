@@ -383,10 +383,11 @@ class Engine {
    * Releases the allocated audio node for the group.
    * @param {string} url The audio file url.
    * @param {number} groupId The group id.
+   * @param {boolean} [free = false] Pass true to release only free audio nodes.
    * @return {Engine}
    */
-  releaseForGroup(url, groupId) {
-    this._mediaLoader.releaseForGroup(url, groupId);
+  releaseForGroup(url, groupId, free = false) {
+    this._mediaLoader.releaseForGroup(url, groupId, free);
     return this;
   }
 

@@ -130,8 +130,9 @@ class Html5AudioPool {
    * Releases all the audio nodes allocated for a group.
    * @param {string} src The audio file url.
    * @param {number} groupId The group id.
+   * @param {boolean} [free = false] Pass true to release only free audio nodes.
    */
-  releaseForGroup(src, groupId) {
+  releaseForGroup(src, groupId, free = false) {
     const nodes = this._resourceNodesMap[src],
       { unallocated, allocated } = nodes;
 

@@ -42,7 +42,8 @@ const BuzzEvents = {
 const LoadState = {
   NotLoaded: 'notloaded',
   Loading: 'loading',
-  Loaded: 'loaded'
+  Loaded: 'loaded',
+  AudioUnLoad: 'audio-unload'
 };
 
 /**
@@ -327,8 +328,10 @@ class Buzz {
     // Load the audio source.
     const load$ = this._stream ? this._engine.allocateForGroup(src, this._id) : this._engine.load(src);
     load$.then(downloadResult => {
-      if (this._state === BuzzState.Destroyed || this._loadState === LoadState.NotLoaded) {
-        this._stream && this._engine.releaseForGroup(this._compatibleSrc, this._id);
+      if (this._stream && this._state === BuzzState.Destroyed) {
+        this._engine.releaseForGroup(this._compatibleSrc, this._id, this._loadState === LoadState.AudioUnLoad);
+        return;
+      } else if (this._state === BuzzState.Destroyed || this._loadState === LoadState.NotLoaded) {
         return;
       }
 
@@ -707,13 +710,15 @@ class Buzz {
   /**
    * Unloads the loaded audio buffer.
    * @return {Buzz}
+   *
+   * TODO: Need revision
    */
   unload() {
     this._queue.remove('after-load');
-    this._stream && this._engine.releaseForGroup(this._compatibleSrc, this._id);
+    this._stream && this._engine.releaseForGroup(this._compatibleSrc, this._id, true);
     this._buffer = null;
-    this._duration = 0;
-    this._loadState = LoadState.NotLoaded;
+    this._stream && (this._duration = 0);
+    this._loadState = this._stream ? LoadState.AudioUnLoad : LoadState.NotLoaded;
     return this;
   }
 
@@ -850,20 +855,6 @@ class Buzz {
 
     // Fire the error event.
     this._fire(BuzzEvents.Error, null, { type: ErrorType.LoadError, error: error });
-  }
-
-  /**
-   * The "error" event handler of audio element.
-   * @param {object} err Error object.
-   * @private
-   */
-  _onAudioError(err) {
-    this._fire(BuzzEvents.Error, { type: ErrorType.LoadError, error: err });
-
-    // After error we can't re-use the HTML5 audio element. Call the unload method and so
-    // next time when we try to play we get a new pre-loaded audio element.
-    this.unload();
-    // TODO: this._engine.unloadMediaForSound(this._id, true);
   }
 
   /**

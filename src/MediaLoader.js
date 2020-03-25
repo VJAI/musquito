@@ -96,13 +96,14 @@ class MediaLoader {
    * Releases the allocated audio node for the group.
    * @param {string} url The audio file url.
    * @param {number} groupId The group id.
+   * @param {boolean} [free = false] Pass true to release only free audio nodes.
    */
-  releaseForGroup(url, groupId) {
+  releaseForGroup(url, groupId, free = false) {
     this._bufferingAudios
       .filter(a => a.groupId === groupId)
       .forEach(a => this._cleanUp(a));
 
-    this._audioPool.releaseForGroup(url, groupId);
+    this._audioPool.releaseForGroup(url, groupId, free);
   }
 
   /**
