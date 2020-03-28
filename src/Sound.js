@@ -1,6 +1,7 @@
-import engine  from './Engine';
-import utility from './Utility';
-import workerTimer from './WorkerTimer';
+import engine         from './Engine';
+import utility        from './Utility';
+import workerTimer    from './WorkerTimer';
+import DownloadResult from './DownloadResult';
 
 /**
  * Enum that represents the different states of a sound.
@@ -147,6 +148,13 @@ class Sound {
   _startTime = 0;
 
   /**
+   * The callback that will be called when the underlying HTML5 audio node is loaded.
+   * @type {function}
+   * @private
+   */
+  _loadCallback = null;
+
+  /**
    * The callback that will be invoked after the play ends.
    * @type {function}
    * @private
@@ -236,6 +244,7 @@ class Sound {
    * @param {boolean} [args.muted = false] True to be muted initially.
    * @param {number} [args.startPos] The playback start position.
    * @param {number} [args.endPos] The playback end position.
+   * @param {function} [args.loadCallback] The callback that will be called when the underlying HTML5 audio node is loaded.
    * @param {function} [args.playEndCallback] The callback that will be invoked after the play ends.
    * @param {function} [args.destroyCallback] The callback that will be invoked after destroyed.
    * @param {function} [args.fadeEndCallback] The callback that will be invoked the fade is completed.
@@ -254,6 +263,7 @@ class Sound {
       muted,
       startPos,
       endPos,
+      loadCallback,
       playEndCallback,
       destroyCallback,
       fadeEndCallback,
@@ -274,6 +284,7 @@ class Sound {
     loop && (this._loop = loop);
     startPos && (this._startPos = startPos);
     endPos && (this._endPos = endPos);
+    this._loadCallback = loadCallback;
     this._playEndCallback = playEndCallback;
     this._destroyCallback = destroyCallback;
     this._fadeEndCallback = fadeEndCallback;
@@ -306,6 +317,27 @@ class Sound {
 
     this._onBufferEnded = this._onBufferEnded.bind(this);
     this._onHtml5Ended = this._onHtml5Ended.bind(this);
+  }
+
+  /**
+   * Pre-loads the underlying HTML audio node (only in case of stream).
+   */
+  load() {
+    if (!this._stream || this.isPlaying() || this.state() === SoundState.Destroyed) {
+      return;
+    }
+
+    const onCanPlayThrough = () => {
+      this._loadCallback();
+      this._audio.removeEventListener('canplaythrough', onCanPlayThrough);
+    };
+
+    this._audio.addEventListener('canplaythrough', onCanPlayThrough);
+    this._audio.currentTime = 0;
+
+    if (this._audio.readyState >= 3) {
+      onCanPlayThrough();
+    }
   }
 
   /**

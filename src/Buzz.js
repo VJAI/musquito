@@ -316,9 +316,16 @@ class Buzz {
 
   /**
    * Loads the sound to the underlying audio object.
+   * @param {number} [soundId] The id of the sound to be loaded.
    * @return {Buzz}
    */
-  load() {
+  load(soundId) {
+    if (soundId) {
+      const sound = this.sound(soundId);
+      sound && sound.load();
+      return this;
+    }
+
     if (!this._stream && (this.isLoaded() || this._loadState === LoadState.Loading)) {
       return this;
     }
@@ -416,6 +423,9 @@ class Buzz {
             this._fire(BuzzEvents.Error, { type: ErrorType.LoadError, soundId: newSoundId, error: err });
             this._engine.destroyAllocatedAudio(this._compatibleSrc, this._id, newSoundId);
             sound.destroy();
+          },
+          loadCallback: () => {
+            this._fire(BuzzEvents.Load, newSoundId);
           }
         };
 
