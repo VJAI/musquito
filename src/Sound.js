@@ -377,27 +377,14 @@ class Sound {
       this._clearEndTimer();
       this._audio.pause();
     } else {
-      this._currentPos = this.seek();
       this._rateSeek = 0;
       this._destroyBufferNode();
     }
 
+    this._currentPos = this.seek();
     this._state = SoundState.Paused;
 
     return this;
-  }
-
-  /**
-   * Clears the end-timer.
-   * @private
-   */
-  _clearEndTimer() {
-    if (!this._endTimer) {
-      return;
-    }
-
-    workerTimer.clearTimeout(this._endTimer);
-    this._endTimer = null;
   }
 
   /**
@@ -419,7 +406,7 @@ class Sound {
       this._audio.pause();
       this._audio.currentTime = this._startPos || 0;
     } else {
-      this._currentPos = this.seek();
+      this._currentPos = 0;
       this._rateSeek = 0;
       this._destroyBufferNode();
     }
@@ -561,7 +548,7 @@ class Sound {
 
     if (this.isPlaying()) {
       if (this._stream) {
-        this._audio.playbackRate.value = rate;
+        this._audio.playbackRate = rate;
 
         if (this._isSprite) {
           this._clearEndTimer();
@@ -855,6 +842,19 @@ class Sound {
   }
 
   /**
+   * Clears the end-timer.
+   * @private
+   */
+  _clearEndTimer() {
+    if (!this._endTimer) {
+      return;
+    }
+
+    workerTimer.clearTimeout(this._endTimer);
+    this._endTimer = null;
+  }
+
+  /**
    * Returns the gain node.
    * @return {GainNode}
    */
@@ -873,13 +873,12 @@ class Sound {
 
     if (typeof this._bufferSourceNode.stop !== 'undefined') {
       this._bufferSourceNode.stop();
-    }
-    else {
+    } else {
       this._bufferSourceNode.noteGrainOff();
     }
 
     this._bufferSourceNode.disconnect();
-    this._bufferSourceNode.removeEventListener('ended', this._onEnded);
+    this._bufferSourceNode.removeEventListener('ended', this._onBufferEnded);
     this._bufferSourceNode = null;
   }
 

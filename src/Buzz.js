@@ -959,7 +959,9 @@ const $buzz = args => new Buzz(args);
 [
   'setup',
   'load',
+  'loadMedia',
   'unload',
+  'unloadMedia',
   'mute',
   'unmute',
   'volume',
@@ -972,6 +974,9 @@ const $buzz = args => new Buzz(args);
   'context',
   'masterGain',
   'isAudioAvailable',
+  'isWebAudioAvailable',
+  'bufferLoader',
+  'mediaLoader',
   'on',
   'off'
 ].forEach(method => {

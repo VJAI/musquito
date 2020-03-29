@@ -3,69 +3,60 @@
   <title>musquito test drive</title>
   <meta charset="UTF-8">
   <style>
+    :root {
+      font-size: 16px;
+    }
+
     body {
-      font-family: 'Trebuchet MS', serif;
-      font-size: 12px;
-      color: #f4f409;
-      background-color: #191918;
-      padding: 10px;
-    }
-
-    .heading {
-      text-align: center;
-    }
-
-    .playground .top {
-      display: flex;
-      margin-bottom: 10px;
-      align-items: center;
-    }
-
-    .playground .top h2 {
-      flex: 1;
-    }
-
-    .playground .top .buttons {
-      width: auto;
-    }
-
-    .playground .top .buttons button {
-      margin-left: 5px;
-      padding: 10px 15px;
+      margin: 0;
       background-color: #fff;
+      color: #525240;
+      font-family: 'Roboto', sans-serif;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
     }
 
-    .playground textarea {
+    header {
+      height: 8rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #dede07;
+      color: #424236;
+    }
+
+    header  h1 {
+      text-align: center;
+      font-family: 'Righteous', cursive;
+      font-size: 4rem;
+    }
+
+    main {
+      flex-grow: 1;
+      min-height: calc(100vh - 128px);
+    }
+
+    main textarea {
       display: block;
       width: 100%;
-      height: auto;
-      margin-top: 10px;
-      min-height: 500px;
-      font-family: 'Courier New', serif;
-      font-size: 1.2rem;
-      background-color: #f7f7f2;
-      border-color: #aaa;
-      border-style: dashed;
-      border-radius: 5px;
+      min-height: calc(100vh - 128px);
+      font-family: 'Fira Code', monospace;
+      font-size: 1rem;
+      background-color: #424236;
+      color: #dbdbca;
+      padding: 1rem;
     }
   </style>
+  <link href="https://fonts.googleapis.com/css?family=Righteous|Roboto|Fira+Code&display=swap" rel="stylesheet">
 </head>
 <body>
 <header>
-  <h1 class="heading"><i>musquito</i> test drive</h1>
+  <h1 class="heading">musquito</h1>
 </header>
 
 <main>
-  <section class="playground">
-    <div class="top">
-      <h2>Code Playground</h2>
-      <div class="buttons">
-        <button id="run">Run</button>
-        <button id="clear">Clear</button>
-      </div>
-    </div>
-    <textarea id="code"></textarea>
-  </section>
+  <textarea id="code"></textarea>
 </main>
 </body>
 </html>
