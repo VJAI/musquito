@@ -9,7 +9,6 @@
 
     body {
       margin: 0;
-      background-color: #fff;
       color: #525240;
       font-family: 'Roboto', sans-serif;
       display: flex;
@@ -40,12 +39,49 @@
     main textarea {
       display: block;
       width: 100%;
-      min-height: calc(100vh - 128px);
+      min-height: calc(100vh - 168px);
       font-family: 'Fira Code', monospace;
       font-size: 1rem;
-      background-color: #424236;
-      color: #dbdbca;
-      padding: 1rem;
+      color: #666;
+      padding: 1rem 5rem 1rem 1rem;
+      border: none;
+      outline: none;
+    }
+
+    .buttons {
+      position: absolute;
+      top: 9rem;
+      right: 1rem;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .buttons button {
+      width: 3rem;
+      height: 3rem;
+      border: solid 2px #dede07;
+      margin-top: 0.75rem;
+      background-color: #dede07;
+      color: #292924;
+      font-weight: bold;
+      font-size: 1rem;
+      transition: all 0.25s;
+      cursor: pointer;
+      border-radius: 50%;
+    }
+
+    .buttons button:hover {
+      background-color: transparent;
+    }
+
+    footer {
+      position: fixed;
+      width: 100%;
+      bottom: 1rem;
+      font-size: 0.75rem;
+      text-align: center;
+      color: #666;
+      background-color: transparent;
     }
   </style>
   <link href="https://fonts.googleapis.com/css?family=Righteous|Roboto|Fira+Code&display=swap" rel="stylesheet">
@@ -56,7 +92,15 @@
 </header>
 
 <main>
-  <textarea id="code"></textarea>
+  <textarea id="code" placeholder="Type code here..."></textarea>
+  <div class="buttons">
+    <button id="run">▶</button>
+    <button id="clear">x</button>
+  </div>
 </main>
+
+<footer>
+  Copyright © 2020 musquito. All rights reserved.
+</footer>
 </body>
 </html>
