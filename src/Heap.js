@@ -201,7 +201,8 @@ class Heap {
    * @param {number} soundId The sound id.
    */
   removeSound(src, groupId, soundId) {
-    throw new Error('Not implemented');
+    const items = this._collections[src];
+    delete items[soundId];
   }
 
   /**

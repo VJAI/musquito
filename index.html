@@ -46,6 +46,7 @@
       padding: 1rem 5rem 1rem 1rem;
       border: none;
       outline: none;
+      resize: none;
     }
 
     .buttons {
@@ -102,5 +103,21 @@
 <footer>
   Copyright © 2020 musquito. All rights reserved.
 </footer>
+
+<script>
+  var textarea = document.querySelector('textarea');
+  textarea.addEventListener('keydown', function (e) {
+    var keyCode = e.keyCode || e.which;
+
+    if (keyCode === 9) {
+      e.preventDefault();
+
+      const TAB_SIZE = 4;
+
+      // The one-liner that does the magic
+      document.execCommand('insertText', false, ' '.repeat(TAB_SIZE));
+    }
+  });
+</script>
 </body>
 </html>
