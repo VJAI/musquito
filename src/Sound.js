@@ -219,10 +219,10 @@ class Sound {
 
   /**
    * Last played time.
-   * @type {number}
+   * @type {Date}
    * @private
    */
-  _lastPlayed = Date.now();
+  _lastPlayed = new Date();
 
   /**
    * True to not auto-destroy.
@@ -411,7 +411,7 @@ class Sound {
       this._destroyBufferNode();
     }
 
-    this._lastPlayed = Date.now();
+    this._lastPlayed = new Date();
 
     this._state = SoundState.Ready;
 
@@ -811,7 +811,7 @@ class Sound {
    * @private
    */
   _onBufferEnded() {
-    this._lastPlayed = Date.now();
+    this._lastPlayed = new Date();
 
     // Reset the seek positions
     this._currentPos = 0;

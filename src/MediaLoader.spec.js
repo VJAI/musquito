@@ -1,5 +1,4 @@
-/*import Html5AudioPool from './Html5AudioPool';
-import MediaLoader from './MediaLoder';
+import MediaLoader from './MediaLoader';
 import DownloadStatus from './DownloadStatus';
 
 describe('MediaLoader', () => {
@@ -246,8 +245,4 @@ describe('MediaLoader', () => {
     });
   });
 });
-*/
 
-describe('Media Loader', () => {
-
-});

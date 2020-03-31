@@ -35,7 +35,7 @@ class HeapItemCollection {
    * The audio source url.
    * @type {string|null}
    */
-  url = null;
+  _url = null;
 
   /**
    * The collection of sound objects.
@@ -52,9 +52,11 @@ class HeapItemCollection {
 
   /**
    * Initialize stuff.
+   * @param {string} url The audio url.
    * @param {number} inactiveTime The inactive time of sound.
    */
-  constructor(inactiveTime) {
+  constructor(url, inactiveTime) {
+    this._url = url;
     this._inactiveTime = inactiveTime;
     this.free = this.free.bind(this);
   }
@@ -80,13 +82,16 @@ class HeapItemCollection {
    * @param {number} [groupId] The group id.
    */
   free(idle = true, groupId) {
-    const now = Date.now();
+    const now = new Date();
 
     Object.values(this.items).forEach(item => {
       const { sound, soundGroupId } = item;
-      const inactiveDuration = (now - sound.lastPlayed()) / 1000;
+      const inactiveDurationInSeconds = (now - sound.lastPlayed()) / 1000;
 
-      if (idle && (sound.isPersistent() || sound.isPlaying() || sound.isPaused() || inactiveDuration < this._inactiveTime * 60)) {
+      if (idle && (sound.isPersistent() ||
+        sound.isPlaying() ||
+        sound.isPaused() ||
+        inactiveDurationInSeconds < this._inactiveTime * 60)) {
         return;
       }
 
@@ -138,7 +143,7 @@ class Heap {
 
   /**
    * Initialize stuff.
-   * @param {number} inactiveTime The inactive time of sound.
+   * @param {number} inactiveTime The inactive time of sound in minutes.
    */
   constructor(inactiveTime) {
     this._inactiveTime = inactiveTime;
@@ -153,7 +158,7 @@ class Heap {
    */
   add(url, groupId, sound) {
     if (!this._collections.hasOwnProperty(url)) {
-      this._collections[url] = new HeapItemCollection(this._inactiveTime);
+      this._collections[url] = new HeapItemCollection(url, this._inactiveTime);
     }
 
     this._collections[url].add(groupId, sound);
