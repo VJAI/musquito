@@ -757,7 +757,7 @@ class Buzz {
     this.stop();
     this._queue.clear();
     this._engine.off(EngineEvents.Resume, this._onEngineResume);
-    this._engine.free(false, this._id);
+    this._engine.free(false, this._compatibleSrc, this._id);
     this._engine.releaseForGroup(this._compatibleSrc, this._id);
 
 

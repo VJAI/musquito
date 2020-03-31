@@ -188,16 +188,27 @@ class Html5AudioPool {
   /**
    * Destroys the audio node reserved for sound.
    * @param {string} src The audio file url.
-   * @param {number} groupId The buzz id.
    * @param {number|Audio} soundIdOrAudio The sound id.
+   * @param {number} groupId The buzz id.
    */
-  destroyAllocatedAudio(src, groupId, soundIdOrAudio) {
+  destroyAllocatedAudio(src, soundIdOrAudio, groupId) {
     const nodes = this._resourceNodesMap[src],
       { allocated, unallocated } = nodes;
 
     if (soundIdOrAudio instanceof Audio) {
       this._destroyNode(soundIdOrAudio);
-      nodes.unallocated = unallocated.filter(x => x !== soundIdOrAudio);
+
+      if (groupId) {
+        allocated[groupId] = allocated[groupId].filter(x => x.audio !== soundIdOrAudio);
+        !allocated[groupId].length && delete allocated[groupId];
+      } else {
+        nodes.unallocated = unallocated.filter(x => x !== soundIdOrAudio);
+      }
+
+      if (!unallocated.length && !Object.keys(allocated).length) {
+        delete this._resourceNodesMap[src];
+      }
+
       return;
     }
 
