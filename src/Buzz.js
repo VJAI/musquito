@@ -631,7 +631,11 @@ class Buzz {
    * @return {Buzz|number}
    */
   seek(id, seek) {
-    const sound = this._engine.sound(id);
+    if (!id) {
+      return this;
+    }
+
+    const sound = this.sound(id);
 
     if (!sound) {
       return this;
