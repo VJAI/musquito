@@ -413,7 +413,10 @@ class Buzz {
           loop: this._loop,
           playEndCallback: () => this._fire(BuzzEvents.PlayEnd, newSoundId),
           destroyCallback: () => {
-            this._engine.releaseForSound(this._compatibleSrc, this._id, newSoundId);
+            // We supposed to call `releaseForSound` so we could re-use the HTML5 audio node but
+            // due to this open issue https://github.com/WebAudio/web-audio-api/issues/1202 we can't re-use it
+            // and so we are destroying it.
+            this._engine.destroyAllocatedAudio(this._compatibleSrc, newSoundId, this._id);
             this._engine.removeSound(this._compatibleSrc, this._id, newSoundId);
             this._fire(BuzzEvents.Destroy, newSoundId);
             emitter.clear(newSoundId);
@@ -746,7 +749,6 @@ class Buzz {
     if (soundId) {
       const sound = this.sound(soundId);
       sound && sound.destroy();
-      this._engine.removeSound(this._compatibleSrc, this._id, soundId);
       return;
     }
 
@@ -759,7 +761,6 @@ class Buzz {
     this._engine.off(EngineEvents.Resume, this._onEngineResume);
     this._engine.free(false, this._compatibleSrc, this._id);
     this._engine.releaseForGroup(this._compatibleSrc, this._id);
-
 
     this._buffer = null;
     this._queue = null;

@@ -206,8 +206,7 @@ class Heap {
    * @param {number} soundId The sound id.
    */
   removeSound(src, groupId, soundId) {
-    const items = this._collections[src];
-    delete items[soundId];
+    delete this._collections[src].items[soundId];
   }
 
   /**

@@ -134,17 +134,18 @@ class Html5AudioPool {
    */
   releaseForGroup(src, groupId, free = false) {
     const nodes = this._resourceNodesMap[src],
-      { unallocated, allocated } = nodes;
+      { allocated } = nodes;
 
     if (!free) {
-      nodes.unallocated = [...unallocated, ...allocated[groupId].map(x => x.audio)];
+      allocated[groupId].map(x => x.audio).forEach(node => this._destroyNode(node));
       delete allocated[groupId];
       return;
     }
 
     const audioNodes = allocated[groupId].filter(x => x.soundId === null).map(x => x.audio);
     allocated[groupId] = allocated[groupId].filter(x => x.soundId !== null);
-    nodes.unallocated = [...unallocated, ...audioNodes];
+    // nodes.unallocated = [...unallocated, ...audioNodes]; https://github.com/WebAudio/web-audio-api/issues/1202
+    audioNodes.forEach(node => this._destroyNode(node));
   }
 
   /**
@@ -200,25 +201,17 @@ class Html5AudioPool {
 
       if (groupId) {
         allocated[groupId] = allocated[groupId].filter(x => x.audio !== soundIdOrAudio);
-        !allocated[groupId].length && delete allocated[groupId];
       } else {
         nodes.unallocated = unallocated.filter(x => x !== soundIdOrAudio);
       }
-
-      if (!unallocated.length && !Object.keys(allocated).length) {
-        delete this._resourceNodesMap[src];
-      }
-
-      return;
+    } else {
+      const allocatedAudioObj = allocated[groupId].find(x => x.soundId === soundIdOrAudio);
+      this._destroyNode(allocatedAudioObj.audio);
+      allocated[groupId] = allocated[groupId].filter(x => x.soundId !== soundIdOrAudio);
     }
 
-    const allocatedAudioObj = allocated[groupId].find(x => x.soundId === soundIdOrAudio);
-    if (!allocatedAudioObj) {
-      return;
-    }
-
-    this._destroyNode(allocatedAudioObj.audio);
-    allocated[groupId] = allocated[groupId].find(x => x.soundId !== soundIdOrAudio);
+    groupId && !allocated[groupId].length && delete allocated[groupId];
+    !unallocated.length && !Object.keys(allocated).length && delete this._resourceNodesMap[src];
   }
 
   /**
