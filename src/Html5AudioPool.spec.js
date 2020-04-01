@@ -182,7 +182,7 @@ describe('Html5AudioPool', () => {
         const nodes = html5AudioPool._resourceNodesMap[url],
           { unallocated, allocated } = nodes;
 
-        expect(unallocated.length).toBe(3);
+        expect(unallocated.length).toBe(1);
         expect(allocated.hasOwnProperty(groupId)).toBe(false);
       });
     });
@@ -194,9 +194,10 @@ describe('Html5AudioPool', () => {
 
       it('should release the audio nodes allocated for group', () => {
         const nodes = html5AudioPool._resourceNodesMap[url],
-          { unallocated } = nodes;
+          { unallocated, allocated } = nodes;
 
-        expect(unallocated.length).toBe(2);
+        expect(unallocated.length).toBe(1);
+        expect(Object.keys(allocated).length).toBe(1);
       });
     });
   });
