@@ -19,6 +19,7 @@ const BuzzState = {
  */
 const BuzzEvents = {
   Load: 'load',
+  LoadProgress: 'loadprogress',
   UnLoad: 'unload',
   PlayStart: 'playstart',
   PlayEnd: 'playend',
@@ -197,6 +198,7 @@ class Buzz {
    * @param {string|string[]} [args.format] The file format(s) of the passed audio source(s).
    * @param {object} [args.sprite] The sprite definition.
    * @param {function} [args.onload] Event-handler for the "load" event.
+   * @param {function} [args.onloadprogress] Event-handler for the "loadprogress" event.
    * @param {function} [args.onunload] Event-handler for the "unload" event.
    * @param {function} [args.onplaystart] Event-handler for the "playstart" event.
    * @param {function} [args.onplayend] Event-handler for the "playend" event.
@@ -211,6 +213,8 @@ class Buzz {
    * @constructor
    */
   constructor(args) {
+    this._onLoadProgress = this._onLoadProgress.bind(this);
+
     // Setup the audio engine.
     this._engine = engine;
     this._engine.setup();
@@ -239,6 +243,7 @@ class Buzz {
         autoplay,
         preload,
         onload,
+        onloadprogress,
         onunload,
         onplaystart,
         onplayend,
@@ -277,10 +282,11 @@ class Buzz {
       typeof loop === 'boolean' && (this._loop = loop);
       typeof autoplay === 'boolean' && (this._autoplay = autoplay);
       typeof preload === 'boolean' && (this._preload = preload);
-      typeof onload === 'function' && this.on(BuzzEvents.Load, onload);
-      typeof onunload === 'function' && this.on(BuzzEvents.UnLoad, onunload);
 
       // Bind the passed event handlers to events.
+      typeof onload === 'function' && this.on(BuzzEvents.Load, onload);
+      typeof onloadprogress === 'function' && this.on(BuzzEvents.LoadProgress, onloadprogress);
+      typeof onunload === 'function' && this.on(BuzzEvents.UnLoad, onunload);
       typeof onplaystart === 'function' && this.on(BuzzEvents.PlayStart, onplaystart);
       typeof onplayend === 'function' && this.on(BuzzEvents.PlayEnd, onplayend);
       typeof onstop === 'function' && this.on(BuzzEvents.Stop, onstop);
@@ -331,7 +337,7 @@ class Buzz {
     }
 
     // Load the audio source.
-    this._engine.load(src).then(downloadResult => {
+    this._engine.load(src, this._onLoadProgress).then(downloadResult => {
       // During the time of loading... if the buzz is unloaded or destroyed then return.
       if (this._loadState === LoadState.NotLoaded || this._state === BuzzState.Destroyed) {
         return;
@@ -371,6 +377,15 @@ class Buzz {
 
     // Fire the error event.
     this._fire(BuzzEvents.Error, null, { type: ErrorType.LoadError, error: error });
+  }
+
+  /**
+   * The resource load progress handler.
+   * @param {object} evt The progress data.
+   * @private
+   */
+  _onLoadProgress(evt) {
+    this._fire(BuzzEvents.LoadProgress, null, evt.percentageDownloaded);
   }
 
   /**

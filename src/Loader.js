@@ -98,14 +98,15 @@ class Loader {
   /**
    * Loads single or multiple audio resources into audio buffers.
    * @param {string|string[]} urls Single or array of audio urls
+   * @param {function} [progressCallback] The callback that is called to intimate the percentage downloaded.
    * @return {Promise<DownloadResult|Array<DownloadResult>>}
    */
-  load(urls) {
+  load(urls, progressCallback) {
     if (typeof urls === 'string') {
-      return this._load(urls);
+      return this._load(urls, progressCallback);
     }
 
-    return Promise.all(urls.map(url => this._load(url)));
+    return Promise.all(urls.map(url => this._load(url, progressCallback)));
   }
 
   /**
@@ -143,11 +144,12 @@ class Loader {
 
   /**
    * Loads a single audio resource into audio buffer and cache result if the download is succeeded.
-   * @param {string} url The Audio url
+   * @param {string} url The Audio url.
+   * @param {function} [progressCallback] The callback that is called to intimate the percentage downloaded.
    * @return {Promise<DownloadResult>}
    * @private
    */
-  _load(url) {
+  _load(url, progressCallback) {
     return new Promise(resolve => {
       if (this._bufferCache.hasOwnProperty(url)) {
         resolve(new DownloadResult(url, this._bufferCache[url]));
@@ -200,6 +202,14 @@ class Loader {
       req.responseType = 'arraybuffer';
 
       req.addEventListener('load', () => decodeAudioData(req.response), false);
+      req.addEventListener('progress', (evt) => {
+        if (!evt.lengthComputable) {
+          progressCallback({ url: url, percentageDownloaded: 0 });
+        }
+
+        const percentageDownloaded = Math.round((evt.loaded / evt.total) * 100);
+        progressCallback({ url: url, percentageDownloaded: percentageDownloaded });
+      });
       req.addEventListener('error', reject, false);
       req.send();
     });

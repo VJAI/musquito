@@ -267,10 +267,11 @@ class Engine {
   /**
    * Loads single or multiple audio resources into audio buffers and returns them.
    * @param {string|string[]} urls Single or array of audio urls.
+   * @param {function} [progressCallback] The callback that is called to intimate the percentage downloaded.
    * @return {Promise}
    */
-  load(urls) {
-    return this._loader.load(urls);
+  load(urls, progressCallback) {
+    return this._loader.load(urls, progressCallback);
   }
 
   /**
