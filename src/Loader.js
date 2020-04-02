@@ -202,14 +202,18 @@ class Loader {
       req.responseType = 'arraybuffer';
 
       req.addEventListener('load', () => decodeAudioData(req.response), false);
-      req.addEventListener('progress', (evt) => {
-        if (!evt.lengthComputable) {
-          progressCallback({ url: url, percentageDownloaded: 0 });
-        }
 
-        const percentageDownloaded = Math.round((evt.loaded / evt.total) * 100);
-        progressCallback({ url: url, percentageDownloaded: percentageDownloaded });
-      });
+      if (progressCallback) {
+        req.addEventListener('progress', (evt) => {
+          if (!evt.lengthComputable) {
+            progressCallback({ url: url, percentageDownloaded: 0 });
+          }
+
+          const percentageDownloaded = Math.round((evt.loaded / evt.total) * 100);
+          progressCallback({ url: url, percentageDownloaded: percentageDownloaded });
+        });
+      }
+
       req.addEventListener('error', reject, false);
       req.send();
     });
