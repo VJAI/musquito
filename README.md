@@ -137,6 +137,7 @@ If you need to pass additional information like initial volume, playback speed t
 | format | string, Array<string> | no | false | Single or array of audio formats for the passed audio sources. |
 | sprite | object | no | | The sprite definition object that contains the starting and ending positions of each sound embedded in the sprite. |
 | onload | function | no | | The event handler for "load" event. |
+| onloadprogress | function | no | | The event handler for "loadprogress" event. |
 | onunload | function | no | | The event handler for "unload" event. |
 | onplaystart | function | no | | The event handler for "playstart" event. |
 | onplayend | function | no | | The event handler for "playend" event. |
@@ -186,7 +187,7 @@ These are wrapper methods of engine that helps to control the audio globally. Yo
 | Method | Returns | Description |
 |--------|:-------:|-------------|
 | setup(args?: object) | $buzz | Sets-up the audio engine. |
-| load(urls: string, Array<string>) | Promise | Loads single or multiple audio resources into audio buffers and returns them. |
+| load(urls: string, Array<string>, progressCallback: function) | Promise | Loads single or multiple audio resources into audio buffers and returns them. |
 | unload(urls: string, Array<string>) | $buzz | Unloads single or multiple loaded audio buffers from cache. |
 | mute() | $buzz | Mutes the engine. |
 | unmute() | $buzz | Un-mutes the engine. |
@@ -201,6 +202,7 @@ These are wrapper methods of engine that helps to control the audio globally. Yo
 | isAudioAvailable() | boolean | Returns true if Web Audio API is available. |
 | on(eventName: string, handler: function, once = false) | $buzz | Subscribes to an event. |
 | off(eventName: string, handler: function) | $buzz | Un-subscribes from an event. |
+| masterGain() | GainNode | Returns the master gain node. |
 
 
 ## License
