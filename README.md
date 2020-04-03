@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://github.com/VJAI/musquito/blob/master/musquito.png" />
+</p>
+
 # musquito
 
 [musquito](http://musquitojs.com) is an audio engine created using Web Audio API for HTML5 games and interactive websites. It provides 
