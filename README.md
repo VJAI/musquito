@@ -11,6 +11,7 @@ Below are some of the core features supported by the library.
 - Supports streaming using HTML5 audio nodes
 - Fading
 - Caching
+- Auto Garbage Management
 
 ## Browser Support
 
