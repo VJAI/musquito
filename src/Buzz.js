@@ -994,7 +994,6 @@ const $buzz = args => new Buzz(args);
   'context',
   'masterGain',
   'isAudioAvailable',
-  'isWebAudioAvailable',
   'bufferLoader',
   'mediaLoader',
   'on',

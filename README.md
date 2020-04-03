@@ -8,6 +8,7 @@ Below are some of the core features supported by the library.
 - Simple API to create and play sounds
 - Supports variety of codecs
 - Supports audio sprites
+- Supports streaming using HTML5 audio nodes
 - Fading
 - Caching
 
@@ -95,6 +96,21 @@ buzz.play('gun');
 buzz.play('bomb');
 ```
 
+
+## Playing Long Audio Files
+
+To stream long audio files and play using HTML5 audio node you can pass the `stream` parameter as true.
+
+```js
+const buzz = $buzz({
+  src: 'bg.mp3',
+  stream: true
+});
+
+buzz.play();
+```
+
+
 ## Fading Sounds
 
 You can fade the volume of a playing sound linearly or exponentially as shown below.
@@ -137,6 +153,7 @@ If you need to pass additional information like initial volume, playback speed t
 | format | string, Array<string> | no | false | Single or array of audio formats for the passed audio sources. |
 | sprite | object | no | | The sprite definition object that contains the starting and ending positions of each sound embedded in the sprite. |
 | onload | function | no | | The event handler for "load" event. |
+| onloadprogress | function | no | | The event handler for "loadprogress" event. |
 | onunload | function | no | | The event handler for "unload" event. |
 | onplaystart | function | no | | The event handler for "playstart" event. |
 | onplayend | function | no | | The event handler for "playend" event. |
@@ -186,8 +203,10 @@ These are wrapper methods of engine that helps to control the audio globally. Yo
 | Method | Returns | Description |
 |--------|:-------:|-------------|
 | setup(args?: object) | $buzz | Sets-up the audio engine. |
-| load(urls: string, Array<string>) | Promise | Loads single or multiple audio resources into audio buffers and returns them. |
+| load(urls: string, Array<string>, progressCallback: function) | Promise | Loads single or multiple audio resources into audio buffers and returns them. |
+| loadMedia(urls: string, Array<string>) | Promise | Pre-loads single or multiple HTML5 audio nodes with the passed resources and returns them. |
 | unload(urls: string, Array<string>) | $buzz | Unloads single or multiple loaded audio buffers from cache. |
+| unloadMedia(urls: string, Array<string>) | $buzz | Releases audio nodes allocated for the passed urls. |
 | mute() | $buzz | Mutes the engine. |
 | unmute() | $buzz | Un-mutes the engine. |
 | volume(vol?: number) | $buzz, number | Gets/sets the volume for the audio engine that controls global volume for all sounds. |
@@ -199,9 +218,12 @@ These are wrapper methods of engine that helps to control the audio globally. Yo
 | state() | EngineState | Returns the state of the engine. |
 | context() | AudioContext | Returns the created audio context. |
 | isAudioAvailable() | boolean | Returns true if Web Audio API is available. |
+| isWebAudioAvailable() | 
 | on(eventName: string, handler: function, once = false) | $buzz | Subscribes to an event. |
 | off(eventName: string, handler: function) | $buzz | Un-subscribes from an event. |
-
+| masterGain() | GainNode | Returns the master gain node. |
+| bufferLoader() | BufferLoader | Returns buffer loader. |
+| mediaLoader() | MediaLoader | Returns media loader. |
 
 ## License
 

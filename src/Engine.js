@@ -129,20 +129,6 @@ class Engine {
   _intervalId = null;
 
   /**
-   * True if HTML5 audio is available.
-   * @type {boolean}
-   * @private
-   */
-  _isHTML5AudioAvailable = false;
-
-  /**
-   * True if Web Audio API is available.
-   * @type {boolean}
-   * @private
-   */
-  _isWebAudioAvailable = false;
-
-  /**
    * True if Web Audio API is available.
    * @type {boolean}
    * @private
@@ -237,9 +223,7 @@ class Engine {
     this._context = utility.getContext();
 
     // Determine the audio stuff available in the current platform and set the flags accordingly.
-    this._isWebAudioAvailable = Boolean(this._context);
-    this._isHTML5AudioAvailable = typeof Audio !== 'undefined';
-    this._isAudioAvailable = this._isWebAudioAvailable || this._isHTML5AudioAvailable;
+    this._isAudioAvailable = Boolean(this._context);
 
     // If no Web Audio and HTML5 audio is available fire an error event.
     if (!this._isAudioAvailable) {
@@ -746,14 +730,6 @@ class Engine {
    */
   isAudioAvailable() {
     return this._isAudioAvailable;
-  }
-
-  /**
-   * Returns true if Web Audio API is available.
-   * @return {boolean}
-   */
-  isWebAudioAvailable() {
-    return this._isWebAudioAvailable;
   }
 
   /**
