@@ -19,6 +19,7 @@ const BuzzState = {
  */
 const BuzzEvents = {
   Load: 'load',
+  LoadProgress: 'loadprogress',
   UnLoad: 'unload',
   PlayStart: 'playstart',
   PlayEnd: 'playend',
@@ -201,6 +202,7 @@ class Buzz {
    * @param {string|string[]} [args.format] The file format(s) of the passed audio source(s).
    * @param {object} [args.sprite] The sprite definition.
    * @param {function} [args.onload] Event-handler for the "load" event.
+   * @param {function} [args.onloadprogress] Event-handler for the "loadprogress" event (only for non-stream types).
    * @param {function} [args.onunload] Event-handler for the "unload" event.
    * @param {function} [args.onplaystart] Event-handler for the "playstart" event.
    * @param {function} [args.onplayend] Event-handler for the "playend" event.
@@ -215,6 +217,8 @@ class Buzz {
    * @constructor
    */
   constructor(args) {
+    this._onLoadProgress = this._onLoadProgress.bind(this);
+
     // Setup the audio engine.
     this._engine = engine;
     this._engine.setup();
@@ -244,6 +248,7 @@ class Buzz {
         stream,
         preload,
         onload,
+        onloadprogress,
         onunload,
         onplaystart,
         onplayend,
@@ -286,6 +291,7 @@ class Buzz {
 
       // Bind the passed event handlers to events.
       typeof onload === 'function' && this.on(BuzzEvents.Load, onload);
+      typeof onloadprogress === 'function' && this.on(BuzzEvents.LoadProgress, onloadprogress);
       typeof onunload === 'function' && this.on(BuzzEvents.UnLoad, onunload);
       typeof onplaystart === 'function' && this.on(BuzzEvents.PlayStart, onplaystart);
       typeof onplayend === 'function' && this.on(BuzzEvents.PlayEnd, onplayend);
@@ -337,7 +343,7 @@ class Buzz {
     const src = this._compatibleSrc || (this._compatibleSrc = this.getCompatibleSource());
 
     // Load the audio source.
-    const load$ = this._stream ? this._engine.allocateForGroup(src, this._id) : this._engine.load(src);
+    const load$ = this._stream ? this._engine.allocateForGroup(src, this._id) : this._engine.load(src, this._onLoadProgress);
     load$.then(downloadResult => {
 
       this._noOfLoadCalls > 0 && (this._noOfLoadCalls = this._noOfLoadCalls - 1);
@@ -875,6 +881,15 @@ class Buzz {
 
     // Fire the error event.
     this._fire(BuzzEvents.Error, null, { type: ErrorType.LoadError, error: error });
+  }
+
+  /**
+   * The resource load progress handler.
+   * @param {object} evt The progress data.
+   * @private
+   */
+  _onLoadProgress(evt) {
+    this._fire(BuzzEvents.LoadProgress, null, evt.percentageDownloaded);
   }
 
   /**
