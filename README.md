@@ -8,8 +8,10 @@ Below are some of the core features supported by the library.
 - Simple API to create and play sounds
 - Supports variety of codecs
 - Supports audio sprites
+- Supports streaming using HTML5 audio nodes
 - Fading
 - Caching
+- Auto Garbage Management
 
 ## Browser Support
 
@@ -94,6 +96,21 @@ const buzz = $buzz({
 buzz.play('gun');
 buzz.play('bomb');
 ```
+
+
+## Playing Long Audio Files
+
+To stream long audio files and play using HTML5 audio node you can pass the `stream` parameter as true.
+
+```js
+const buzz = $buzz({
+  src: 'bg.mp3',
+  stream: true
+});
+
+buzz.play();
+```
+
 
 ## Fading Sounds
 
@@ -188,7 +205,9 @@ These are wrapper methods of engine that helps to control the audio globally. Yo
 |--------|:-------:|-------------|
 | setup(args?: object) | $buzz | Sets-up the audio engine. |
 | load(urls: string, Array<string>, progressCallback: function) | Promise | Loads single or multiple audio resources into audio buffers and returns them. |
+| loadMedia(urls: string, Array<string>) | Promise | Pre-loads single or multiple HTML5 audio nodes with the passed resources and returns them. |
 | unload(urls: string, Array<string>) | $buzz | Unloads single or multiple loaded audio buffers from cache. |
+| unloadMedia(urls: string, Array<string>) | $buzz | Releases audio nodes allocated for the passed urls. |
 | mute() | $buzz | Mutes the engine. |
 | unmute() | $buzz | Un-mutes the engine. |
 | volume(vol?: number) | $buzz, number | Gets/sets the volume for the audio engine that controls global volume for all sounds. |
@@ -203,7 +222,8 @@ These are wrapper methods of engine that helps to control the audio globally. Yo
 | on(eventName: string, handler: function, once = false) | $buzz | Subscribes to an event. |
 | off(eventName: string, handler: function) | $buzz | Un-subscribes from an event. |
 | masterGain() | GainNode | Returns the master gain node. |
-
+| bufferLoader() | BufferLoader | Returns buffer loader. |
+| mediaLoader() | MediaLoader | Returns media loader. |
 
 ## License
 

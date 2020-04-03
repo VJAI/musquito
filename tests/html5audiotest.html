@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>HTML5 Audio Preload Test</title>
+</head>
+<body>
+<h1>HTML5 Audio Preload Test</h1>
+<button onclick="play();">Play</button>
+<button onclick="skip();">Skip</button>
+<button onclick="stop();">Stop</button>
+
+
+<script>
+  var audio = new Audio();
+  console.log('ready state', audio.readyState);
+  document.body.appendChild(audio);
+  audio.addEventListener('canplaythrough', function () {
+    console.log('canplaythrough', audio.readyState);
+  });
+  audio.src = 'https://raw.githubusercontent.com/VJAI/musquito/master/sounds/bg.mp3';
+
+  window.play = function () {
+    audio.play();
+    console.log('in play', audio.readyState);
+  };
+
+  window.skip = function() {
+    audio.currentTime = 2.0;
+    console.log('in skip', audio.readyState);
+  };
+
+  window.stop = function () {
+    audio.pause();
+    console.log('in stop', audio.readyState);
+    audio.currentTime = 0;
+  };
+</script>
+</body>
+</html>

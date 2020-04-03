@@ -1,9 +1,10 @@
-import Loader from './Loader';
-import emitter from './Emitter';
-import Heap from './Heap';
-import Queue from './Queue';
-import utility from './Utility';
-import Sound from './Sound';
+import BufferLoader from './BufferLoader';
+import MediaLoader  from './MediaLoader';
+import emitter      from './Emitter';
+import Heap         from './Heap';
+import Queue        from './Queue';
+import utility      from './Utility';
+import Sound        from './Sound';
 
 /**
  * Enum that represents the different type of errors thrown by Engine and Buzzes.
@@ -93,11 +94,25 @@ class Engine {
   _volume = 1.0;
 
   /**
+   * Maximum number of HTML5 audio objects allowed for a url.
+   * @type {number}
+   * @private
+   */
+  _maxNodesPerSource = 10;
+
+  /**
    * The heap clean-up period.
    * @type {number}
    * @private
    */
   _cleanUpInterval = 5;
+
+  /**
+   * Inactive time of sound.
+   * @type {number}
+   * @private
+   */
+  _inactiveTime = 2;
 
   /**
    * Auto-enables audio in first user interaction.
@@ -157,17 +172,24 @@ class Engine {
 
   /**
    * Loader - the component that loads audio buffers with audio data.
-   * @type {Loader}
+   * @type {BufferLoader}
    * @private
    */
-  _loader = null;
+  _bufferLoader = null;
+
+  /**
+   * MediaLoader - the component that loads HTML5 audio nodes with audio.
+   * @type {MediaLoader}
+   * @private
+   */
+  _mediaLoader = null;
 
   /**
    * Instantiates the heap and action queue.
    * @constructor
    */
   constructor() {
-    this._heap = new Heap();
+    this._heap = new Heap(this._inactiveTime);
     this._queue = new Queue();
     this._resumeAndRemoveListeners = this._resumeAndRemoveListeners.bind(this);
   }
@@ -177,6 +199,7 @@ class Engine {
    * @param {object} [args] Input parameters object.
    * @param {number} [args.volume = 1.0] The global volume of the sound engine.
    * @param {boolean} [args.muted = false] Stay muted initially or not.
+   * @param {number} [args.maxNodesPerSource = 10] Maximum number of HTML5 audio objects allowed for a url.
    * @param {number} [args.cleanUpInterval = 5] The heap clean-up interval period in minutes.
    * @param {boolean} [args.autoEnable = true] Auto-enables audio in first user interaction.
    * @param {function} [args.onadd] Event-handler for the "add" event.
@@ -213,6 +236,7 @@ class Engine {
     const {
       volume,
       muted,
+      maxNodesPerSource,
       cleanUpInterval,
       autoEnable,
       onadd,
@@ -230,6 +254,7 @@ class Engine {
     // Set the properties from the read parameters.
     typeof volume === 'number' && volume >= 0 && volume <= 1.0 && (this._volume = volume);
     typeof muted === 'boolean' && (this._muted = muted);
+    typeof maxNodesPerSource === 'number' && (this._maxNodesPerSource = maxNodesPerSource);
     typeof cleanUpInterval === 'number' && (this._cleanUpInterval = cleanUpInterval);
     typeof autoEnable === 'boolean' && (this._autoEnable = autoEnable);
     typeof onadd === 'function' && this.on(EngineEvents.Add, onadd);
@@ -244,7 +269,10 @@ class Engine {
     typeof ondone === 'function' && this.on(EngineEvents.Done, ondone);
 
     // Create the buffer loader.
-    this._loader = new Loader(this._context);
+    this._bufferLoader = new BufferLoader(this._context);
+
+    // Create the media loader.
+    this._mediaLoader = new MediaLoader(this._maxNodesPerSource, this._heap);
 
     // Auto-enable audio in first user interaction.
     // https://developers.google.com/web/updates/2018/11/web-audio-autoplay#moving-forward
@@ -271,7 +299,37 @@ class Engine {
    * @return {Promise}
    */
   load(urls, progressCallback) {
-    return this._loader.load(urls, progressCallback);
+    return this._bufferLoader.load(urls, progressCallback);
+  }
+
+  /**
+   * Loads HTML5 audio nodes for the passed urls.
+   * @param {string|string[]} urls Single or array of audio urls.
+   * @return {Promise<DownloadResult|Array<DownloadResult>>}
+   */
+  loadMedia(urls) {
+    return this._mediaLoader.load(urls);
+  }
+
+  /**
+   * Loads audio node for group.
+   * @param {string} url The audio file url.
+   * @param {number} groupId The group id.
+   * @return {Promise<DownloadResult>}
+   */
+  allocateForGroup(url, groupId) {
+    return this._mediaLoader.allocateForGroup(url, groupId);
+  }
+
+  /**
+   * Allocates an audio node for sound and returns it.
+   * @param {string} src The audio file url.
+   * @param {number} groupId The buzz id.
+   * @param {number} soundId The sound id.
+   * @return {Audio}
+   */
+  allocateForSound(src, groupId, soundId) {
+    return this._mediaLoader.allocateForSound(src, groupId, soundId);
   }
 
   /**
@@ -280,8 +338,74 @@ class Engine {
    * @return {Engine}
    */
   unload(urls) {
-    this._loader.unload(urls);
+    if (urls) {
+      this._bufferLoader.unload(urls);
+      return this;
+    }
+
+    this._bufferLoader.unload();
+
     return this;
+  }
+
+  /**
+   * Releases audio nodes allocated for the passed urls.
+   * @param {string|string[]} [urls] Single or array of audio urls.
+   * @return {Engine}
+   */
+  unloadMedia(urls) {
+    if (urls) {
+      this._mediaLoader.unload(urls);
+      return this;
+    }
+
+    this._mediaLoader.unload();
+
+    return this;
+  }
+
+  /**
+   * Releases the allocated audio node for the group.
+   * @param {string} url The audio file url.
+   * @param {number} groupId The group id.
+   * @param {boolean} [free = false] Pass true to release only free audio nodes.
+   * @return {Engine}
+   */
+  releaseForGroup(url, groupId, free = false) {
+    this._mediaLoader.releaseForGroup(url, groupId, free);
+    return this;
+  }
+
+  /**
+   * Unallocates the audio node reserved for sound.
+   * @param {string} src The audio file url.
+   * @param {number} groupId The buzz id.
+   * @param {number} soundId The sound id.
+   * @return {Engine}
+   */
+  releaseForSound(src, groupId, soundId) {
+    this._mediaLoader.releaseForSound(src, groupId, soundId);
+    return this;
+  }
+
+  /**
+   * Returns if there are free audio nodes available for a group.
+   * @param {string} src The audio file url.
+   * @param {number} groupId The group id.
+   * @return {boolean}
+   */
+  hasFreeNodes(src, groupId) {
+    return this._mediaLoader.hasFreeNodes(src, groupId);
+  }
+
+  /**
+   * Destroys the audio node reserved for sound.
+   * @param {string} src The audio file url.
+   * @param {number} groupId The buzz id.
+   * @param {number} soundId The sound id.
+   */
+  destroyAllocatedAudio(src, groupId, soundId) {
+    this._mediaLoader.destroyAllocatedAudio(src, groupId, soundId);
   }
 
   /**
@@ -450,9 +574,15 @@ class Engine {
       this._heap = null;
 
       // Clear the cache and remove the loader.
-      if (this._loader) {
-        this._loader.dispose();
-        this._loader = null;
+      if (this._bufferLoader) {
+        this._bufferLoader.dispose();
+        this._bufferLoader = null;
+      }
+
+      // Dispose the MediaLoader.
+      if (this._mediaLoader) {
+        this._mediaLoader.dispose();
+        this._mediaLoader = null;
       }
 
       this._context = null;
@@ -531,6 +661,16 @@ class Engine {
   }
 
   /**
+   * Removes the destroyed sound.
+   * @param {string} src The audio url.
+   * @param {number} groupId The group id.
+   * @param {number} soundId The sound id.
+   */
+  removeSound(src, groupId, soundId) {
+    this._heap.removeSound(src, groupId, soundId);
+  }
+
+  /**
    * Returns the sounds belongs to a group or all the sounds from the heap.
    * @param {number} [groupId] The group id.
    * @return {Array<Sound>}
@@ -542,11 +682,13 @@ class Engine {
   /**
    * Destroys the sounds belong to the passed group.
    * @param {boolean} idle True to destroy only the idle sounds.
-   * @param {number} groupId The group id.
+   * @param {string} [src] The audio resource url.
+   * @param {number} [groupId] The group id.
    * @return {Engine}
    */
-  free(idle, groupId) {
-    this._heap.free(idle, groupId);
+  free(idle, src, groupId) {
+    this._heap.free(idle, src, groupId);
+    this._mediaLoader.cleanUp();
     return this;
   }
 
@@ -588,6 +730,22 @@ class Engine {
    */
   isAudioAvailable() {
     return this._isAudioAvailable;
+  }
+
+  /**
+   * Returns the buffer loader.
+   * @return {BufferLoader}
+   */
+  bufferLoader() {
+    return this._bufferLoader;
+  }
+
+  /**
+   * Returns the HTML5 media loader.
+   * @return {MediaLoader}
+   */
+  mediaLoader() {
+    return this._mediaLoader;
   }
 
   /**

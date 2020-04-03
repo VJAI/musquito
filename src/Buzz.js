@@ -1,8 +1,8 @@
 import engine, { EngineEvents, EngineState, ErrorType } from './Engine';
-import Queue                                            from './Queue';
-import utility                                          from './Utility';
-import emitter                                          from './Emitter';
-import { DownloadStatus }                               from './Loader';
+import Queue from './Queue';
+import utility from './Utility';
+import emitter from './Emitter';
+import DownloadStatus from './DownloadStatus';
 
 /**
  * Enum that represents the different states of a sound group (buzz).
@@ -43,7 +43,8 @@ const BuzzEvents = {
 const LoadState = {
   NotLoaded: 'notloaded',
   Loading: 'loading',
-  Loaded: 'loaded'
+  Loaded: 'loaded',
+  AudioUnLoad: 'audio-unload'
 };
 
 /**
@@ -122,11 +123,11 @@ class Buzz {
   _autoplay = false;
 
   /**
-   * The audio buffer.
-   * @type {AudioBuffer}
+   * True to use HTML5 audio node.
+   * @type {boolean}
    * @private
    */
-  _buffer = null;
+  _stream = false;
 
   /**
    * Duration of the playback in seconds.
@@ -184,6 +185,8 @@ class Buzz {
    */
   _fadeTimer = null;
 
+  _noOfLoadCalls = 0;
+
   /**
    * Initializes the internal properties.
    * @param {string|Array<string>|object} args The input parameters of this sound group.
@@ -195,10 +198,11 @@ class Buzz {
    * @param {boolean} [args.muted = false] True to be muted initially.
    * @param {boolean} [args.preload = false] True to pre-load the sound after construction.
    * @param {boolean} [args.autoplay = false] True to play automatically after construction.
+   * @param {boolean} [args.stream = false] True to use HTML5 audio node.
    * @param {string|string[]} [args.format] The file format(s) of the passed audio source(s).
    * @param {object} [args.sprite] The sprite definition.
    * @param {function} [args.onload] Event-handler for the "load" event.
-   * @param {function} [args.onloadprogress] Event-handler for the "loadprogress" event.
+   * @param {function} [args.onloadprogress] Event-handler for the "loadprogress" event (only for non-stream types).
    * @param {function} [args.onunload] Event-handler for the "unload" event.
    * @param {function} [args.onplaystart] Event-handler for the "playstart" event.
    * @param {function} [args.onplayend] Event-handler for the "playend" event.
@@ -241,6 +245,7 @@ class Buzz {
         muted,
         loop,
         autoplay,
+        stream,
         preload,
         onload,
         onloadprogress,
@@ -281,6 +286,7 @@ class Buzz {
       typeof muted === 'boolean' && (this._muted = muted);
       typeof loop === 'boolean' && (this._loop = loop);
       typeof autoplay === 'boolean' && (this._autoplay = autoplay);
+      typeof stream === 'boolean' && (this._stream = stream);
       typeof preload === 'boolean' && (this._preload = preload);
 
       // Bind the passed event handlers to events.
@@ -316,30 +322,36 @@ class Buzz {
 
   /**
    * Loads the sound to the underlying audio object.
+   * @param {number} [soundId] The id of the sound to be loaded.
    * @return {Buzz}
    */
-  load() {
-    // If the sound is already loaded return without reloading again.
-    if (this.isLoaded() || this._loadState === LoadState.Loading) {
+  load(soundId) {
+    if (soundId) {
+      const sound = this.sound(soundId);
+      sound && sound.load();
       return this;
     }
 
-    // Set the state to "Loading" to avoid loading multiple times.
+    if (!this._stream && (this.isLoaded() || this._loadState === LoadState.Loading)) {
+      return this;
+    }
+
     this._loadState = LoadState.Loading;
 
-    // Get the compatible source.
+    this._noOfLoadCalls = this._noOfLoadCalls + 1;
+
     const src = this._compatibleSrc || (this._compatibleSrc = this.getCompatibleSource());
 
-    // If no compatible source found call failure method and return.
-    if (!src) {
-      this._onLoadFailure('The audio formats you passed are not supported');
-      return this;
-    }
-
     // Load the audio source.
-    this._engine.load(src, this._onLoadProgress).then(downloadResult => {
-      // During the time of loading... if the buzz is unloaded or destroyed then return.
-      if (this._loadState === LoadState.NotLoaded || this._state === BuzzState.Destroyed) {
+    const load$ = this._stream ? this._engine.allocateForGroup(src, this._id) : this._engine.load(src, this._onLoadProgress);
+    load$.then(downloadResult => {
+
+      this._noOfLoadCalls > 0 && (this._noOfLoadCalls = this._noOfLoadCalls - 1);
+
+      if (this._stream && this._state === BuzzState.Destroyed) {
+        this._engine.releaseForGroup(this._compatibleSrc, this._id, this._loadState === LoadState.AudioUnLoad);
+        return;
+      } else if (this._state === BuzzState.Destroyed || this._loadState === LoadState.NotLoaded) {
         return;
       }
 
@@ -349,8 +361,13 @@ class Buzz {
       // iii. Fire the load event.
       // iv. Run the methods that are queued to run after successful load.
       if (downloadResult.status === DownloadStatus.Success) {
-        this._buffer = downloadResult.value;
-        this._duration = this._buffer.duration;
+        if (this._stream) {
+          this._duration = downloadResult.value.duration;
+        } else {
+          this._buffer = downloadResult.value;
+          this._duration = this._buffer.duration;
+        }
+
         this._loadState = LoadState.Loaded;
         this._fire(BuzzEvents.Load, null, downloadResult);
         this._queue.run('after-load');
@@ -361,31 +378,6 @@ class Buzz {
     });
 
     return this;
-  }
-
-  /**
-   * Called on failure of loading audio source.
-   * @param {*} error The audio source load error.
-   * @private
-   */
-  _onLoadFailure(error) {
-    // Remove the queued actions from this class that are supposed to run after load.
-    this._queue.remove('after-load');
-
-    // Set the load state back to not loaded.
-    this._loadState = LoadState.NotLoaded;
-
-    // Fire the error event.
-    this._fire(BuzzEvents.Error, null, { type: ErrorType.LoadError, error: error });
-  }
-
-  /**
-   * The resource load progress handler.
-   * @param {object} evt The progress data.
-   * @private
-   */
-  _onLoadProgress(evt) {
-    this._fire(BuzzEvents.LoadProgress, null, evt.percentageDownloaded);
   }
 
   /**
@@ -419,16 +411,31 @@ class Buzz {
         const soundArgs = {
           id: newSoundId,
           buffer: this._buffer,
+          stream: this._stream,
+          audio: this._stream ? this._engine.allocateForSound(this._compatibleSrc, this._id, newSoundId) : null,
           volume: this._volume,
           rate: this._rate,
           muted: this._muted,
           loop: this._loop,
-          playEndCallback: sound => this._fire(BuzzEvents.PlayEnd, sound.id()),
-          destroyCallback: sound => {
-            this._fire(BuzzEvents.Destroy, sound.id());
-            emitter.clear(sound.id());
+          playEndCallback: () => this._fire(BuzzEvents.PlayEnd, newSoundId),
+          destroyCallback: () => {
+            // We supposed to call `releaseForSound` so we could re-use the HTML5 audio node but
+            // due to this open issue https://github.com/WebAudio/web-audio-api/issues/1202 we can't re-use it
+            // and so we are destroying it.
+            this._engine.destroyAllocatedAudio(this._compatibleSrc, newSoundId, this._id);
+            this._engine.removeSound(this._compatibleSrc, this._id, newSoundId);
+            this._fire(BuzzEvents.Destroy, newSoundId);
+            emitter.clear(newSoundId);
           },
-          fadeEndCallback: sound => this._fire(BuzzEvents.FadeEnd, sound.id())
+          fadeEndCallback: () => this._fire(BuzzEvents.FadeEnd, newSoundId),
+          audioErrorCallback: (sound, err) => {
+            this._fire(BuzzEvents.Error, { type: ErrorType.LoadError, soundId: newSoundId, error: err });
+            this._engine.destroyAllocatedAudio(this._compatibleSrc, this._id, newSoundId);
+            sound.destroy();
+          },
+          loadCallback: () => {
+            this._fire(BuzzEvents.Load, newSoundId);
+          }
         };
 
         if (typeof soundOrId === 'string' && this._sprite && this._sprite.hasOwnProperty(soundOrId)) {
@@ -630,7 +637,11 @@ class Buzz {
    * @return {Buzz|number}
    */
   seek(id, seek) {
-    const sound = this._engine.sound(id);
+    if (!id) {
+      return this;
+    }
+
+    const sound = this.sound(id);
 
     if (!sound) {
       return this;
@@ -700,6 +711,7 @@ class Buzz {
 
   /**
    * Returns the state of the passed sound or the group.
+   * @param {number} [id] The sound id.
    * @return {BuzzState|SoundState}
    */
   state(id) {
@@ -726,22 +738,30 @@ class Buzz {
   }
 
   /**
-   * Unloads the loaded audio buffer.
+   * Unloads the loaded audio buffer or free audio nodes.
    * @return {Buzz}
    */
   unload() {
     this._queue.remove('after-load');
-    this._engine.unload(this._compatibleSrc);
+    this._stream && this._engine.releaseForGroup(this._compatibleSrc, this._id, true);
     this._buffer = null;
-    this._duration = 0;
-    this._loadState = LoadState.NotLoaded;
+    this._stream && (this._duration = 0);
+    this._loadState = this._stream ? LoadState.AudioUnLoad : LoadState.NotLoaded;
+    this._noOfLoadCalls = 0;
     return this;
   }
 
   /**
-   * Stops and destroys all the sounds belong to this group and release other dependencies.
+   * Stops and destroys all the sounds belongs to this group and release other dependencies.
+   * @param {number} [soundId] The sound id.
    */
-  destroy() {
+  destroy(soundId) {
+    if (soundId) {
+      const sound = this.sound(soundId);
+      sound && sound.destroy();
+      return;
+    }
+
     if (this._state === BuzzState.Destroyed) {
       return;
     }
@@ -749,7 +769,8 @@ class Buzz {
     this.stop();
     this._queue.clear();
     this._engine.off(EngineEvents.Resume, this._onEngineResume);
-    this._engine.free(false, this._id);
+    this._engine.free(false, this._compatibleSrc, this._id);
+    this._engine.releaseForGroup(this._compatibleSrc, this._id);
 
     this._buffer = null;
     this._queue = null;
@@ -759,6 +780,24 @@ class Buzz {
     this._fire(BuzzEvents.Destroy);
 
     emitter.clear(this._id);
+  }
+
+  /**
+   * Makes the passed sound persistent that means it can't be auto-destroyed.
+   * @param {number} soundId The sound id.
+   */
+  persist(soundId) {
+    const sound = this.sound(soundId);
+    sound && sound.persist();
+  }
+
+  /**
+   * Makes the passed sound un-persistent that means it can be auto-destroyed.
+   * @param {number} soundId The sound id.
+   */
+  abandon(soundId) {
+    const sound = this.sound(soundId);
+    sound && sound.abandon();
   }
 
   /**
@@ -807,7 +846,7 @@ class Buzz {
    * @return {boolean}
    */
   isLoaded() {
-    return this._loadState === LoadState.Loaded;
+    return this._stream ? this._engine.hasFreeNodes(this._compatibleSrc, this._id) : this._loadState === LoadState.Loaded;
   }
 
   /**
@@ -826,6 +865,31 @@ class Buzz {
    */
   alive(id) {
     return Boolean(this.sound(id));
+  }
+
+  /**
+   * Called on failure of loading audio source.
+   * @param {*} error The audio source load error.
+   * @private
+   */
+  _onLoadFailure(error) {
+    // Remove the queued actions from this class that are supposed to run after load.
+    this._noOfLoadCalls === 0 && this._queue.remove('after-load');
+
+    // Set the load state back to not loaded.
+    this._loadState = LoadState.NotLoaded;
+
+    // Fire the error event.
+    this._fire(BuzzEvents.Error, null, { type: ErrorType.LoadError, error: error });
+  }
+
+  /**
+   * The resource load progress handler.
+   * @param {object} evt The progress data.
+   * @private
+   */
+  _onLoadProgress(evt) {
+    this._fire(BuzzEvents.LoadProgress, null, evt.percentageDownloaded);
   }
 
   /**
@@ -915,7 +979,9 @@ const $buzz = args => new Buzz(args);
 [
   'setup',
   'load',
+  'loadMedia',
   'unload',
+  'unloadMedia',
   'mute',
   'unmute',
   'volume',
@@ -928,6 +994,8 @@ const $buzz = args => new Buzz(args);
   'context',
   'masterGain',
   'isAudioAvailable',
+  'bufferLoader',
+  'mediaLoader',
   'on',
   'off'
 ].forEach(method => {

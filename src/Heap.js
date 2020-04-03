@@ -35,13 +35,31 @@ class HeapItemCollection {
    * The audio source url.
    * @type {string|null}
    */
-  url = null;
+  _url = null;
 
   /**
    * The collection of sound objects.
    * @type {object}
    */
   items = {};
+
+  /**
+   * The inactive time of sound.
+   * @type {number}
+   * @private
+   */
+  _inactiveTime = 0;
+
+  /**
+   * Initialize stuff.
+   * @param {string} url The audio url.
+   * @param {number} inactiveTime The inactive time of sound.
+   */
+  constructor(url, inactiveTime) {
+    this._url = url;
+    this._inactiveTime = inactiveTime;
+    this.free = this.free.bind(this);
+  }
 
   /**
    * Adds a new sound item to the collection.
@@ -64,10 +82,16 @@ class HeapItemCollection {
    * @param {number} [groupId] The group id.
    */
   free(idle = true, groupId) {
+    const now = new Date();
+
     Object.values(this.items).forEach(item => {
       const { sound, soundGroupId } = item;
+      const inactiveDurationInSeconds = (now - sound.lastPlayed()) / 1000;
 
-      if(idle && (sound.isPlaying() || sound.isPaused())) {
+      if (idle && (sound.isPersistent() ||
+        sound.isPlaying() ||
+        sound.isPaused() ||
+        inactiveDurationInSeconds < this._inactiveTime * 60)) {
         return;
       }
 
@@ -104,6 +128,13 @@ class HeapItemCollection {
 class Heap {
 
   /**
+   * The inactive time of sound.
+   * @type {number}
+   * @private
+   */
+  _inactiveTime = 0;
+
+  /**
    * The sound collections.
    * @type {object}
    * @private
@@ -112,8 +143,10 @@ class Heap {
 
   /**
    * Initialize stuff.
+   * @param {number} inactiveTime The inactive time of sound in minutes.
    */
-  constructor() {
+  constructor(inactiveTime) {
+    this._inactiveTime = inactiveTime;
     this.free = this.free.bind(this);
   }
 
@@ -125,7 +158,7 @@ class Heap {
    */
   add(url, groupId, sound) {
     if (!this._collections.hasOwnProperty(url)) {
-      this._collections[url] = new HeapItemCollection();
+      this._collections[url] = new HeapItemCollection(url, this._inactiveTime);
     }
 
     this._collections[url].add(groupId, sound);
@@ -134,6 +167,7 @@ class Heap {
   /**
    * Returns the sound based on the id.
    * @param {number} id The sound id.
+   * @return {Sound}
    */
   sound(id) {
     return this.sounds().find(sound => sound.id() === id);
@@ -153,10 +187,26 @@ class Heap {
   /**
    * Removes sounds from the collections.
    * @param {boolean} [idle = true] True to destroy only the idle sounds.
+   * @param {string} [src] The audio resource url.
    * @param {number} [groupId] The group id.
    */
-  free(idle = true, groupId) {
+  free(idle = true, src, groupId) {
+    if (src) {
+      this._collections[src].free(idle, groupId);
+      return;
+    }
+
     Object.values(this._collections).forEach(col => col.free(idle, groupId));
+  }
+
+  /**
+   * Removes the destroyed sound.
+   * @param {string} src The audio url.
+   * @param {number} groupId The group id.
+   * @param {number} soundId The sound id.
+   */
+  removeSound(src, groupId, soundId) {
+    delete this._collections[src].items[soundId];
   }
 
   /**
