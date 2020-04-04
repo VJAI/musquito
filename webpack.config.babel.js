@@ -13,7 +13,8 @@ export default {
     path: __dirname + '/dist',
     filename: optimizeMinimize ? `musquito-${version}.min.js` : `musquito-${version}.js`,
     library: '$buzz',
-    libraryTarget: 'umd'
+    libraryTarget: 'umd',
+    umdNamedDefine: true
   },
   module: {
     rules: [
@@ -25,7 +26,7 @@ export default {
     new webpack.BannerPlugin({
       banner:
 `/*!
-*  musquito v2.0.0-beta 
+*  musquito v2.0.0 
 *  http://musquitojs.com
 *
 *  (c) 2020 Vijaya Anand
