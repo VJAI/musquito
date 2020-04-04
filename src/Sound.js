@@ -252,6 +252,11 @@ class Sound {
    * @constructor
    */
   constructor(args) {
+    this._onBufferEnded = this._onBufferEnded.bind(this);
+    this._onHtml5Ended = this._onHtml5Ended.bind(this);
+    this._onCanPlayThrough = this._onCanPlayThrough.bind(this);
+    this._onAudioError = this._onAudioError.bind(this);
+
     const {
       id,
       stream,
@@ -314,9 +319,6 @@ class Sound {
         this._mediaElementAudioSourceNode.connect(this._gainNode);
       }
     }
-
-    this._onBufferEnded = this._onBufferEnded.bind(this);
-    this._onHtml5Ended = this._onHtml5Ended.bind(this);
   }
 
   /**
@@ -327,16 +329,11 @@ class Sound {
       return;
     }
 
-    const onCanPlayThrough = () => {
-      this._loadCallback();
-      this._audio.removeEventListener('canplaythrough', onCanPlayThrough);
-    };
-
-    this._audio.addEventListener('canplaythrough', onCanPlayThrough);
+    this._audio.addEventListener('canplaythrough', this._onCanPlayThrough);
     this._audio.currentTime = 0;
 
     if (this._audio.readyState >= 3) {
-      onCanPlayThrough();
+      this._onCanPlayThrough();
     }
   }
 
@@ -401,7 +398,7 @@ class Sound {
     this.fadeStop();
 
     if (this._stream) {
-      this._audio.removeEventListener('ended', this._onEnded);
+      this._audio.removeEventListener('ended', this._onHtml5Ended);
       this._clearEndTimer();
       this._audio.pause();
       this._audio.currentTime = this._startPos || 0;
@@ -553,7 +550,7 @@ class Sound {
         if (this._isSprite) {
           this._clearEndTimer();
           let [, duration] = this._getTimeVars();
-          this._endTimer = workerTimer.setTimeout(this._onEnded, (duration * 1000) / Math.abs(rate));
+          this._endTimer = workerTimer.setTimeout(this._onHtml5Ended, (duration * 1000) / Math.abs(rate));
         }
       } else {
         this._startTime = this._context.currentTime;
@@ -631,13 +628,20 @@ class Sound {
     // Stop the sound.
     this.stop();
 
+    // Destroy the media element audio source node if it's there.
     this._destroyMediaSourceNode();
-    this._audio && this._audio.removeEventListener('error', this._onAudioError);
 
+    // Remove audio event handlers.
+    if (this._audio) {
+      this._audio.removeEventListener('canplaythrough', this._onCanPlayThrough);
+      this._audio.removeEventListener('error', this._onAudioError);
+    }
+
+    // Disconnect from the master gain.
     this._gainNode && this._gainNode.disconnect();
 
-    this._buffer = null;
     this._audio = null;
+    this._buffer = null;
     this._context = null;
     this._gainNode = null;
 
@@ -853,6 +857,15 @@ class Sound {
     workerTimer.clearTimeout(this._endTimer);
     this._endTimer = null;
   }
+
+  /**
+   * Event handler for audio's "canplaythrough" event.
+   * @private
+   */
+  _onCanPlayThrough() {
+    this._loadCallback();
+    this._audio.removeEventListener('canplaythrough', this._onCanPlayThrough);
+  };
 
   /**
    * Returns the gain node.
