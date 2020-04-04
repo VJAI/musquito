@@ -1,5 +1,5 @@
 /*!
-*  musquito v2.0.0 
+*  musquito v2.0.1 
 *  http://musquitojs.com
 *
 *  (c) 2020 Vijaya Anand
