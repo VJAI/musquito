@@ -322,7 +322,7 @@ class Buzz {
 
   /**
    * Loads the sound to the underlying audio object.
-   * @param {number} [soundId] The id of the sound to be loaded.
+   * @param {number} [soundId] The id of the sound to be loaded (for stream types).
    * @return {Buzz}
    */
   load(soundId) {
@@ -332,12 +332,15 @@ class Buzz {
       return this;
     }
 
+    // If the sound is not of stream and the source is loaded or currently loading then return.
     if (!this._stream && (this.isLoaded() || this._loadState === LoadState.Loading)) {
       return this;
     }
 
+    // Set the state to loading.
     this._loadState = LoadState.Loading;
 
+    // Increment the calls which is needed for stream types.
     this._noOfLoadCalls = this._noOfLoadCalls + 1;
 
     const src = this._compatibleSrc || (this._compatibleSrc = this.getCompatibleSource());
@@ -345,13 +348,14 @@ class Buzz {
     // Load the audio source.
     const load$ = this._stream ? this._engine.allocateForGroup(src, this._id) : this._engine.load(src, this._onLoadProgress);
     load$.then(downloadResult => {
-
       this._noOfLoadCalls > 0 && (this._noOfLoadCalls = this._noOfLoadCalls - 1);
 
-      if (this._stream && this._state === BuzzState.Destroyed) {
-        this._engine.releaseForGroup(this._compatibleSrc, this._id, this._loadState === LoadState.AudioUnLoad);
+      if (this._stream && (this._state === BuzzState.Destroyed || this._loadState === LoadState.AudioUnLoad)) {
+        this._engine.releaseForGroup(this._compatibleSrc, this._id, this._state !== BuzzState.Destroyed);
         return;
-      } else if (this._state === BuzzState.Destroyed || this._loadState === LoadState.NotLoaded) {
+      }
+
+      if (this._state === BuzzState.Destroyed || this._loadState === LoadState.NotLoaded) {
         return;
       }
 
@@ -422,7 +426,7 @@ class Buzz {
             // We supposed to call `releaseForSound` so we could re-use the HTML5 audio node but
             // due to this open issue https://github.com/WebAudio/web-audio-api/issues/1202 we can't re-use it
             // and so we are destroying it.
-            this._engine.destroyAllocatedAudio(this._compatibleSrc, newSoundId, this._id);
+            this._engine.releaseForSound(this._compatibleSrc, newSoundId, this._id);
             this._engine.removeSound(this._compatibleSrc, this._id, newSoundId);
             this._fire(BuzzEvents.Destroy, newSoundId);
             emitter.clear(newSoundId);
@@ -430,7 +434,7 @@ class Buzz {
           fadeEndCallback: () => this._fire(BuzzEvents.FadeEnd, newSoundId),
           audioErrorCallback: (sound, err) => {
             this._fire(BuzzEvents.Error, { type: ErrorType.LoadError, soundId: newSoundId, error: err });
-            this._engine.destroyAllocatedAudio(this._compatibleSrc, this._id, newSoundId);
+            this._engine.releaseForSound(this._compatibleSrc, this._id, newSoundId);
             sound.destroy();
           },
           loadCallback: () => {

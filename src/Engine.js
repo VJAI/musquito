@@ -351,21 +351,22 @@ class Engine {
   /**
    * Releases audio nodes allocated for the passed urls.
    * @param {string|string[]} [urls] Single or array of audio urls.
+   * @param {boolean} [free = false] Pass true to release only free audio nodes.
    * @return {Engine}
    */
-  unloadMedia(urls) {
+  unloadMedia(urls, free = false) {
     if (urls) {
-      this._mediaLoader.unload(urls);
+      this._mediaLoader.unload(urls, free);
       return this;
     }
 
-    this._mediaLoader.unload();
+    this._mediaLoader.unload(null, free);
 
     return this;
   }
 
   /**
-   * Releases the allocated audio node for the group.
+   * Releases the allocated audio nodes for the group.
    * @param {string} url The audio file url.
    * @param {number} groupId The group id.
    * @param {boolean} [free = false] Pass true to release only free audio nodes.
@@ -377,15 +378,13 @@ class Engine {
   }
 
   /**
-   * Unallocates the audio node reserved for sound.
+   * Releases the audio node reserved for sound.
    * @param {string} src The audio file url.
    * @param {number} groupId The buzz id.
    * @param {number} soundId The sound id.
-   * @return {Engine}
    */
   releaseForSound(src, groupId, soundId) {
     this._mediaLoader.releaseForSound(src, groupId, soundId);
-    return this;
   }
 
   /**
@@ -396,16 +395,6 @@ class Engine {
    */
   hasFreeNodes(src, groupId) {
     return this._mediaLoader.hasFreeNodes(src, groupId);
-  }
-
-  /**
-   * Destroys the audio node reserved for sound.
-   * @param {string} src The audio file url.
-   * @param {number} groupId The buzz id.
-   * @param {number} soundId The sound id.
-   */
-  destroyAllocatedAudio(src, groupId, soundId) {
-    this._mediaLoader.destroyAllocatedAudio(src, groupId, soundId);
   }
 
   /**

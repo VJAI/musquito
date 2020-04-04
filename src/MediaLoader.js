@@ -52,7 +52,7 @@ class MediaLoader {
   }
 
   /**
-   * Loads audio node for group.
+   * Allocates audio node for a group.
    * @param {string} url The audio file url.
    * @param {number} groupId The group id.
    * @return {Promise<DownloadResult>}
@@ -73,10 +73,11 @@ class MediaLoader {
   }
 
   /**
-   * Releases the allocated audio node(s).
+   * Releases the allocated audio node(s) for the passed urls.
    * @param {string|string[]} [urls] Single or array of audio file urls.
+   * @param {boolean} [free = false] Pass true to release only free audio nodes.
    */
-  unload(urls) {
+  unload(urls, free = false) {
     const removeAudioObjOfUrl = url => {
       const audioObj = this._bufferingAudios.find(a => a.url === url);
       audioObj && this._cleanUp(audioObj);
@@ -84,17 +85,20 @@ class MediaLoader {
 
     if (!urls) {
       this._bufferingAudios.forEach(audioObj => this._cleanUp(audioObj));
+      this._audioPool.release(free);
     } else if (typeof urls === 'string') {
       removeAudioObjOfUrl(urls);
+      this._audioPool.releaseForSource(urls, free);
     } else if (Array.isArray(urls) && urls.length) {
-      urls.forEach(url => removeAudioObjOfUrl(url));
+      urls.forEach(url => {
+        removeAudioObjOfUrl(url);
+        this._audioPool.releaseForSource(url, free);
+      });
     }
-
-    urls.forEach(url => this._audioPool.releaseForSource(url));
   }
 
   /**
-   * Releases the allocated audio node for the group.
+   * Releases the allocated audio node for the passed group.
    * @param {string} url The audio file url.
    * @param {number} groupId The group id.
    * @param {boolean} [free = false] Pass true to release only free audio nodes.
@@ -108,7 +112,7 @@ class MediaLoader {
   }
 
   /**
-   * Unallocates the audio node reserved for sound.
+   * Destroys the audio node reserved for sound.
    * @param {string} src The audio file url.
    * @param {number} groupId The buzz id.
    * @param {number} soundId The sound id.
@@ -125,16 +129,6 @@ class MediaLoader {
    */
   hasFreeNodes(src, groupId) {
     return this._audioPool.hasFreeNodes(src, groupId);
-  }
-
-  /**
-   * Destroys the audio node reserved for sound.
-   * @param {string} src The audio file url.
-   * @param {number} groupId The buzz id.
-   * @param {number} soundId The sound id.
-   */
-  destroyAllocatedAudio(src, groupId, soundId) {
-    this._audioPool.destroyAllocatedAudio(src, groupId, soundId);
   }
 
   /**
@@ -187,7 +181,7 @@ class MediaLoader {
 
         const audioObj = this._bufferingAudios.find(obj => obj.audio === audio);
         audioObj && this._cleanUp(audioObj);
-        this._audioPool.destroyAllocatedAudio(url, audio, groupId);
+        this._audioPool.releaseForSound(url, audio, groupId);
         resolve(new DownloadResult(url, null, err));
       };
 
