@@ -63,7 +63,7 @@ class Html5AudioPool {
   }
 
   /**
-   * Allocates a HTML5 audio node to a particular resource and group.
+   * Allocates a HTML5 audio node to a particular group.
    * @param {string} src The audio url.
    * @param {number} [groupId] The buzz group id.
    * @return {Audio}
@@ -74,13 +74,9 @@ class Html5AudioPool {
 
     const nodes = this._resourceNodesMap[src],
       { unallocated, allocated } = nodes,
-      audio = unallocated.length ? unallocated.shift() : new Audio(),
-      groupSounds = allocated[groupId];
+      audio = unallocated.length ? unallocated.shift() : new Audio();
 
-    groupSounds.push({
-      audio: audio,
-      soundId: null
-    });
+    allocated[groupId].push(audio);
 
     return audio;
   }
@@ -89,45 +85,35 @@ class Html5AudioPool {
    * Allocates the pre-loaded HTML5 audio node to a sound.
    * @param {string} src The audio file url.
    * @param {number} groupId The group id.
-   * @param {number} soundId The sound id.
    * @return {Audio}
    */
-  allocateForSound(src, groupId, soundId) {
+  allocateForSound(src, groupId) {
     this._createGroup(src, groupId);
 
     const nodes = this._resourceNodesMap[src],
-      { allocated } = nodes,
-      notAllocatedAudioObj = allocated[groupId].find(x => x.soundId === null);
+      { allocated } = nodes;
 
-    if (!notAllocatedAudioObj) {
-      throw new Error(`No free audio nodes available in the group ${groupId}`);
-    }
-
-    notAllocatedAudioObj.soundId = soundId;
-
-    return notAllocatedAudioObj.audio;
+    return allocated[groupId].shift();
   }
 
   /**
    * Releases the audio nodes allocated for all resources.
-   * @param {boolean} [free = false] Pass true to release only free audio nodes.
    */
-  release(free = false) {
-    Object.keys(this._resourceNodesMap).forEach(src => this.releaseForSource(src, free));
+  release() {
+    Object.keys(this._resourceNodesMap).forEach(src => this.releaseForSource(src));
   }
 
   /**
    * Releases the audio nodes allocated for a resource.
    * @param {string} src The audio url.
-   * @param {boolean} [free = false] Pass true to release only free audio nodes.
    */
-  releaseForSource(src, free = false) {
+  releaseForSource(src) {
     const nodes = this._resourceNodesMap[src],
       { unallocated, allocated } = nodes;
 
     unallocated.forEach(x => this._destroyNode(x));
 
-    Object.keys(allocated).forEach(groupId => this.releaseForGroup(src, groupId, free));
+    Object.keys(allocated).forEach(groupId => this.releaseForGroup(src, groupId));
 
     delete this._resourceNodesMap[src];
   }
@@ -136,47 +122,31 @@ class Html5AudioPool {
    * Releases the audio nodes allocated for a group.
    * @param {string} src The audio file url.
    * @param {number} groupId The group id.
-   * @param {boolean} [free = false] Pass true to release only free audio nodes.
    */
-  releaseForGroup(src, groupId, free = false) {
+  releaseForGroup(src, groupId) {
     const nodes = this._resourceNodesMap[src],
       { allocated } = nodes;
 
-    if (!free) {
-      allocated[groupId].map(x => x.audio).forEach(node => this._destroyNode(node));
-      delete allocated[groupId];
-      return;
-    }
-
-    const audioNodes = allocated[groupId].filter(x => x.soundId === null).map(x => x.audio);
-    // We can't reuse the audio node bcoz of this issue
-    // https://github.com/WebAudio/web-audio-api/issues/1202.
-    audioNodes.forEach(node => this._destroyNode(node));
-    allocated[groupId] = allocated[groupId].filter(x => x.soundId !== null);
+    allocated[groupId].forEach(audio => this._destroyNode(audio));
+    delete allocated[groupId];
   }
 
   /**
    * Destroys the audio node reserved for sound.
    * @param {string} src The audio file url.
-   * @param {number|Audio} soundIdOrAudio The sound id.
+   * @param {Audio} audio The sound id.
    * @param {number} groupId The buzz id.
    */
-  releaseForSound(src, soundIdOrAudio, groupId) {
+  releaseAudio(src, audio, groupId) {
     const nodes = this._resourceNodesMap[src],
       { allocated, unallocated } = nodes;
 
-    if (soundIdOrAudio instanceof Audio) {
-      this._destroyNode(soundIdOrAudio);
+    this._destroyNode(audio);
 
-      if (groupId) {
-        allocated[groupId] = allocated[groupId].filter(x => x.audio !== soundIdOrAudio);
-      } else {
-        nodes.unallocated = unallocated.filter(x => x !== soundIdOrAudio);
-      }
+    if (groupId) {
+      allocated[groupId] = allocated[groupId].filter(x => x !== audio);
     } else {
-      const allocatedAudioObj = allocated[groupId].find(x => x.soundId === soundIdOrAudio);
-      this._destroyNode(allocatedAudioObj.audio);
-      allocated[groupId] = allocated[groupId].filter(x => x.soundId !== soundIdOrAudio);
+      nodes.unallocated = unallocated.filter(x => x !== audio);
     }
 
     groupId && !allocated[groupId].length && delete allocated[groupId];
@@ -194,8 +164,8 @@ class Html5AudioPool {
       let audioNodes = [];
 
       Object.keys(allocated).forEach(groupId => {
-        audioNodes = [...audioNodes, ...allocated[groupId].filter(x => x.soundId === null).map(x => x.audio)];
-        allocated[groupId] = allocated[groupId].filter(x => x.soundId !== null);
+        audioNodes = [...audioNodes, ...allocated[groupId]];
+        delete allocated[groupId];
       });
 
       nodes.unallocated = [...unallocated, ...audioNodes].slice(0, this._maxNodesPerSource);
@@ -224,8 +194,7 @@ class Html5AudioPool {
     const nodes = this._resourceNodesMap[src],
       { allocated } = nodes;
 
-    const unallocatedObjects = allocated[groupId].filter(x => x.soundId === null);
-    return unallocatedObjects.length > 0;
+    return allocated[groupId].length > 0;
   }
 
   /**

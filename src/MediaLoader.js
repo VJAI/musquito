@@ -75,9 +75,8 @@ class MediaLoader {
   /**
    * Releases the allocated audio node(s) for the passed urls.
    * @param {string|string[]} [urls] Single or array of audio file urls.
-   * @param {boolean} [free = false] Pass true to release only free audio nodes.
    */
-  unload(urls, free = false) {
+  unload(urls) {
     const removeAudioObjOfUrl = url => {
       const audioObj = this._bufferingAudios.find(a => a.url === url);
       audioObj && this._cleanUp(audioObj);
@@ -85,14 +84,14 @@ class MediaLoader {
 
     if (!urls) {
       this._bufferingAudios.forEach(audioObj => this._cleanUp(audioObj));
-      this._audioPool.release(free);
+      this._audioPool.release();
     } else if (typeof urls === 'string') {
       removeAudioObjOfUrl(urls);
-      this._audioPool.releaseForSource(urls, free);
+      this._audioPool.releaseForSource(urls);
     } else if (Array.isArray(urls) && urls.length) {
       urls.forEach(url => {
         removeAudioObjOfUrl(url);
-        this._audioPool.releaseForSource(url, free);
+        this._audioPool.releaseForSource(url);
       });
     }
   }
@@ -101,24 +100,13 @@ class MediaLoader {
    * Releases the allocated audio node for the passed group.
    * @param {string} url The audio file url.
    * @param {number} groupId The group id.
-   * @param {boolean} [free = false] Pass true to release only free audio nodes.
    */
-  releaseForGroup(url, groupId, free = false) {
+  releaseForGroup(url, groupId) {
     this._bufferingAudios
       .filter(a => a.groupId === groupId)
       .forEach(a => this._cleanUp(a));
 
-    this._audioPool.releaseForGroup(url, groupId, free);
-  }
-
-  /**
-   * Destroys the audio node reserved for sound.
-   * @param {string} src The audio file url.
-   * @param {number} groupId The buzz id.
-   * @param {number} soundId The sound id.
-   */
-  releaseForSound(src, groupId, soundId) {
-    this._audioPool.releaseForSound(src, groupId, soundId);
+    this._audioPool.releaseForGroup(url, groupId);
   }
 
   /**
@@ -181,7 +169,7 @@ class MediaLoader {
 
         const audioObj = this._bufferingAudios.find(obj => obj.audio === audio);
         audioObj && this._cleanUp(audioObj);
-        this._audioPool.releaseForSound(url, audio, groupId);
+        this._audioPool.releaseAudio(url, audio, groupId);
         resolve(new DownloadResult(url, null, err));
       };
 

@@ -351,16 +351,15 @@ class Engine {
   /**
    * Releases audio nodes allocated for the passed urls.
    * @param {string|string[]} [urls] Single or array of audio urls.
-   * @param {boolean} [free = false] Pass true to release only free audio nodes.
    * @return {Engine}
    */
-  unloadMedia(urls, free = false) {
+  unloadMedia(urls) {
     if (urls) {
-      this._mediaLoader.unload(urls, free);
+      this._mediaLoader.unload(urls);
       return this;
     }
 
-    this._mediaLoader.unload(null, free);
+    this._mediaLoader.unload();
 
     return this;
   }
@@ -369,22 +368,11 @@ class Engine {
    * Releases the allocated audio nodes for the group.
    * @param {string} url The audio file url.
    * @param {number} groupId The group id.
-   * @param {boolean} [free = false] Pass true to release only free audio nodes.
    * @return {Engine}
    */
-  releaseForGroup(url, groupId, free = false) {
-    this._mediaLoader.releaseForGroup(url, groupId, free);
+  releaseForGroup(url, groupId) {
+    this._mediaLoader.releaseForGroup(url, groupId);
     return this;
-  }
-
-  /**
-   * Releases the audio node reserved for sound.
-   * @param {string} src The audio file url.
-   * @param {number} groupId The buzz id.
-   * @param {number} soundId The sound id.
-   */
-  releaseForSound(src, groupId, soundId) {
-    this._mediaLoader.releaseForSound(src, groupId, soundId);
   }
 
   /**

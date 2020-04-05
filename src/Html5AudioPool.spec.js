@@ -40,14 +40,8 @@ describe('Html5AudioPool', () => {
           url1: {
             unallocated: [],
             allocated: {
-              1: [{
-                audio: new Audio(),
-                soundId: 101
-              }],
-              2: [{
-                audio: new Audio(),
-                soundId: 102
-              }]
+              1: [new Audio()],
+              2: [new Audio()]
             }
           }
         };
@@ -105,10 +99,7 @@ describe('Html5AudioPool', () => {
         html5AudioPool._resourceNodesMap[url] = {
           unallocated: [],
           allocated: {
-            1: [{
-              audio: new Audio(),
-              soundId: null
-            }]
+            1: [new Audio()]
           }
         };
 
@@ -119,17 +110,7 @@ describe('Html5AudioPool', () => {
         const nodes = html5AudioPool._resourceNodesMap[url],
           { allocated } = nodes;
 
-        const t = allocated[groupId].find(x => x.soundId === soundId);
-        expect(t).not.toBeNull();
-      });
-    });
-
-    describe('with no allocated nodes in group', () => {
-
-      it('should throw error', () => {
-        expect(() => {
-          html5AudioPool.allocateForSound(url, groupId, soundId);
-        }).toThrowError(`No free audio nodes available in the group ${groupId}`);
+        expect(allocated[groupId].length).toBe(0);
       });
     });
   });
@@ -140,10 +121,7 @@ describe('Html5AudioPool', () => {
       html5AudioPool._resourceNodesMap[url] = {
         unallocated: [new Audio()],
         allocated: {
-          1: [{
-            audio: new Audio(),
-            soundId: null
-          }]
+          1: [new Audio()]
         }
       };
 
@@ -161,13 +139,7 @@ describe('Html5AudioPool', () => {
       html5AudioPool._resourceNodesMap[url] = {
         unallocated: [new Audio()],
         allocated: {
-          1: [{
-            audio: new Audio(),
-            soundId: soundId
-          }, {
-            audio: new Audio(),
-            soundId: null
-          }]
+          1: [new Audio(), new Audio()]
         }
       };
     });
@@ -186,45 +158,6 @@ describe('Html5AudioPool', () => {
         expect(allocated.hasOwnProperty(groupId)).toBe(false);
       });
     });
-
-    describe('only free nodes', () => {
-      beforeEach(() => {
-        html5AudioPool.releaseForGroup(url, groupId, true);
-      });
-
-      it('should release the audio nodes allocated for group', () => {
-        const nodes = html5AudioPool._resourceNodesMap[url],
-          { unallocated, allocated } = nodes;
-
-        expect(unallocated.length).toBe(1);
-        expect(Object.keys(allocated).length).toBe(1);
-      });
-    });
-  });
-
-  describe('on releasing audio nodes for sound', () => {
-
-    beforeEach(() => {
-      html5AudioPool._resourceNodesMap[url] = {
-        unallocated: [new Audio()],
-        allocated: {
-          1: [{
-            audio: new Audio(),
-            soundId: soundId
-          }]
-        }
-      };
-
-      html5AudioPool.releaseForSound(url, groupId, soundId);
-    });
-
-    it('should remove the soundid', () => {
-      const nodes = html5AudioPool._resourceNodesMap[url],
-        { allocated } = nodes;
-
-      const t = allocated[groupId].find(x => x.soundId === soundId);
-      expect(t).toBeUndefined();
-    });
   });
 
   describe('on calling clean-up', () => {
@@ -233,13 +166,7 @@ describe('Html5AudioPool', () => {
       html5AudioPool._resourceNodesMap[url] = {
         unallocated: [],
         allocated: {
-          1: [{
-            audio: new Audio(),
-            soundId: null
-          }, {
-            audio: new Audio(),
-            soundId: null
-          }]
+          1: [new Audio(), new Audio()]
         }
       };
 
@@ -258,19 +185,13 @@ describe('Html5AudioPool', () => {
         url1: {
           unallocated: [new Audio()],
           allocated: {
-            1: [{
-              audio: new Audio(),
-              soundId: 101
-            }]
+            1: [new Audio()]
           }
         },
         url2: {
           unallocated: [new Audio()],
           allocated: {
-            1: [{
-              audio: new Audio(),
-              soundId: 102
-            }]
+            1: [new Audio()]
           }
         }
       };

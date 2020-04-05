@@ -1,7 +1,6 @@
 import engine         from './Engine';
 import utility        from './Utility';
 import workerTimer    from './WorkerTimer';
-import DownloadResult from './DownloadResult';
 
 /**
  * Enum that represents the different states of a sound.
@@ -628,19 +627,13 @@ class Sound {
     // Stop the sound.
     this.stop();
 
-    // Destroy the media element audio source node if it's there.
+    // Destroy the audio node and media element audio source node.
+    this._destroyAudio();
     this._destroyMediaSourceNode();
-
-    // Remove audio event handlers.
-    if (this._audio) {
-      this._audio.removeEventListener('canplaythrough', this._onCanPlayThrough);
-      this._audio.removeEventListener('error', this._onAudioError);
-    }
 
     // Disconnect from the master gain.
     this._gainNode && this._gainNode.disconnect();
 
-    this._audio = null;
     this._buffer = null;
     this._context = null;
     this._gainNode = null;
@@ -906,6 +899,25 @@ class Sound {
 
     this._mediaElementAudioSourceNode.disconnect();
     this._mediaElementAudioSourceNode = null;
+  }
+
+  /**
+   * Destroys the passed audio node.
+   * @private
+   */
+  _destroyAudio() {
+    if (!this._audio) {
+      return;
+    }
+
+    this._audio.removeEventListener('canplaythrough', this._onCanPlayThrough);
+    this._audio.removeEventListener('error', this._onAudioError);
+    this._audio.pause();
+    utility.isIE() && (this._audio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA');
+    this._audio.onerror = null;
+    this._audio.onend = null;
+    this._audio.canplaythrough = null;
+    this._audio = null;
   }
 
   /**
