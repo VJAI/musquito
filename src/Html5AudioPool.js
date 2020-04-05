@@ -93,7 +93,13 @@ class Html5AudioPool {
     const nodes = this._resourceNodesMap[src],
       { allocated } = nodes;
 
-    return allocated[groupId].shift();
+    const groupSounds = allocated[groupId];
+
+    if (!groupSounds.length) {
+      throw new Error(`No free audio nodes available in the group ${groupId}`);
+    }
+
+    return groupSounds.shift();
   }
 
   /**
