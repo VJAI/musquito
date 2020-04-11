@@ -373,7 +373,14 @@ class Buzz {
 
         this._loadState = LoadState.Loaded;
         this._fire(BuzzEvents.Load, null, downloadResult);
+
+        if (this._engine.state() !== EngineState.Ready) {
+          this._queue.remove('after-load');
+          return;
+        }
+
         this._queue.run('after-load');
+
         return;
       }
 
@@ -428,7 +435,7 @@ class Buzz {
           },
           fadeEndCallback: () => this._fire(BuzzEvents.FadeEnd, newSoundId),
           audioErrorCallback: (sound, err) => {
-            this._fire(BuzzEvents.Error, { type: ErrorType.LoadError, soundId: newSoundId, error: err });
+            this._fire(BuzzEvents.Error, newSoundId, { type: ErrorType.LoadError, error: err });
             sound.destroy();
           },
           loadCallback: () => {
@@ -746,6 +753,7 @@ class Buzz {
     this._stream && (this._duration = 0);
     this._loadState = LoadState.NotLoaded;
     this._noOfLoadCalls = 0;
+    this._fire(BuzzEvents.UnLoad);
     return this;
   }
 

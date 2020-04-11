@@ -37,11 +37,8 @@ const EngineState = {
  * @enum {string}
  */
 const EngineEvents = {
-  Add: 'add',
-  Remove: 'remove',
   Volume: 'volume',
   Mute: 'mute',
-  Pause: 'pause',
   Stop: 'stop',
   Suspend: 'suspend',
   Resume: 'resume',
@@ -202,10 +199,7 @@ class Engine {
    * @param {number} [args.maxNodesPerSource = 10] Maximum number of HTML5 audio objects allowed for a url.
    * @param {number} [args.cleanUpInterval = 5] The heap clean-up interval period in minutes.
    * @param {boolean} [args.autoEnable = true] Auto-enables audio in first user interaction.
-   * @param {function} [args.onadd] Event-handler for the "add" event.
-   * @param {function} [args.onremove] Event-handler for the "remove" event.
    * @param {function} [args.onstop] Event-handler for the "stop" event.
-   * @param {function} [args.onpause] Event-handler for the "pause" event.
    * @param {function} [args.onmute] Event-handler for the "mute" event.
    * @param {function} [args.onvolume] Event-handler for the "volume" event.
    * @param {function} [args.onsuspend] Event-handler for the "suspend" event.
@@ -239,10 +233,7 @@ class Engine {
       maxNodesPerSource,
       cleanUpInterval,
       autoEnable,
-      onadd,
-      onremove,
       onstop,
-      onpause,
       onmute,
       onvolume,
       onsuspend,
@@ -257,10 +248,7 @@ class Engine {
     typeof maxNodesPerSource === 'number' && (this._maxNodesPerSource = maxNodesPerSource);
     typeof cleanUpInterval === 'number' && (this._cleanUpInterval = cleanUpInterval);
     typeof autoEnable === 'boolean' && (this._autoEnable = autoEnable);
-    typeof onadd === 'function' && this.on(EngineEvents.Add, onadd);
-    typeof onremove === 'function' && this.on(EngineEvents.Remove, onremove);
     typeof onstop === 'function' && this.on(EngineEvents.Stop, onstop);
-    typeof onpause === 'function' && this.on(EngineEvents.Pause, onpause);
     typeof onmute === 'function' && this.on(EngineEvents.Mute, onmute);
     typeof onvolume === 'function' && this.on(EngineEvents.Volume, onvolume);
     typeof onsuspend === 'function' && this.on(EngineEvents.Suspend, onsuspend);
