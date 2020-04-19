@@ -233,7 +233,7 @@ class Sound {
   /**
    * Initializes the internal properties of the sound.
    * @param {object} args The input parameters of the sound.
-   * @param {string} args.id The unique id of the sound.
+   * @param {number} args.id The unique id of the sound.
    * @param {boolean} [args.stream = false] True to use HTML5 audio node for playing sound.
    * @param {Audio} [args.audio] The pre-loaded HTML5 audio object.
    * @param {AudioBuffer} [args.buffer] Audio source buffer.

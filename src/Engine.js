@@ -1,10 +1,8 @@
 import BufferLoader from './BufferLoader';
 import MediaLoader  from './MediaLoader';
 import emitter      from './Emitter';
-import Heap         from './Heap';
 import Queue        from './Queue';
 import utility      from './Utility';
-import Sound        from './Sound';
 
 /**
  * Enum that represents the different type of errors thrown by Engine and Buzzes.
@@ -98,7 +96,7 @@ class Engine {
   _maxNodesPerSource = 10;
 
   /**
-   * The heap clean-up period.
+   * The inactive sounds clean-up period.
    * @type {number}
    * @private
    */
@@ -161,11 +159,11 @@ class Engine {
   _queue = null;
 
   /**
-   * The sound heap.
-   * @type {Heap}
+   * Array of buzzes.
+   * @type {Array<Buzz>}
    * @private
    */
-  _heap = null;
+  _buzzesArray = [];
 
   /**
    * Loader - the component that loads audio buffers with audio data.
@@ -182,13 +180,13 @@ class Engine {
   _mediaLoader = null;
 
   /**
-   * Instantiates the heap and action queue.
+   * Instantiates the action queue.
    * @constructor
    */
   constructor() {
-    this._heap = new Heap(this._inactiveTime);
     this._queue = new Queue();
     this._resumeAndRemoveListeners = this._resumeAndRemoveListeners.bind(this);
+    this.free = this.free.bind(this);
   }
 
   /**
@@ -197,7 +195,7 @@ class Engine {
    * @param {number} [args.volume = 1.0] The global volume of the sound engine.
    * @param {boolean} [args.muted = false] Stay muted initially or not.
    * @param {number} [args.maxNodesPerSource = 10] Maximum number of HTML5 audio objects allowed for a url.
-   * @param {number} [args.cleanUpInterval = 5] The heap clean-up interval period in minutes.
+   * @param {number} [args.cleanUpInterval = 5] The sounds garbage collection interval period in minutes.
    * @param {boolean} [args.autoEnable = true] Auto-enables audio in first user interaction.
    * @param {function} [args.onstop] Event-handler for the "stop" event.
    * @param {function} [args.onmute] Event-handler for the "mute" event.
@@ -260,7 +258,9 @@ class Engine {
     this._bufferLoader = new BufferLoader(this._context);
 
     // Create the media loader.
-    this._mediaLoader = new MediaLoader(this._maxNodesPerSource, this._heap);
+    this._mediaLoader = new MediaLoader(this._maxNodesPerSource, (src) => {
+      this._buzzesArray.forEach(buzz => buzz.getCompatibleSource() === src && buzz.free());
+    });
 
     // Auto-enable audio in first user interaction.
     // https://developers.google.com/web/updates/2018/11/web-audio-autoplay#moving-forward
@@ -273,7 +273,7 @@ class Engine {
     this._gainNode.gain.setValueAtTime(this._muted ? 0 : this._volume, this._context.currentTime);
     this._gainNode.connect(this._context.destination);
 
-    this._intervalId = window.setInterval(this._heap.free, this._cleanUpInterval * 60 * 1000);
+    this._intervalId = window.setInterval(this.free, this._cleanUpInterval * 60 * 1000);
 
     this._state = this._context.state !== 'suspended' ? EngineState.Ready : EngineState.Suspended;
 
@@ -297,6 +297,31 @@ class Engine {
    */
   loadMedia(urls) {
     return this._mediaLoader.load(urls);
+  }
+
+  /**
+   * Stores the buzz in the internal collection.
+   * @param {Buzz} buzz The newly created buzz.
+   * @return {Engine}
+   */
+  add(buzz) {
+    if (this._buzzesArray.indexOf(buzz) > -1) {
+      return this;
+    }
+
+    this._buzzesArray.push(buzz);
+
+    return this;
+  }
+
+  /**
+   * Removes the stored buzz from the internal collection.
+   * @param {Buzz} buzz The buzz.
+   * @return {Engine}
+   */
+  remove(buzz) {
+    this._buzzesArray.splice(this._buzzesArray.indexOf(buzz), 1);
+    return this;
   }
 
   /**
@@ -451,7 +476,7 @@ class Engine {
    */
   stop() {
     // Stop all the sounds.
-    this._heap.sounds().forEach(sound => sound.stop());
+    this.buzzes().forEach(buzz => buzz.stop());
 
     // Fire the "stop" event.
     this._fire(EngineEvents.Stop);
@@ -534,9 +559,8 @@ class Engine {
       this._intervalId && window.clearInterval(this._intervalId);
       this._intervalId = null;
 
-      // Destroy the heap.
-      this._heap.destroy();
-      this._heap = null;
+      // Destroy all the buzzes.
+      this._buzzesArray.forEach(buzz => buzz.destroy());
 
       // Clear the cache and remove the loader.
       if (this._bufferLoader) {
@@ -550,6 +574,7 @@ class Engine {
         this._mediaLoader = null;
       }
 
+      this._buzzesArray = [];
       this._context = null;
       this._queue.clear();
       this._queue = null;
@@ -607,52 +632,11 @@ class Engine {
   }
 
   /**
-   * Returns the existing sound in heap or create a new one and return.
-   * @param {number|string} idOrUrl The sound id or audio url/base64 string.
-   * @param {number} [groupId] The group id.
-   * @param {object} [args] The sound creation arguments.
-   * @return {Sound}
-   */
-  sound(idOrUrl, groupId, args) {
-    if (typeof idOrUrl === 'number') {
-      return this._heap.sound(idOrUrl);
-    }
-
-    const sound = new Sound(args);
-    this._heap.add(idOrUrl, groupId, sound);
-    sound._gain().connect(this._gainNode);
-
-    return sound;
-  }
-
-  /**
-   * Removes the destroyed sound.
-   * @param {string} src The audio url.
-   * @param {number} groupId The group id.
-   * @param {number} soundId The sound id.
-   */
-  removeSound(src, groupId, soundId) {
-    this._heap.removeSound(src, groupId, soundId);
-  }
-
-  /**
-   * Returns the sounds belongs to a group or all the sounds from the heap.
-   * @param {number} [groupId] The group id.
-   * @return {Array<Sound>}
-   */
-  sounds(groupId) {
-    return this._heap.sounds(groupId);
-  }
-
-  /**
-   * Destroys the sounds belong to the passed group.
-   * @param {boolean} idle True to destroy only the idle sounds.
-   * @param {string} [src] The audio resource url.
-   * @param {number} [groupId] The group id.
+   * Removes the inactive sounds.
    * @return {Engine}
    */
-  free(idle, src, groupId) {
-    this._heap.free(idle, src, groupId);
+  free() {
+    this._buzzesArray.forEach(buzz => buzz.free());
     this._mediaLoader.cleanUp();
     return this;
   }
@@ -711,6 +695,31 @@ class Engine {
    */
   mediaLoader() {
     return this._mediaLoader;
+  }
+
+  /**
+   * Returns the buzz for the passed id.
+   * @param {number} [id] The buzz id.
+   * @return {Buzz}
+   */
+  buzz(id) {
+    return this._buzzesArray.find(x => x.id() === id);
+  }
+
+  /**
+   * Returns all the buzzes.
+   * @return {Array<Buzz>}
+   */
+  buzzes() {
+    return this._buzzesArray;
+  }
+
+  /**
+   * Returns in active time.
+   * @return {number}
+   */
+  inactiveTime() {
+    return this._inactiveTime;
   }
 
   /**

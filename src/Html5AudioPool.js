@@ -15,10 +15,10 @@ class Html5AudioPool {
 
   /**
    * The sounds store.
-   * @type {Heap}
+   * @type {function}
    * @private
    */
-  _heap = null;
+  _soundCleanUpCallback = null;
 
   /**
    * Created audio nodes for each resource.
@@ -28,20 +28,20 @@ class Html5AudioPool {
   _resourceNodesMap = {};
 
   /**
-   * True if the heap is cleaned manually.
+   * True if the `soundCleanUpCallback` called.
    * @type {boolean}
    * @private
    */
-  _heapCleaned = false;
+  _cleanUpCalled = false;
 
   /**
    * Constructor
    * @param {number} maxNodesPerSource Maximum number of audio nodes allowed for a resource.
-   * @param {Heap} heap The sounds store.
+   * @param {function} soundCleanUpCallback The inactive sounds cleanup callback.
    */
-  constructor(maxNodesPerSource, heap) {
+  constructor(maxNodesPerSource, soundCleanUpCallback) {
     this._maxNodesPerSource = maxNodesPerSource;
-    this._heap = heap;
+    this._soundCleanUpCallback = soundCleanUpCallback;
   }
 
   /**
@@ -183,7 +183,6 @@ class Html5AudioPool {
    */
   dispose() {
     Object.keys(this._resourceNodesMap).forEach(src => this.releaseForSource(src));
-    this._heap = null;
   }
 
   /**
@@ -261,13 +260,13 @@ class Html5AudioPool {
       return;
     }
 
-    if (!this._heapCleaned) {
-      this._heap.free(src);
-      this._heapCleaned = true;
+    if (!this._cleanUpCalled) {
+      this._soundCleanUpCallback(src);
+      this._cleanUpCalled = true;
       this._checkMaxNodesForSrc(src);
     }
 
-    this._heapCleaned = false;
+    this._cleanUpCalled = false;
 
     throw new Error(`Maximum nodes reached for resource ${src}`);
   }

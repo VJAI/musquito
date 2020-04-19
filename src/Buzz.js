@@ -2,10 +2,11 @@ import engine, { EngineEvents, EngineState, ErrorType } from './Engine';
 import Queue from './Queue';
 import utility from './Utility';
 import emitter from './Emitter';
+import Sound from './Sound';
 import DownloadStatus from './DownloadStatus';
 
 /**
- * Enum that represents the different states of a sound group (buzz).
+ * Enum that represents the different states of a buzz (sound group).
  * @enum {string}
  */
 const BuzzState = {
@@ -171,6 +172,20 @@ class Buzz {
   _engine = null;
 
   /**
+   * Web API's audio context.
+   * @type {AudioContext}
+   * @private
+   */
+  _context = null;
+
+  /**
+   * The group's gain node.
+   * @type {GainNode}
+   * @private
+   */
+  _gainNode = null;
+
+  /**
    * True if the group is currently fading.
    * @type {boolean}
    * @private
@@ -184,7 +199,19 @@ class Buzz {
    */
   _fadeTimer = null;
 
+  /**
+   * Number of audio resource loading calls in progress.
+   * @type {number}
+   * @private
+   */
   _noOfLoadCalls = 0;
+
+  /**
+   * Array of sounds belongs to this group.
+   * @type {Array}
+   * @private
+   */
+  _soundsArray = [];
 
   /**
    * Initializes the internal properties.
@@ -221,13 +248,24 @@ class Buzz {
     // Setup the audio engine.
     this._engine = engine;
     this._engine.setup();
-    this._engine.on(EngineEvents.Resume, this._onEngineResume = this._onEngineResume.bind(this));
 
     // If no audio is available throw error.
     if (!this._engine.isAudioAvailable()) {
       this._fire(BuzzEvents.Error, null, { type: ErrorType.NoAudio, error: 'Web Audio is un-available' });
       return this;
     }
+
+    // Store the audio context.
+    this._context = this._engine.context();
+
+    // Add the created buzz to the engine and connect the gain nodes.
+    this._engine.add(this);
+    this._gainNode = this._engine.context().createGain();
+    this._gainNode.gain.setValueAtTime(this._muted ? 0 : this._volume, this._context.currentTime);
+    this._gainNode.connect(this._engine.masterGain());
+
+    // Subscribe to engine's resume event.
+    this._engine.on(EngineEvents.Resume, this._onEngineResume = this._onEngineResume.bind(this));
 
     if (typeof args === 'string') {
       this._src = [args];
@@ -411,7 +449,7 @@ class Buzz {
 
     // If id is passed then get the sound from the engine and play it.
     if (isIdPassed) {
-      const sound = this._engine.sound(soundOrId);
+      const sound = this.sound(soundOrId);
       sound && this._play(sound);
       return this;
     }
@@ -429,7 +467,7 @@ class Buzz {
           loop: this._loop,
           playEndCallback: () => this._fire(BuzzEvents.PlayEnd, newSoundId),
           destroyCallback: () => {
-            this._engine.removeSound(this._compatibleSrc, this._id, newSoundId);
+            this._removeSound(newSoundId);
             this._fire(BuzzEvents.Destroy, newSoundId);
             emitter.clear(newSoundId);
           },
@@ -449,7 +487,9 @@ class Buzz {
           soundArgs.endPos = positions[1];
         }
 
-        const newSound = this._engine.sound(this._compatibleSrc, this._id, soundArgs);
+        const newSound = new Sound(soundArgs);
+        newSound._gain().connect(this._gainNode);
+        this._soundsArray.push(newSound);
         this._play(newSound);
       };
 
@@ -470,8 +510,9 @@ class Buzz {
    * @return {Buzz}
    */
   pause(id) {
+    const isGroup = typeof id === 'undefined';
     this._removePlayActions(id);
-    typeof id !== 'number' && this.fadeStop();
+    isGroup && this.fadeStop();
     this._sounds(id).forEach(sound => sound.pause());
     this._fire(BuzzEvents.Pause, id);
 
@@ -484,8 +525,9 @@ class Buzz {
    * @return {Buzz}
    */
   stop(id) {
+    const isGroup = typeof id === 'undefined';
     this._removePlayActions(id);
-    typeof id !== 'number' && this.fadeStop();
+    isGroup && this.fadeStop();
     this._sounds(id).forEach(sound => sound.stop());
     this._fire(BuzzEvents.Stop, id);
 
@@ -498,10 +540,16 @@ class Buzz {
    * @return {Buzz}
    */
   mute(id) {
-    const isGroup = typeof id !== 'number';
-    isGroup && this.fadeStop();
-    this._sounds(id).forEach(sound => sound.mute());
-    isGroup && (this._muted = true);
+    const isGroup = typeof id === 'undefined';
+
+    if (isGroup) {
+      this.fadeStop();
+      this._gainNode.gain.setValueAtTime(0, this._context.currentTime);
+      this._muted = true;
+    } else {
+      const sound = this.sound(id);
+      sound && sound.mute();
+    }
 
     this._fire(BuzzEvents.Mute, id, this._muted);
 
@@ -514,10 +562,16 @@ class Buzz {
    * @return {Buzz}
    */
   unmute(id) {
-    const isGroup = typeof id !== 'number';
-    isGroup && this.fadeStop();
-    this._sounds(id).forEach(sound => sound.unmute());
-    isGroup && (this._muted = false);
+    const isGroup = typeof id === 'undefined';
+
+    if (isGroup) {
+      this.fadeStop();
+      this._gainNode.gain.setValueAtTime(this._volume, this._context.currentTime);
+      this._muted = false;
+    } else {
+      const sound = this.sound(id);
+      sound && sound.unmute();
+    }
 
     this._fire(BuzzEvents.Mute, id, this._muted);
 
@@ -531,18 +585,24 @@ class Buzz {
    * @return {Buzz|number}
    */
   volume(volume, id) {
-    const isGroup = typeof id !== 'number';
+    const isGroup = typeof id === 'undefined';
 
     if (typeof volume === 'number' && volume >= 0 && volume <= 1.0) {
-      isGroup && this.fadeStop();
-      this._sounds(id).forEach(sound => sound.volume(volume));
-      typeof id !== 'number' && (this._volume = volume);
+      if (isGroup) {
+        this.fadeStop();
+        this._gainNode.gain.setValueAtTime(this._muted ? 0 : volume, this._context.currentTime);
+        this._volume = volume;
+      } else {
+        const sound = this.sound(id);
+        sound && sound.volume(volume);
+      }
+
       this._fire(BuzzEvents.Volume, id, this._volume);
       return this;
     }
 
     if (!isGroup) {
-      const sound = this._engine.sound(id);
+      const sound = this.sound(id);
       return sound ? sound.volume() : null;
     }
 
@@ -558,7 +618,7 @@ class Buzz {
    * @return {Buzz}
    */
   fade(to, duration, type = 'linear', id) {
-    const isGroup = typeof id !== 'number';
+    const isGroup = typeof id === 'undefined';
 
     if (isGroup && this._fading) {
       return this;
@@ -566,10 +626,14 @@ class Buzz {
 
     this._fire(BuzzEvents.FadeStart, id);
 
-    this._sounds(id).forEach(sound => sound.fade(to, duration, type));
-
     if (isGroup) {
       this._fading = true;
+
+      if (type === 'linear') {
+        this._gainNode.gain.linearRampToValueAtTime(to, this._context.currentTime + duration);
+      } else {
+        this._gainNode.gain.exponentialRampToValueAtTime(to, this._context.currentTime + duration);
+      }
 
       this._fadeTimer = setTimeout(() => {
         this.volume(to);
@@ -580,6 +644,9 @@ class Buzz {
         this._fading = false;
         this._fire(BuzzEvents.FadeEnd);
       }, duration * 1000);
+    } else {
+      const sound = this.sound(id);
+      sound && sound.fade(to, duration, type);
     }
 
     return this;
@@ -591,21 +658,24 @@ class Buzz {
    * @return {Buzz}
    */
   fadeStop(id) {
-    const isGroup = typeof id !== 'number';
-
-    if (isGroup && !this._fading) {
-      return this;
-    }
-
-    this._sounds(id).forEach(sound => sound.fadeStop());
+    const isGroup = typeof id === 'undefined';
 
     if (isGroup) {
+      if (!this._fading) {
+        return this;
+      }
+
+      this._gainNode.gain.cancelScheduledValues(this._context.currentTime);
+
       if (this._fadeTimer) {
         clearTimeout(this._fadeTimer);
         this._fadeTimer = null;
       }
 
       this._fading = false;
+    } else {
+      const sound = this.sound(id);
+      sound && sound.fadeStop();
     }
 
     this._fire(BuzzEvents.FadeStop, id);
@@ -620,15 +690,17 @@ class Buzz {
    * @return {Buzz|number}
    */
   rate(rate, id) {
+    const isGroup = typeof id === 'undefined';
+
     if (typeof rate === 'number' && rate >= 0.5 && rate <= 5) {
       this._sounds(id).forEach(sound => sound.rate(rate));
-      typeof id !== 'number' && (this._rate = rate);
+      isGroup && (this._rate = rate);
       this._fire(BuzzEvents.Rate, id, this._rate);
       return this;
     }
 
-    if (typeof id === 'number') {
-      const sound = this._engine.sound(id);
+    if (!isGroup) {
+      const sound = this.sound(id);
       return sound ? sound.rate() : null;
     }
 
@@ -676,14 +748,16 @@ class Buzz {
    * @return {Buzz|boolean}
    */
   loop(loop, id) {
+    const isGroup = typeof id === 'undefined';
+
     if (typeof loop === 'boolean') {
       this._sounds(id).forEach(sound => sound.loop(loop));
-      typeof id !== 'number' && (this._loop = loop);
+      isGroup && (this._loop = loop);
       return this;
     }
 
-    if (typeof id === 'number') {
-      const sound = this._engine.sound(id);
+    if (!isGroup) {
+      const sound = this.sound(id);
       return sound ? sound.loop() : null;
     }
 
@@ -696,7 +770,7 @@ class Buzz {
    * @return {boolean}
    */
   playing(id) {
-    const sound = this._engine.sound(id);
+    const sound = this.sound(id);
     return sound ? sound.isPlaying() : null;
   }
 
@@ -706,12 +780,12 @@ class Buzz {
    * @return {boolean}
    */
   muted(id) {
-    if (typeof id === 'number') {
-      const sound = this._engine.sound(id);
-      return sound ? sound.muted() : null;
+    if (typeof id === 'undefined') {
+      return this._muted;
     }
 
-    return this._muted;
+    const sound = this.sound(id);
+    return sound ? sound.muted() : null;
   }
 
   /**
@@ -720,12 +794,12 @@ class Buzz {
    * @return {BuzzState|SoundState}
    */
   state(id) {
-    if (typeof id === 'number') {
-      const sound = this._engine.sound(id);
-      return sound ? sound.state() : null;
+    if (typeof id === 'undefined') {
+      return this._state;
     }
 
-    return this._state;
+    const sound = this.sound(id);
+    return sound ? sound.state() : null;
   }
 
   /**
@@ -734,12 +808,12 @@ class Buzz {
    * @return {number}
    */
   duration(id) {
-    if (typeof id === 'number') {
-      const sound = this._engine.sound(id);
-      return sound ? sound.duration() : null;
+    if (typeof id === 'undefined') {
+      return this._duration;
     }
 
-    return this._duration;
+    const sound = this.sound(id);
+    return sound ? sound.duration() : null;
   }
 
   /**
@@ -773,14 +847,19 @@ class Buzz {
     }
 
     this.stop();
+    this._soundsArray.forEach(sound => sound.destroy());
     this._queue.clear();
     this._engine.off(EngineEvents.Resume, this._onEngineResume);
-    this._engine.free(false, this._compatibleSrc, this._id);
     this._engine.releaseForGroup(this._compatibleSrc, this._id);
+    this._gainNode.disconnect();
+    this._engine.remove(this);
 
+    this._soundsArray = [];
     this._buffer = null;
     this._queue = null;
+    this._context = null;
     this._engine = null;
+    this._gainNode = null;
     this._state = BuzzState.Destroyed;
 
     this._fire(BuzzEvents.Destroy);
@@ -804,6 +883,27 @@ class Buzz {
   abandon(soundId) {
     const sound = this.sound(soundId);
     sound && sound.abandon();
+  }
+
+  /**
+   * Removes the inactive sounds.
+   */
+  free() {
+    const now = new Date();
+
+    this._soundsArray = this._soundsArray.filter(sound => {
+      const inactiveDurationInSeconds = (now - sound.lastPlayed()) / 1000;
+
+      if (sound.isPersistent() ||
+        sound.isPlaying() ||
+        sound.isPaused() ||
+        inactiveDurationInSeconds < this._engine.inactiveTime() * 60) {
+        return true;
+      }
+
+      sound.destroy();
+      return false;
+    });
   }
 
   /**
@@ -840,6 +940,14 @@ class Buzz {
   }
 
   /**
+   * Returns the gain node.
+   * @return {GainNode}
+   */
+  gain() {
+    return this._gainNode;
+  }
+
+  /**
    * Returns the audio resource loading status.
    * @return {LoadState}
    */
@@ -861,7 +969,15 @@ class Buzz {
    * @return {Sound}
    */
   sound(id) {
-    return this._engine.sound(id);
+    return this._soundsArray.find(x => x.id() === id);
+  }
+
+  /**
+   * Returns all the sounds.
+   * @return {Array<Sound>}
+   */
+  sounds() {
+    return this._soundsArray;
   }
 
   /**
@@ -954,11 +1070,24 @@ class Buzz {
    */
   _sounds(id) {
     if (typeof id === 'number') {
-      const sound = this._engine.sound(id);
+      const sound = this._soundsArray.find(x => x.id() === id);
       return sound ? [sound] : [];
     }
 
-    return this._engine.sounds(this._id);
+    return this._soundsArray;
+  }
+
+  /**
+   * Removes the passed sound from the array.
+   * @param {number|Sound} sound The sound.
+   * @private
+   */
+  _removeSound(sound) {
+    if (typeof sound === 'number') {
+      this._soundsArray = this._soundsArray.filter(x => x.id() === sound);
+    }
+
+    this._soundsArray.splice(this._soundsArray.indexOf(sound), 1);
   }
 
   /**

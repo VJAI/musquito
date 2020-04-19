@@ -31,10 +31,10 @@ class MediaLoader {
   /**
    * Creates the audio pool.
    * @param {number} maxNodesPerSource Maximum number of audio nodes allowed for a url.
-   * @param {Heap} heap The sounds store.
+   * @param {function} soundCleanUpCallback The inactive sounds cleanup callback.
    */
-  constructor(maxNodesPerSource, heap) {
-    this._audioPool = new Html5AudioPool(maxNodesPerSource, heap);
+  constructor(maxNodesPerSource, soundCleanUpCallback) {
+    this._audioPool = new Html5AudioPool(maxNodesPerSource, soundCleanUpCallback);
   }
 
   /**
