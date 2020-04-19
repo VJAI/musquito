@@ -1,17 +1,15 @@
 import Html5AudioPool from './Html5AudioPool';
-import Heap from './Heap';
 
 describe('Html5AudioPool', () => {
 
   let html5AudioPool = null;
 
-  const heap = new Heap(1),
-    url = '/base/sounds/bg.mp3',
+  const url = '/base/sounds/bg.mp3',
     groupId = 1,
     soundId = 100;
 
   beforeEach(() => {
-    html5AudioPool = new Html5AudioPool(2, heap);
+    html5AudioPool = new Html5AudioPool(2, () => {});
   });
 
   afterEach(() => {
