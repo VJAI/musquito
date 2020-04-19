@@ -1,9 +1,9 @@
 import engine, { EngineEvents, EngineState, ErrorType } from './Engine';
-import Queue from './Queue';
-import utility from './Utility';
-import emitter from './Emitter';
-import Sound from './Sound';
-import DownloadStatus from './DownloadStatus';
+import Queue                                            from './Queue';
+import utility                                          from './Utility';
+import emitter                                          from './Emitter';
+import Sound                                            from './Sound';
+import DownloadStatus                                   from './DownloadStatus';
 
 /**
  * Enum that represents the different states of a buzz (sound group).
@@ -850,7 +850,7 @@ class Buzz {
     this._soundsArray.forEach(sound => sound.destroy());
     this._queue.clear();
     this._engine.off(EngineEvents.Resume, this._onEngineResume);
-    this._engine.releaseForGroup(this._compatibleSrc, this._id);
+    this._stream && this._engine.releaseForGroup(this._compatibleSrc, this._id);
     this._gainNode.disconnect();
     this._engine.remove(this);
 
@@ -1084,7 +1084,8 @@ class Buzz {
    */
   _removeSound(sound) {
     if (typeof sound === 'number') {
-      this._soundsArray = this._soundsArray.filter(x => x.id() === sound);
+      this._soundsArray = this._soundsArray.filter(x => x.id() !== sound);
+      return;
     }
 
     this._soundsArray.splice(this._soundsArray.indexOf(sound), 1);
