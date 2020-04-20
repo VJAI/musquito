@@ -9,6 +9,7 @@ a simple abstraction to create and play sounds easier.
 
 Below are some of the core features supported by the library.
 
+- Built on the powerful Web Audio API
 - Simple API to create and play sounds
 - Supports variety of codecs
 - Supports audio sprites
@@ -131,6 +132,10 @@ buzz.play();
 buzz.fade(0, 3);
 ```
 
+
+For demos and detailed documentation please visit [here](http://musquitojs.com).
+
+
 ## API
 
 ### `$buzz` function
@@ -155,6 +160,7 @@ If you need to pass additional information like initial volume, playback speed t
 | muted | boolean | no | false | Pass `true` to keep the sound muted initially. |
 | preload | boolean | no | false | Pass `true` to pre-load the sound. |
 | autoplay | boolean | no | false | Pass `true` to play the sound at-once created. |
+| stream | boolean | no | false | Passing `true` will use HTML5 audio node for playing the sound. This option you can use to play long audio files like background music in a game. This feature is available only in version v2. |
 | format | string, Array<string> | no | false | Single or array of audio formats for the passed audio sources. |
 | sprite | object | no | | The sprite definition object that contains the starting and ending positions of each sound embedded in the sprite. |
 | onload | function | no | | The event handler for "load" event. |
@@ -175,7 +181,7 @@ If you need to pass additional information like initial volume, playback speed t
 
 | Method | Returns | Description |
 |--------|:-------:|-------------|
-| load() | Buzz | Loads the audio buffer. |
+| load(soundId?: string) | Buzz | Loads the audio buffer or preloads a HTML5 audio node. The `soundId` can be passed only in the case stream buzz type. When you pass it that particular sound's audio node will be pre-loaded. |
 | play(soundOrId?: string, number) | Buzz | Plays a new sound or the passed sound defined in the sprite or the sound that belongs to the passed id. |
 | pause(id?: number) | Buzz | Pauses the sound belongs to the passed id or all the sounds belongs to this group. |
 | stop(id?: number) | Buzz | Stops the sound belongs to the passed id or all the sounds belongs to this group. |
@@ -196,10 +202,12 @@ If you need to pass additional information like initial volume, playback speed t
 | on(eventName: string, handler: function, once = false, id?: number) | Buzz | Subscribes to an event for the sound or the group. |
 | off(eventName: string, handler: function, id?: number) | Buzz | Un-subscribes from an event for the sound or the group. |
 | id() | number | Returns the unique id of the sound. |
-| loadState() | LoadState | Returns the audio resource loading status. |
+| loadState() | LoadState | Returns the audio resource loading status. The different values are "notloaded", "loading" and "loaded". |
 | isLoaded() | boolean | Returns true if the audio source is loaded. |
 | sound(id: number) | Sound | Returns the sound for the passed id. |
-| alive(id: number) | boolean | Returns true if the passed sound exists. |
+| sounds() | Array<Sound> | Returns all the sounds belongs to this buzz group. |
+| alive(id: number) | boolean | Returns `true` if the passed sound exists. |
+| gain() | GainNode | Returns the gain node. |
 
 ### `$buzz` static / global methods
 
@@ -207,7 +215,7 @@ These are wrapper methods of engine that helps to control the audio globally. Yo
 
 | Method | Returns | Description |
 |--------|:-------:|-------------|
-| setup(args?: object) | $buzz | Sets-up the audio engine. |
+| setup(args?: object) | $buzz | Sets-up the audio engine. The different parameters you can pass in arguments object are `volume`, `muted`, `maxNodesPerSource`, `cleanUpInterval`, `autoEnable` and event handler functions like `onstop`, `onmute`, `onvolume`, `onsuspend`, `onresume`, `onerror` and `ondone`. |
 | load(urls: string, Array<string>, progressCallback: function) | Promise | Loads single or multiple audio resources into audio buffers and returns them. |
 | loadMedia(urls: string, Array<string>) | Promise | Pre-loads single or multiple HTML5 audio nodes with the passed resources and returns them. |
 | unload(urls: string, Array<string>) | $buzz | Unloads single or multiple loaded audio buffers from cache. |
@@ -220,7 +228,9 @@ These are wrapper methods of engine that helps to control the audio globally. Yo
 | resume() | $buzz | Resumes the engine from the suspended mode. |
 | terminate() | $buzz | Shuts down the engine. |
 | muted() | boolean | Returns whether the engine is currently muted or not. |
-| state() | EngineState | Returns the state of the engine. |
+| state() | EngineState | Returns the state of the engine. The different values are "notready", "ready", "suspending", "suspended", "resuming", "destroying", "done" and "no-audio". |
+| buzz(id: number) | Buzz | Returns the buzz for the passed id. |
+| buzzes() | Array<Buzz> | Returns all the buzzes. |
 | context() | AudioContext | Returns the created audio context. |
 | isAudioAvailable() | boolean | Returns true if Web Audio API is available. |
 | on(eventName: string, handler: function, once = false) | $buzz | Subscribes to an event. |
@@ -232,3 +242,11 @@ These are wrapper methods of engine that helps to control the audio globally. Yo
 ## License
 
 MIT
+
+Copyright © 2020 · Vijaya Anand · All Rights Reserved.
+  
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+  
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+  
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
