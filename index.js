@@ -1,1 +1,1 @@
-module.exports = require('./dist/musquito-2.1.0');
+module.exports = require('./dist/musquito-2.1.1');

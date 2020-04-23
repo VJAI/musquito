@@ -281,6 +281,8 @@ class Sound {
     this._buffer = buffer;
     this._audio = audio;
 
+    this._endPos = this._stream ? this._audio.duration : this._buffer.duration;
+
     // Set other properties.
     volume && (this._volume = volume);
     rate && (this._rate = rate);
@@ -295,7 +297,6 @@ class Sound {
     this._audioErrorCallback = audioErrorCallback;
     this._stream = Boolean(stream);
 
-    this._endPos = this._stream ? this._audio.duration : this._buffer.duration;
     this._duration = this._endPos - this._startPos;
     this._isSprite = this._duration < this._endPos;
 
