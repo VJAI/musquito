@@ -3,6 +3,7 @@ import MediaLoader  from './MediaLoader';
 import emitter      from './Emitter';
 import Queue        from './Queue';
 import utility      from './Utility';
+import Sound        from './Sound';
 
 /**
  * Enum that represents the different type of errors thrown by Engine and Buzzes.
@@ -166,6 +167,13 @@ class Engine {
   _buzzesArray = [];
 
   /**
+   * Array of sounds created directly by engine.
+   * @type {Array<Sound>}
+   * @private
+   */
+  _soundsArray = [];
+
+  /**
    * Loader - the component that loads audio buffers with audio data.
    * @type {BufferLoader}
    * @private
@@ -281,128 +289,76 @@ class Engine {
   }
 
   /**
-   * Loads single or multiple audio resources into audio buffers and returns them.
-   * @param {string|string[]} urls Single or array of audio urls.
-   * @param {function} [progressCallback] The callback that is called to intimate the percentage downloaded.
-   * @return {Promise}
+   * Creates and returns sound based on the passed arguments.
+   * @param {object} soundArgs The sound arguments.
+   * @return {Sound}
    */
-  load(urls, progressCallback) {
-    return this._bufferLoader.load(urls, progressCallback);
+  create(soundArgs) {
+    const sound = new Sound(soundArgs);
+    this._soundsArray.push(sound);
+    return sound;
   }
 
   /**
-   * Loads HTML5 audio nodes for the passed urls.
-   * @param {string|string[]} urls Single or array of audio urls.
-   * @return {Promise<DownloadResult|Array<DownloadResult>>}
+   * Plays the sound belongs to the passed id or creates a new sound and play it.
+   * @param {number|string|object} idOrSoundArgs The sound id or sound arguments.
    */
-  loadMedia(urls) {
-    return this._mediaLoader.load(urls);
-  }
-
-  /**
-   * Stores the buzz in the internal collection.
-   * @param {Buzz} buzz The newly created buzz.
-   * @return {Engine}
-   */
-  add(buzz) {
-    if (this._buzzesArray.indexOf(buzz) > -1) {
+  play(idOrSoundArgs) {
+    if (typeof idOrSoundArgs === 'number') {
+      const sound = this.sound(idOrSoundArgs);
+      sound && sound.play();
       return this;
     }
 
-    this._buzzesArray.push(buzz);
 
+  }
+
+  /**
+   * Pauses the sound.
+   * @param {number} id The sound id.
+   * @return {Engine}
+   */
+  pause(id) {
+    const sound = this.sound(id);
+    sound && sound.pause();
     return this;
   }
 
   /**
-   * Removes the stored buzz from the internal collection.
-   * @param {Buzz} buzz The buzz.
+   * Stops all the currently playing sounds.
+   * @param {number} [id] The sound id.
    * @return {Engine}
    */
-  remove(buzz) {
-    this._buzzesArray.splice(this._buzzesArray.indexOf(buzz), 1);
-    return this;
-  }
-
-  /**
-   * Loads audio node for group.
-   * @param {string} url The audio file url.
-   * @param {number} groupId The group id.
-   * @return {Promise<DownloadResult>}
-   */
-  allocateForGroup(url, groupId) {
-    return this._mediaLoader.allocateForGroup(url, groupId);
-  }
-
-  /**
-   * Allocates an audio node for sound and returns it.
-   * @param {string} src The audio file url.
-   * @param {number} groupId The buzz id.
-   * @param {number} soundId The sound id.
-   * @return {Audio}
-   */
-  allocateForSound(src, groupId, soundId) {
-    return this._mediaLoader.allocateForSound(src, groupId, soundId);
-  }
-
-  /**
-   * Unloads single or multiple loaded audio buffers from cache.
-   * @param {string|string[]} [urls] Single or array of audio urls.
-   * @return {Engine}
-   */
-  unload(urls) {
-    if (urls) {
-      this._bufferLoader.unload(urls);
+  stop(id) {
+    // TODO: Need to fire event?
+    if (typeof id === 'number') {
+      const sound = this.sound(id);
+      sound && sound.stop();
       return this;
     }
 
-    this._bufferLoader.unload();
+    // Stop all the sounds.
+    this.buzzes().forEach(buzz => buzz.stop());
+
+    // Fire the "stop" event.
+    this._fire(EngineEvents.Stop);
 
     return this;
-  }
-
-  /**
-   * Releases audio nodes allocated for the passed urls.
-   * @param {string|string[]} [urls] Single or array of audio urls.
-   * @return {Engine}
-   */
-  unloadMedia(urls) {
-    if (urls) {
-      this._mediaLoader.unload(urls);
-      return this;
-    }
-
-    this._mediaLoader.unload();
-
-    return this;
-  }
-
-  /**
-   * Releases the allocated audio nodes for the group.
-   * @param {string} url The audio file url.
-   * @param {number} groupId The group id.
-   * @return {Engine}
-   */
-  releaseForGroup(url, groupId) {
-    this._mediaLoader.releaseForGroup(url, groupId);
-    return this;
-  }
-
-  /**
-   * Returns if there are free audio nodes available for a group.
-   * @param {string} src The audio file url.
-   * @param {number} groupId The group id.
-   * @return {boolean}
-   */
-  hasFreeNodes(src, groupId) {
-    return this._mediaLoader.hasFreeNodes(src, groupId);
   }
 
   /**
    * Mutes the engine.
+   * @param {number} [id] The sound id.
    * @return {Engine}
    */
-  mute() {
+  mute(id) {
+    // TODO: Need to fire event?
+    if (typeof id === 'number') {
+      const sound = this.sound(id);
+      sound && sound.mute();
+      return this;
+    }
+
     // If the engine is already muted return.
     if (this._muted) {
       return this;
@@ -422,9 +378,17 @@ class Engine {
 
   /**
    * Un-mutes the engine.
+   * @param {number} [id] The sound id.
    * @return {Engine}
    */
-  unmute() {
+  unmute(id) {
+    // TODO: Need to fire event?
+    if (typeof id === 'number') {
+      const sound = this.sound(id);
+      sound && sound.unmute();
+      return this;
+    }
+
     // If the engine is not muted return.
     if (!this._muted) {
       return this;
@@ -445,9 +409,10 @@ class Engine {
   /**
    * Gets/sets the volume for the audio engine that controls global volume for all sounds.
    * @param {number} [vol] Should be within 0.0 to 1.0.
+   * @param {number} [id] The sound id.
    * @return {Engine|number}
    */
-  volume(vol) {
+  volume(vol, id) {
     // If no parameter is passed then return the current volume.
     if (vol === undefined) {
       return this._volume;
@@ -466,20 +431,6 @@ class Engine {
 
     // Fire the "volume" event.
     this._fire(EngineEvents.Volume, this._volume);
-
-    return this;
-  }
-
-  /**
-   * Stops all the currently playing sounds.
-   * @return {Engine}
-   */
-  stop() {
-    // Stop all the sounds.
-    this.buzzes().forEach(buzz => buzz.stop());
-
-    // Fire the "stop" event.
-    this._fire(EngineEvents.Stop);
 
     return this;
   }
@@ -609,6 +560,124 @@ class Engine {
   }
 
   /**
+   * Loads single or multiple audio resources into audio buffers and returns them.
+   * @param {string|string[]} urls Single or array of audio urls.
+   * @param {function} [progressCallback] The callback that is called to intimate the percentage downloaded.
+   * @return {Promise}
+   */
+  load(urls, progressCallback) {
+    return this._bufferLoader.load(urls, progressCallback);
+  }
+
+  /**
+   * Loads HTML5 audio nodes for the passed urls.
+   * @param {string|string[]} urls Single or array of audio urls.
+   * @return {Promise<DownloadResult|Array<DownloadResult>>}
+   */
+  loadMedia(urls) {
+    return this._mediaLoader.load(urls);
+  }
+
+  /**
+   * Stores the buzz in the internal collection.
+   * @param {Buzz} buzz The newly created buzz.
+   * @return {Engine}
+   */
+  add(buzz) {
+    if (this._buzzesArray.indexOf(buzz) > -1) {
+      return this;
+    }
+
+    this._buzzesArray.push(buzz);
+
+    return this;
+  }
+
+  /**
+   * Removes the stored buzz from the internal collection.
+   * @param {Buzz} buzz The buzz.
+   * @return {Engine}
+   */
+  remove(buzz) {
+    this._buzzesArray.splice(this._buzzesArray.indexOf(buzz), 1);
+    return this;
+  }
+
+  /**
+   * Loads audio node for group.
+   * @param {string} url The audio file url.
+   * @param {number} groupId The group id.
+   * @return {Promise<DownloadResult>}
+   */
+  allocateForGroup(url, groupId) {
+    return this._mediaLoader.allocateForGroup(url, groupId);
+  }
+
+  /**
+   * Allocates an audio node for sound and returns it.
+   * @param {string} src The audio file url.
+   * @param {number} groupId The buzz id.
+   * @param {number} soundId The sound id.
+   * @return {Audio}
+   */
+  allocateForSound(src, groupId, soundId) {
+    return this._mediaLoader.allocateForSound(src, groupId, soundId);
+  }
+
+  /**
+   * Unloads single or multiple loaded audio buffers from cache.
+   * @param {string|string[]} [urls] Single or array of audio urls.
+   * @return {Engine}
+   */
+  unload(urls) {
+    if (urls) {
+      this._bufferLoader.unload(urls);
+      return this;
+    }
+
+    this._bufferLoader.unload();
+
+    return this;
+  }
+
+  /**
+   * Releases audio nodes allocated for the passed urls.
+   * @param {string|string[]} [urls] Single or array of audio urls.
+   * @return {Engine}
+   */
+  unloadMedia(urls) {
+    if (urls) {
+      this._mediaLoader.unload(urls);
+      return this;
+    }
+
+    this._mediaLoader.unload();
+
+    return this;
+  }
+
+  /**
+   * Releases the allocated audio nodes for the group.
+   * @param {string} url The audio file url.
+   * @param {number} groupId The group id.
+   * @return {Engine}
+   */
+  releaseForGroup(url, groupId) {
+    this._mediaLoader.releaseForGroup(url, groupId);
+    return this;
+  }
+
+  /**
+   * Returns if there are free audio nodes available for a group.
+   * @param {string} src The audio file url.
+   * @param {number} groupId The group id.
+   * @return {boolean}
+   */
+  hasFreeNodes(src, groupId) {
+    return this._mediaLoader.hasFreeNodes(src, groupId);
+  }
+
+  /**
    * Subscribes to an event.
    * @param {string} eventName Name of the event.
    * @param {function} handler The event-handler function.
@@ -699,7 +768,7 @@ class Engine {
 
   /**
    * Returns the buzz for the passed id.
-   * @param {number} [id] The buzz id.
+   * @param {number} id The buzz id.
    * @return {Buzz}
    */
   buzz(id) {
@@ -712,6 +781,23 @@ class Engine {
    */
   buzzes() {
     return this._buzzesArray;
+  }
+
+  /**
+   * Returns the sound for the passed id.
+   * @param {number} id The sound id.
+   * @return {Sound}
+   */
+  sound(id) {
+    return this._soundsArray.find(x => x.id() === id);
+  }
+
+  /**
+   * Returns all the sounds.
+   * @return {Array<Sound>}
+   */
+  sounds() {
+    return this._soundsArray;
   }
 
   /**
