@@ -4,6 +4,7 @@ import utility                                          from './Utility';
 import emitter                                          from './Emitter';
 import Sound                                            from './Sound';
 import DownloadStatus                                   from './DownloadStatus';
+import LoadState                                        from './LoadState';
 
 /**
  * Enum that represents the different states of a buzz (sound group).
@@ -38,17 +39,7 @@ const BuzzEvents = {
 };
 
 /**
- * Enum that represents the different states occurs while loading a sound.
- * @enum {string}
- */
-const LoadState = {
-  NotLoaded: 'notloaded',
-  Loading: 'loading',
-  Loaded: 'loaded'
-};
-
-/**
- * A wrapper class that simplifies dealing with group of sounds.
+ * A wrapper class that simplifies managing multiple sounds created for a single source.
  */
 class Buzz {
 
@@ -79,6 +70,13 @@ class Buzz {
    * @private
    */
   _sprite = null;
+
+  /**
+   * True to use HTML5 audio node.
+   * @type {boolean}
+   * @private
+   */
+  _stream = false;
 
   /**
    * The current volume of the sound. Should be from 0.0 to 1.0.
@@ -123,13 +121,6 @@ class Buzz {
   _autoplay = false;
 
   /**
-   * True to use HTML5 audio node.
-   * @type {boolean}
-   * @private
-   */
-  _stream = false;
-
-  /**
    * Duration of the playback in seconds.
    * @type {number}
    * @private
@@ -156,6 +147,41 @@ class Buzz {
    * @private
    */
   _state = BuzzState.Ready;
+
+  /**
+   * True if the group is currently fading.
+   * @type {boolean}
+   * @private
+   */
+  _fading = false;
+
+  /**
+   * The timer that runs function after the fading is complete.
+   * @type {number|null}
+   * @private
+   */
+  _fadeTimer = null;
+
+  /**
+   * Number of audio resource loading calls in progress.
+   * @type {number}
+   * @private
+   */
+  _noOfLoadCalls = 0;
+
+  /**
+   * Array of sounds belongs to this group.
+   * @type {Array<Sound>}
+   * @private
+   */
+  _soundsArray = [];
+
+  /**
+   * Array of pre-loaded HTML5 audio elements.
+   * @type {Array<Audio>}
+   * @private
+   */
+  _audioNodes = [];
 
   /**
    * The action queue.
@@ -186,54 +212,26 @@ class Buzz {
   _gainNode = null;
 
   /**
-   * True if the group is currently fading.
-   * @type {boolean}
-   * @private
-   */
-  _fading = false;
-
-  /**
-   * The timer that runs function after the fading is complete.
-   * @type {number|null}
-   * @private
-   */
-  _fadeTimer = null;
-
-  /**
-   * Number of audio resource loading calls in progress.
-   * @type {number}
-   * @private
-   */
-  _noOfLoadCalls = 0;
-
-  /**
-   * Array of sounds belongs to this group.
-   * @type {Array}
-   * @private
-   */
-  _soundsArray = [];
-
-  /**
    * Initializes the internal properties.
    * @param {string|Array<string>|object} args The input parameters of this sound group.
    * @param {string} [args.id] The unique id of the sound.
    * @param {string|string[]} args.src Single or array of audio urls/base64 strings.
+   * @param {string|string[]} [args.format] The file format(s) of the passed audio source(s).
+   * @param {object} [args.sprite] The audio sprite definition.
+   * @param {boolean} [args.stream = false] True to use HTML5 audio node.
    * @param {number} [args.volume = 1.0] The initial volume of the sound. Should be from 0.0 to 1.0.
    * @param {number} [args.rate = 1] The initial playback rate of the sound. Should be from 0.5 to 5.0.
-   * @param {boolean} [args.loop = false] True to play the sound repeatedly.
    * @param {boolean} [args.muted = false] True to be muted initially.
+   * @param {boolean} [args.loop = false] True to play the sound repeatedly.
    * @param {boolean} [args.preload = false] True to pre-load the sound after construction.
    * @param {boolean} [args.autoplay = false] True to play automatically after construction.
-   * @param {boolean} [args.stream = false] True to use HTML5 audio node.
-   * @param {string|string[]} [args.format] The file format(s) of the passed audio source(s).
-   * @param {object} [args.sprite] The sprite definition.
    * @param {function} [args.onload] Event-handler for the "load" event.
    * @param {function} [args.onloadprogress] Event-handler for the "loadprogress" event (only for non-stream types).
    * @param {function} [args.onunload] Event-handler for the "unload" event.
    * @param {function} [args.onplaystart] Event-handler for the "playstart" event.
    * @param {function} [args.onplayend] Event-handler for the "playend" event.
-   * @param {function} [args.onstop] Event-handler for the "stop" event.
    * @param {function} [args.onpause] Event-handler for the "pause" event.
+   * @param {function} [args.onstop] Event-handler for the "stop" event.
    * @param {function} [args.onmute] Event-handler for the "mute" event.
    * @param {function} [args.onvolume] Event-handler for the "volume" event.
    * @param {function} [args.onrate] Event-handler for the "rate" event.
@@ -245,11 +243,94 @@ class Buzz {
   constructor(args) {
     this._onLoadProgress = this._onLoadProgress.bind(this);
 
+    if (typeof args === 'string') {
+      this._src = [args];
+    } else if (Array.isArray(args) && args.length) {
+      this._src = args;
+    } else if (typeof args === 'object') {
+      const {
+        id,
+        src,
+        format,
+        sprite,
+        stream,
+        volume,
+        rate,
+        muted,
+        loop,
+        preload,
+        autoplay,
+        onload,
+        onloadprogress,
+        onunload,
+        onplaystart,
+        onplayend,
+        onpause,
+        onstop,
+        onmute,
+        onvolume,
+        onrate,
+        onseek,
+        onerror,
+        ondestroy
+      } = args;
+
+      // Set the passed id or the auto-generated one.
+      this._id = typeof id === 'number' ? id : utility.id();
+
+      // Set the source.
+      if (typeof src === 'string') {
+        this._src = [src];
+      } else if (Array.isArray(src)) {
+        this._src = src;
+      }
+
+      // Set the format.
+      if (Array.isArray(format)) {
+        this._format = format;
+      } else if (typeof format === 'string' && format) {
+        this._format = [format];
+      }
+
+      // Set other properties.
+      typeof sprite === 'object' && (this._sprite = sprite);
+      typeof stream === 'boolean' && (this._stream = stream);
+      typeof volume === 'number' && volume >= 0 && volume <= 1.0 && (this._volume = volume);
+      typeof rate === 'number' && rate >= 0.5 && rate <= 5 && (this._rate = rate);
+      typeof muted === 'boolean' && (this._muted = muted);
+      typeof loop === 'boolean' && (this._loop = loop);
+      typeof preload === 'boolean' && (this._preload = preload);
+      typeof autoplay === 'boolean' && (this._autoplay = autoplay);
+
+      // Bind the passed event handlers to events.
+      typeof onload === 'function' && this.on(BuzzEvents.Load, onload);
+      typeof onloadprogress === 'function' && this.on(BuzzEvents.LoadProgress, onloadprogress);
+      typeof onunload === 'function' && this.on(BuzzEvents.UnLoad, onunload);
+      typeof onplaystart === 'function' && this.on(BuzzEvents.PlayStart, onplaystart);
+      typeof onplayend === 'function' && this.on(BuzzEvents.PlayEnd, onplayend);
+      typeof onpause === 'function' && this.on(BuzzEvents.Pause, onpause);
+      typeof onstop === 'function' && this.on(BuzzEvents.Stop, onstop);
+      typeof onmute === 'function' && this.on(BuzzEvents.Mute, onmute);
+      typeof onvolume === 'function' && this.on(BuzzEvents.Volume, onvolume);
+      typeof onrate === 'function' && this.on(BuzzEvents.Rate, onrate);
+      typeof onseek === 'function' && this.on(BuzzEvents.Seek, onseek);
+      typeof onerror === 'function' && this.on(BuzzEvents.Error, onerror);
+      typeof ondestroy === 'function' && this.on(BuzzEvents.Destroy, ondestroy);
+    }
+
+    // Throw error if source is not passed.
+    if (!this._src.length) {
+      throw new Error('You should pass the source for the audio.');
+    }
+
+    // Instantiate the queue.
+    this._queue = new Queue();
+
     // Setup the audio engine.
     this._engine = engine;
     this._engine.setup();
 
-    // If no audio is available throw error.
+    // If audio is not supported throw error.
     if (!this._engine.isAudioAvailable()) {
       this._fire(BuzzEvents.Error, null, { type: ErrorType.NoAudio, error: 'Web Audio is un-available' });
       return this;
@@ -266,89 +347,6 @@ class Buzz {
 
     // Subscribe to engine's resume event.
     this._engine.on(EngineEvents.Resume, this._onEngineResume = this._onEngineResume.bind(this));
-
-    if (typeof args === 'string') {
-      this._src = [args];
-    } else if (Array.isArray(args) && args.length) {
-      this._src = args;
-    } else if (typeof args === 'object') {
-      const {
-        id,
-        src,
-        format,
-        sprite,
-        volume,
-        rate,
-        muted,
-        loop,
-        autoplay,
-        stream,
-        preload,
-        onload,
-        onloadprogress,
-        onunload,
-        onplaystart,
-        onplayend,
-        onstop,
-        onpause,
-        onmute,
-        onvolume,
-        onrate,
-        onseek,
-        onerror,
-        ondestroy
-      } = args;
-
-      // Set the passed id or the random one.
-      this._id = typeof id === 'number' ? id : utility.id();
-
-      // Set the source.
-      if (typeof src === 'string') {
-        this._src = [src];
-      } else if (Array.isArray(src) && src.length) {
-        this._src = src;
-      }
-
-      // Set the format.
-      if (Array.isArray(format)) {
-        this._format = format;
-      } else if (typeof format === 'string' && format) {
-        this._format = [format];
-      }
-
-      // Set other properties.
-      typeof sprite === 'object' && (this._sprite = sprite);
-      typeof volume === 'number' && volume >= 0 && volume <= 1.0 && (this._volume = volume);
-      typeof rate === 'number' && rate >= 0.5 && rate <= 5 && (this._rate = rate);
-      typeof muted === 'boolean' && (this._muted = muted);
-      typeof loop === 'boolean' && (this._loop = loop);
-      typeof autoplay === 'boolean' && (this._autoplay = autoplay);
-      typeof stream === 'boolean' && (this._stream = stream);
-      typeof preload === 'boolean' && (this._preload = preload);
-
-      // Bind the passed event handlers to events.
-      typeof onload === 'function' && this.on(BuzzEvents.Load, onload);
-      typeof onloadprogress === 'function' && this.on(BuzzEvents.LoadProgress, onloadprogress);
-      typeof onunload === 'function' && this.on(BuzzEvents.UnLoad, onunload);
-      typeof onplaystart === 'function' && this.on(BuzzEvents.PlayStart, onplaystart);
-      typeof onplayend === 'function' && this.on(BuzzEvents.PlayEnd, onplayend);
-      typeof onstop === 'function' && this.on(BuzzEvents.Stop, onstop);
-      typeof onpause === 'function' && this.on(BuzzEvents.Pause, onpause);
-      typeof onmute === 'function' && this.on(BuzzEvents.Mute, onmute);
-      typeof onvolume === 'function' && this.on(BuzzEvents.Volume, onvolume);
-      typeof onrate === 'function' && this.on(BuzzEvents.Rate, onrate);
-      typeof onseek === 'function' && this.on(BuzzEvents.Seek, onseek);
-      typeof onerror === 'function' && this.on(BuzzEvents.Error, onerror);
-      typeof ondestroy === 'function' && this.on(BuzzEvents.Destroy, ondestroy);
-    }
-
-    // Throw error if source is not passed.
-    if (!this._src) {
-      throw new Error('You should pass the source for the audio.');
-    }
-
-    // Instantiate the dependencies.
-    this._queue = new Queue();
 
     if (this._autoplay) {
       this.play();
@@ -370,7 +368,7 @@ class Buzz {
     }
 
     // If the sound is not of stream and the source is loaded or currently loading then return.
-    if (!this._stream && (this.isLoaded() || this._loadState === LoadState.Loading)) {
+    if (!this._stream && this._loadState !== LoadState.NotLoaded) {
       return this;
     }
 

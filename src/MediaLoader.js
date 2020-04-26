@@ -43,7 +43,6 @@ class MediaLoader {
    * @return {Promise<DownloadResult|Array<DownloadResult>>}
    */
   load(urls) {
-    console.log(typeof urls);
     if (typeof urls === 'string') {
       return this._load(urls);
     }
