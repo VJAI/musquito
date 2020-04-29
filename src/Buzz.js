@@ -378,6 +378,7 @@ class Buzz {
     // Increment the calls which is needed for stream types.
     this._noOfLoadCalls = this._noOfLoadCalls + 1;
 
+    // Get the first compatible source.
     const src = this._compatibleSrc || (this._compatibleSrc = this.getCompatibleSource());
 
     // Load the audio source.
@@ -385,12 +386,9 @@ class Buzz {
     load$.then(downloadResult => {
       this._noOfLoadCalls > 0 && (this._noOfLoadCalls = this._noOfLoadCalls - 1);
 
-      if (this._stream && this._state === BuzzState.Destroyed) {
-        this._engine.releaseForGroup(this._compatibleSrc, this._id);
-        return;
-      }
-
+      // During the loading, if buzz is destroyed or un-loaded then return.
       if (this._state === BuzzState.Destroyed || this._loadState === LoadState.NotLoaded) {
+        this._stream && this._engine.releaseForGroup(this._compatibleSrc, this._id);
         return;
       }
 
@@ -454,6 +452,7 @@ class Buzz {
 
     const newSoundId = utility.id(),
       playSound = () => {
+        // Create the arguments of the sound.
         const soundArgs = {
           id: newSoundId,
           buffer: this._buffer,
@@ -479,12 +478,14 @@ class Buzz {
           }
         };
 
+        // In case of sprite, set the positions.
         if (typeof soundOrId === 'string' && this._sprite && this._sprite.hasOwnProperty(soundOrId)) {
           const positions = this._sprite[soundOrId];
           soundArgs.startPos = positions[0];
           soundArgs.endPos = positions[1];
         }
 
+        // Create the sound, connect the gains and play!
         const newSound = new Sound(soundArgs);
         newSound._gain().connect(this._gainNode);
         this._soundsArray.push(newSound);
@@ -712,10 +713,6 @@ class Buzz {
    * @return {Buzz|number}
    */
   seek(id, seek) {
-    if (!id) {
-      return this;
-    }
-
     const sound = this.sound(id);
 
     if (!sound) {
@@ -822,7 +819,7 @@ class Buzz {
     this._queue.remove('after-load');
     this._stream && this._engine.releaseForGroup(this._compatibleSrc, this._id);
     this._buffer = null;
-    this._stream && (this._duration = 0);
+    this._duration = 0;
     this._loadState = LoadState.NotLoaded;
     this._noOfLoadCalls = 0;
     this._fire(BuzzEvents.UnLoad);

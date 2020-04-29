@@ -28,27 +28,6 @@ class Sound {
   _id = -1;
 
   /**
-   * Represents the source of the sound. The source can be an url or base64 string.
-   * @type {*}
-   * @private
-   */
-  _src = null;
-
-  /**
-   * The formats of the passed audio sources.
-   * @type {Array<string>}
-   * @private
-   */
-  _format = [];
-
-  /**
-   * The sprite definition.
-   * @type {object}
-   * @private
-   */
-  _sprite = null;
-
-  /**
    * The current volume of the sound. Should be from 0.0 to 1.0.
    * @type {number}
    * @private
@@ -82,27 +61,6 @@ class Sound {
    * @private
    */
   _state = SoundState.Ready;
-
-  /**
-   * Represents the different states that occurs while loading the sound.
-   * @type {LoadState}
-   * @private
-   */
-  _loadState = LoadState.NotLoaded;
-
-  /**
-   * The action queue.
-   * @type {Queue}
-   * @private
-   */
-  _queue = null;
-
-  /**
-   * The audio engine.
-   * @type {Engine}
-   * @private
-   */
-  _engine = null;
 
   /**
    * Web API's audio context.
@@ -277,9 +235,6 @@ class Sound {
    * Initializes the internal properties of the sound.
    * @param {object} args The input parameters of the sound.
    * @param {number} args.id The unique id of the sound.
-   * @param {string|string[]} args.src Single or array of audio urls/base64 strings.
-   * @param {string|string[]} [args.format] The file format(s) of the passed audio source(s).
-   * @param {object} [args.sprite] The sprite definition.
    * @param {boolean} [args.stream = false] True to use HTML5 audio node for playing sound.
    * @param {Audio} [args.audio] The pre-loaded HTML5 audio object.
    * @param {AudioBuffer} [args.buffer] Audio source buffer.
@@ -287,6 +242,8 @@ class Sound {
    * @param {number} [args.rate = 1] The initial playback rate of the sound. Should be from 0.5 to 5.0.
    * @param {boolean} [args.loop = false] True to play the sound repeatedly.
    * @param {boolean} [args.muted = false] True to be muted initially.
+   * @param {number} [args.startPos] The playback start position.
+   * @param {number} [args.endPos] The playback end position.
    * @param {function} [args.loadCallback] The callback that will be called when the underlying HTML5 audio node is loaded.
    * @param {function} [args.playEndCallback] The callback that will be invoked after the play ends.
    * @param {function} [args.destroyCallback] The callback that will be invoked after destroyed.
@@ -302,9 +259,6 @@ class Sound {
 
     const {
       id,
-      src,
-      format,
-      sprite,
       stream,
       buffer,
       audio,
@@ -312,6 +266,8 @@ class Sound {
       rate,
       loop,
       muted,
+      startPos,
+      endPos,
       loadCallback,
       playEndCallback,
       destroyCallback,
@@ -322,37 +278,25 @@ class Sound {
     // Set the passed id or the random one.
     this._id = typeof id === 'number' ? id : utility.id();
 
-    // Set the source.
-    if (typeof src === 'string') {
-      this._src = [src];
-    } else if (Array.isArray(src) && src.length) {
-      this._src = src;
-    }
-
-    // Set the format.
-    if (Array.isArray(format)) {
-      this._format = format;
-    } else if (typeof format === 'string' && format) {
-      this._format = [format];
-    }
+    // Set the passed audio buffer and duration.
+    this._buffer = buffer;
+    this._audio = audio;
 
     // Set other properties.
-    typeof sprite === 'object' && (this._sprite = sprite);
-    typeof stream === 'boolean' && (this._stream = stream);
-    buffer instanceof AudioBuffer && (this._buffer = buffer);
-    audio instanceof Audio && (this._audio = audio);
-    typeof volume === 'number' && volume >= 0 && volume <= 1.0 && (this._volume = volume);
-    typeof rate === 'number' && rate >= 0.5 && rate <= 5 && (this._rate = rate);
-    typeof muted === 'boolean' && (this._muted = muted);
-    typeof loop === 'boolean' && (this._loop = loop);
-    typeof loadCallback === 'function' && (this._loadCallback = loadCallback);
-    typeof playEndCallback === 'function' && (this._playEndCallback = playEndCallback);
-    typeof destroyCallback === 'function' && (this._destroyCallback = destroyCallback);
-    typeof fadeEndCallback === 'function' && (this._fadeEndCallback = fadeEndCallback);
-    typeof audioErrorCallback === 'function' && (this._audioErrorCallback = audioErrorCallback);
+    this._stream = Boolean(stream);
+    this._endPos = this._stream ? this._audio.duration : this._buffer.duration;
+    volume && (this._volume = volume);
+    rate && (this._rate = rate);
+    muted && (this._muted = muted);
+    loop && (this._loop = loop);
+    startPos && (this._startPos = startPos);
+    endPos && (this._endPos = endPos);
+    this._loadCallback = loadCallback;
+    this._playEndCallback = playEndCallback;
+    this._destroyCallback = destroyCallback;
+    this._fadeEndCallback = fadeEndCallback;
+    this._audioErrorCallback = audioErrorCallback;
 
-    const source = this._stream ? this._audio : this._buffer;
-    source && (this._endPos = source.duration);
     this._duration = this._endPos - this._startPos;
     this._isSprite = this._duration < this._endPos;
 
