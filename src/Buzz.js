@@ -450,47 +450,49 @@ class Buzz {
       return this;
     }
 
-    const newSoundId = utility.id(),
-      playSound = () => {
-        // Create the arguments of the sound.
-        const soundArgs = {
-          id: newSoundId,
-          buffer: this._buffer,
-          stream: this._stream,
-          audio: this._stream ? this._engine.allocateForSound(this._compatibleSrc, this._id, newSoundId) : null,
-          volume: this._volume,
-          rate: this._rate,
-          muted: this._muted,
-          loop: this._loop,
-          playEndCallback: () => this._fire(BuzzEvents.PlayEnd, newSoundId),
-          destroyCallback: () => {
-            this._removeSound(newSoundId);
-            this._fire(BuzzEvents.Destroy, newSoundId);
-            emitter.clear(newSoundId);
-          },
-          fadeEndCallback: () => this._fire(BuzzEvents.FadeEnd, newSoundId),
-          audioErrorCallback: (sound, err) => {
-            this._fire(BuzzEvents.Error, newSoundId, { type: ErrorType.LoadError, error: err });
-            sound.destroy();
-          },
-          loadCallback: () => {
-            this._fire(BuzzEvents.Load, newSoundId);
-          }
-        };
+    // Create a unique id for sound.
+    const newSoundId = utility.id();
 
-        // In case of sprite, set the positions.
-        if (typeof soundOrId === 'string' && this._sprite && this._sprite.hasOwnProperty(soundOrId)) {
-          const positions = this._sprite[soundOrId];
-          soundArgs.startPos = positions[0];
-          soundArgs.endPos = positions[1];
-        }
+    // Create the arguments of the sound.
+    const soundArgs = {
+      id: newSoundId,
+      stream: this._stream,
+      volume: this._volume,
+      rate: this._rate,
+      muted: this._muted,
+      loop: this._loop,
+      playEndCallback: () => this._fire(BuzzEvents.PlayEnd, newSoundId),
+      destroyCallback: () => {
+        this._removeSound(newSoundId);
+        this._fire(BuzzEvents.Destroy, newSoundId);
+        emitter.clear(newSoundId);
+      },
+      fadeEndCallback: () => this._fire(BuzzEvents.FadeEnd, newSoundId),
+      audioErrorCallback: (sound, err) => {
+        this._fire(BuzzEvents.Error, newSoundId, { type: ErrorType.LoadError, error: err });
+        sound.destroy();
+      },
+      loadCallback: () => {
+        this._fire(BuzzEvents.Load, newSoundId);
+      }
+    };
 
-        // Create the sound, connect the gains and play!
-        const newSound = new Sound(soundArgs);
-        newSound._gain().connect(this._gainNode);
-        this._soundsArray.push(newSound);
-        this._play(newSound);
-      };
+    // In case of sprite, set the positions.
+    if (typeof soundOrId === 'string' && this._sprite && this._sprite.hasOwnProperty(soundOrId)) {
+      const positions = this._sprite[soundOrId];
+      soundArgs.startPos = positions[0];
+      soundArgs.endPos = positions[1];
+    }
+
+    // Create the sound, connect the gains and play!
+    const newSound = new Sound(soundArgs);
+    newSound._gain().connect(this._gainNode);
+    this._soundsArray.push(newSound);
+
+    const playSound = () => {
+      newSound.source(this._stream ? this._engine.allocateForSound(this._compatibleSrc, this._id, newSoundId) : this._buffer);
+      this._play(newSound);
+    };
 
     // If the sound is not yet loaded push an action to the queue to play the sound once it's loaded.
     if (!this.isLoaded()) {

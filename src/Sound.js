@@ -232,6 +232,13 @@ class Sound {
   _persist = false;
 
   /**
+   * True if the audio source (buffer or html5 audio) exists.
+   * @type {boolean}
+   * @private
+   */
+  _sourceExists = false;
+
+  /**
    * Initializes the internal properties of the sound.
    * @param {object} args The input parameters of the sound.
    * @param {number} args.id The unique id of the sound.
@@ -278,13 +285,14 @@ class Sound {
     // Set the passed id or the random one.
     this._id = typeof id === 'number' ? id : utility.id();
 
-    // Set the passed audio buffer and duration.
+    // Set the passed audio buffer or HTML5 audio node.
     this._buffer = buffer;
     this._audio = audio;
+    this._sourceExists = Boolean(this._buffer) || Boolean(this._audio);
 
     // Set other properties.
-    this._stream = Boolean(stream);
-    this._endPos = this._stream ? this._audio.duration : this._buffer.duration;
+    this._stream = stream;
+    this._sourceExists && (this._endPos = this._stream ? this._audio.duration : this._buffer.duration);
     volume && (this._volume = volume);
     rate && (this._rate = rate);
     muted && (this._muted = muted);
@@ -301,7 +309,7 @@ class Sound {
     this._isSprite = this._duration < this._endPos;
 
     // If stream is `true` then set the playback rate, looping and listen to `error` event.
-    if (this._stream) {
+    if (this._stream && this._audio) {
       this._audio.playbackRate = this._rate;
       this._setLoop(this._loop);
       this._audio.addEventListener('error', this._onAudioError);
@@ -314,7 +322,7 @@ class Sound {
       this._gainNode.gain.setValueAtTime(this._muted ? 0 : this._volume, this._context.currentTime);
 
       // Create media element audio source node.
-      if (this._stream) {
+      if (this._stream && this._audio) {
         this._mediaElementAudioSourceNode = this._context.createMediaElementSource(this._audio);
         this._mediaElementAudioSourceNode.connect(this._gainNode);
       }
@@ -322,10 +330,40 @@ class Sound {
   }
 
   /**
+   * Sets the audio source for the sound.
+   * @param {AudioBuffer | Audio} source The audio source.
+   */
+  source(source) {
+    if (this._sourceExists) {
+      return;
+    }
+
+    if (this._stream) {
+      this._audio = source;
+      this._endPos = this._audio.duration;
+      this._audio.playbackRate = this._rate;
+
+      this._setLoop(this._loop);
+      this._audio.addEventListener('error', this._onAudioError);
+
+      this._mediaElementAudioSourceNode = this._context.createMediaElementSource(this._audio);
+      this._mediaElementAudioSourceNode.connect(this._gainNode);
+    } else {
+      this._buffer = source;
+      this._endPos = this._buffer.duration;
+    }
+
+    this._sourceExists = true;
+  }
+
+  /**
    * Pre-loads the underlying HTML audio node (only in case of stream).
    */
   load() {
-    if (!this._stream || this.isPlaying() || this.state() === SoundState.Destroyed) {
+    if (!this._stream ||
+      !this._sourceExists ||
+      this.isPlaying() ||
+      this.state() === SoundState.Destroyed) {
       return;
     }
 
@@ -342,8 +380,8 @@ class Sound {
    * @return {Sound}
    */
   play() {
-    // If the sound is already playing then return.
-    if (this.isPlaying()) {
+    // If the source not exists or sound is already playing then return.
+    if (!this._sourceExists || this.isPlaying()) {
       return this;
     }
 
@@ -361,8 +399,8 @@ class Sound {
    * @return {Sound}
    */
   pause() {
-    // If the sound is already playing return.
-    if (!this.isPlaying()) {
+    // If the source not exists or the sound is already playing return.
+    if (!this._sourceExists || !this.isPlaying()) {
       return this;
     }
 
@@ -389,8 +427,8 @@ class Sound {
    * @return {Sound}
    */
   stop() {
-    // If the sound is not playing or paused return.
-    if (!this.isPlaying() && !this.isPaused()) {
+    // If the source not exists or the sound is not playing or paused return.
+    if (!this._sourceExists || (!this.isPlaying() && !this.isPaused())) {
       return this;
     }
 
@@ -570,7 +608,7 @@ class Sound {
     // If no parameter is passed return the current position.
     if (typeof seek === 'undefined') {
       if (this._stream) {
-        return this._audio.currentTime;
+        return this._audio ? this._audio.currentTime : null;
       }
 
       const realTime = this.isPlaying() ? this._context.currentTime - this._startTime : 0;
@@ -927,6 +965,10 @@ class Sound {
    * @private
    */
   _setLoop(loop) {
+    if (!this._sourceExists) {
+      return;
+    }
+
     if (this._stream) {
       this._audio.loop = loop;
     } else {
