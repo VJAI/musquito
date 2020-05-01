@@ -186,9 +186,9 @@ class Html5AudioPool {
   }
 
   /**
-   * Returns true if there are free audio nodes available for a group.
+   * Returns true if there are free audio nodes available for a source or group.
    * @param {string} src The audio file url.
-   * @param {number} groupId The group id.
+   * @param {number} [groupId] The group id.
    * @return {boolean}
    */
   hasFreeNodes(src, groupId) {
@@ -197,9 +197,9 @@ class Html5AudioPool {
     }
 
     const nodes = this._resourceNodesMap[src],
-      { allocated } = nodes;
+      { unallocated, allocated } = nodes;
 
-    return allocated[groupId].length > 0;
+    return !groupId ? unallocated.length > 0 : allocated[groupId].length > 0;
   }
 
   /**

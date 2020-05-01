@@ -470,7 +470,6 @@ class Buzz {
       fadeEndCallback: () => this._fire(BuzzEvents.FadeEnd, newSoundId),
       audioErrorCallback: (sound, err) => {
         this._fire(BuzzEvents.Error, newSoundId, { type: ErrorType.LoadError, error: err });
-        sound.destroy();
       },
       loadCallback: () => {
         this._fire(BuzzEvents.Load, newSoundId);
@@ -484,7 +483,7 @@ class Buzz {
       soundArgs.endPos = positions[1];
     }
 
-    // Create the sound, connect the gains and play!
+    // Create the sound and connect the gains.
     const newSound = new Sound(soundArgs);
     newSound._gain().connect(this._gainNode);
     this._soundsArray.push(newSound);
@@ -1111,6 +1110,7 @@ class Buzz {
 const $buzz = args => new Buzz(args);
 [
   'setup',
+  'play',
   'load',
   'loadMedia',
   'unload',

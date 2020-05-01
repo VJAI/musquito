@@ -1,7 +1,6 @@
 import engine      from './Engine';
 import utility     from './Utility';
 import workerTimer from './WorkerTimer';
-import LoadState   from './LoadState';
 
 /**
  * Enum that represents the different states of a sound.
@@ -239,6 +238,13 @@ class Sound {
   _sourceExists = false;
 
   /**
+   * True if the HTML5 audio node is pre-loaded.
+   * @type {boolean}
+   * @private
+   */
+  _loaded = false;
+
+  /**
    * Initializes the internal properties of the sound.
    * @param {object} args The input parameters of the sound.
    * @param {number} args.id The unique id of the sound.
@@ -354,6 +360,7 @@ class Sound {
     }
 
     this._sourceExists = true;
+    this._loaded = true;
   }
 
   /**
