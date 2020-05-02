@@ -470,17 +470,13 @@ class Buzz {
       muted: this._muted,
       loop: this._loop,
       playEndCallback: () => this._fire(BuzzEvents.PlayEnd, newSoundId),
+      fadeEndCallback: () => this._fire(BuzzEvents.FadeEnd, newSoundId),
+      audioErrorCallback: (sound, err) => this._fire(BuzzEvents.Error, newSoundId, { type: ErrorType.LoadError, error: err }),
+      loadCallback: () => this._fire(BuzzEvents.Load, newSoundId),
       destroyCallback: () => {
         this._removeSound(newSoundId);
         this._fire(BuzzEvents.Destroy, newSoundId);
         emitter.clear(newSoundId);
-      },
-      fadeEndCallback: () => this._fire(BuzzEvents.FadeEnd, newSoundId),
-      audioErrorCallback: (sound, err) => {
-        this._fire(BuzzEvents.Error, newSoundId, { type: ErrorType.LoadError, error: err });
-      },
-      loadCallback: () => {
-        this._fire(BuzzEvents.Load, newSoundId);
       }
     };
 

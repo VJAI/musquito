@@ -161,13 +161,6 @@ class Sound {
   _playEndCallback = null;
 
   /**
-   * The callback that will be invoked after the position changed.
-   * @type {function}
-   * @private
-   */
-  _seekCallback = null;
-
-  /**
    * The callback that will be invoked after the sound destroyed.
    * @type {function}
    * @private
@@ -266,7 +259,6 @@ class Sound {
    * @param {number} [args.endPos] The playback end position.
    * @param {function} [args.loadCallback] The callback that will be called when the underlying HTML5 audio node is loaded.
    * @param {function} [args.playEndCallback] The callback that will be invoked after the play ends.
-   * @param {function} [args.seekCallback] The callback that will be invoked after the position changed.
    * @param {function} [args.destroyCallback] The callback that will be invoked after destroyed.
    * @param {function} [args.fadeEndCallback] The callback that will be invoked the fade is completed.
    * @param {function} [args.audioErrorCallback] The callback that will be invoked when there is error in HTML5 audio node.
@@ -291,7 +283,6 @@ class Sound {
       endPos,
       loadCallback,
       playEndCallback,
-      seekCallback,
       destroyCallback,
       fadeEndCallback,
       audioErrorCallback
@@ -316,7 +307,6 @@ class Sound {
     endPos && (this._endPos = endPos);
     this._loadCallback = loadCallback;
     this._playEndCallback = playEndCallback;
-    this._seekCallback = seekCallback;
     this._destroyCallback = destroyCallback;
     this._fadeEndCallback = fadeEndCallback;
     this._audioErrorCallback = audioErrorCallback;
