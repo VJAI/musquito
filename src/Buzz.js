@@ -241,10 +241,15 @@ class Buzz {
    * @constructor
    */
   constructor(args) {
+    this._engine = engine;
     this._onLoadProgress = this._onLoadProgress.bind(this);
 
     if (typeof args === 'string') {
-      this._src = [args];
+      if (args.startsWith('#')) {
+        this._setSource(args);
+      } else {
+        this._src = [args];
+      }
     } else if (Array.isArray(args) && args.length) {
       this._src = args;
     } else if (typeof args === 'object') {
@@ -280,7 +285,11 @@ class Buzz {
 
       // Set the source.
       if (typeof src === 'string') {
-        this._src = [src];
+        if (src.startsWith('#')) {
+          this._setSource(src);
+        } else {
+          this._src = [src];
+        }
       } else if (Array.isArray(src)) {
         this._src = src;
       }
@@ -327,7 +336,6 @@ class Buzz {
     this._queue = new Queue();
 
     // Setup the audio engine.
-    this._engine = engine;
     this._engine.setup();
 
     // If audio is not supported throw error.
@@ -986,6 +994,41 @@ class Buzz {
   }
 
   /**
+   * Sets source, format and sprite from the assigned key.
+   * @param {string} key The source key.
+   * @private
+   */
+  _setSource(key) {
+    const src = this._engine.getSource(key.substring(1));
+
+    if (typeof src === 'string') {
+      this._src = [src];
+    } else if (Array.isArray(src)) {
+      this._src = src;
+    } else if (typeof src === 'object') {
+      const {
+        url,
+        format,
+        sprite
+      } = src;
+
+      if (typeof url === 'string') {
+        this._src = [url];
+      } else if (Array.isArray(url)) {
+        this._src = url;
+      }
+
+      if (Array.isArray(format)) {
+        this._format = format;
+      } else if (typeof format === 'string' && format) {
+        this._format = [format];
+      }
+
+      typeof sprite === 'object' && (this._sprite = sprite);
+    }
+  }
+
+  /**
    * Called on failure of loading audio source.
    * @param {*} error The audio source load error.
    * @private
@@ -1111,6 +1154,10 @@ const $buzz = args => new Buzz(args);
 [
   'setup',
   'play',
+  'pause',
+  'register',
+  'unregister',
+  'getSource',
   'load',
   'loadMedia',
   'unload',
@@ -1118,6 +1165,12 @@ const $buzz = args => new Buzz(args);
   'mute',
   'unmute',
   'volume',
+  'fade',
+  'fadeStop',
+  'rate',
+  'seek',
+  'loop',
+  'destroy',
   'stop',
   'suspend',
   'resume',

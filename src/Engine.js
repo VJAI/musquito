@@ -189,6 +189,13 @@ class Engine {
   _mediaLoader = null;
 
   /**
+   * Registry of audio sources, sprites with short-hand notations.
+   * @type {object}
+   * @private
+   */
+  _sourceRegistry = {};
+
+  /**
    * Instantiates the action queue.
    * @constructor
    */
@@ -206,6 +213,9 @@ class Engine {
    * @param {number} [args.maxNodesPerSource = 10] Maximum number of HTML5 audio objects allowed for a url.
    * @param {number} [args.cleanUpInterval = 5] The sounds garbage collection interval period in minutes.
    * @param {boolean} [args.autoEnable = true] Auto-enables audio in first user interaction.
+   * @param {object} [args.src] The audio sources.
+   * @param {boolean} [args.preload = true] True to preload audio sources.
+   * @param {function} [args.init] The function that's called after resources are loaded.
    * @param {function} [args.onstop] Event-handler for the "stop" event.
    * @param {function} [args.onmute] Event-handler for the "mute" event.
    * @param {function} [args.onvolume] Event-handler for the "volume" event.
@@ -240,6 +250,9 @@ class Engine {
       maxNodesPerSource,
       cleanUpInterval,
       autoEnable,
+      src,
+      preload = true,
+      init,
       onstop,
       onmute,
       onvolume,
@@ -267,8 +280,8 @@ class Engine {
     this._bufferLoader = new BufferLoader(this._context);
 
     // Create the media loader.
-    this._mediaLoader = new MediaLoader(this._maxNodesPerSource, (src) => {
-      this._buzzesArray.forEach(buzz => buzz.getCompatibleSource() === src && buzz.free());
+    this._mediaLoader = new MediaLoader(this._maxNodesPerSource, (x) => {
+      this._buzzesArray.forEach(buzz => buzz.getCompatibleSource() === x && buzz.free());
     });
 
     // Auto-enable audio in first user interaction.
@@ -285,6 +298,41 @@ class Engine {
     this._intervalId = window.setInterval(this.free, this._cleanUpInterval * 60 * 1000);
 
     this._state = this._context.state !== 'suspended' ? EngineState.Ready : EngineState.Suspended;
+
+    if (typeof src === 'object') {
+      Object.keys(src).forEach(x => this.register(src[x], x));
+
+      if (preload) {
+        const getCompatibleSrc = (sources) => {
+          return sources.map(x => {
+            let s = [], f = [];
+
+            if (typeof x === 'string') {
+              s = [x];
+            } else if (Array.isArray(x)) {
+              s = x;
+            } else if (typeof x === 'object') {
+              const { url, format = [] } = x;
+
+              if (typeof url === 'string') {
+                s = [url];
+              } else if (Array.isArray(url)) {
+                s = url;
+              }
+
+              f = format;
+            }
+
+            return this._getCompatibleSource(s, f);
+          });
+        };
+
+        const bufferUrls = getCompatibleSrc(Object.values(src).filter(x => !x.stream));
+        const mediaUrls = getCompatibleSrc(Object.values(src).filter(x => x.stream));
+
+        Promise.all([this.load(bufferUrls), this.loadMedia(mediaUrls)]).then(result => init && init(result));
+      }
+    }
 
     return this;
   }
@@ -324,7 +372,11 @@ class Engine {
       soundArgs = {};
 
     if (typeof idOrSoundArgs === 'string') {
-      audioSrc = [idOrSoundArgs];
+      if (idOrSoundArgs.startsWith('#')) {
+        ({ audioSrc, audioFormat, audioSprite } = this._getSourceInfo(idOrSoundArgs));
+      } else {
+        audioSrc = [idOrSoundArgs];
+      }
     } else if (Array.isArray(idOrSoundArgs)) {
       audioSrc = idOrSoundArgs;
     } else if (typeof idOrSoundArgs === 'object') {
@@ -347,7 +399,11 @@ class Engine {
       } = idOrSoundArgs;
 
       if (typeof src === 'string') {
-        audioSrc = [src];
+        if (src.startsWith('#')) {
+          ({ audioSrc, audioFormat, audioSprite } = this._getSourceInfo(src));
+        } else {
+          audioSrc = [src];
+        }
       } else if (Array.isArray(src)) {
         audioSrc = src;
       }
@@ -446,6 +502,7 @@ class Engine {
 
     // Stop all the sounds.
     this.buzzes().forEach(buzz => buzz.stop());
+    this.sounds().forEach(sound => sound.stop());
 
     // Fire the "stop" event.
     this._fire(EngineEvents.Stop);
@@ -454,7 +511,7 @@ class Engine {
   }
 
   /**
-   * Mutes the engine.
+   * Mutes the engine or the passed sound.
    * @param {number} [id] The sound id.
    * @return {Engine}
    */
@@ -483,7 +540,7 @@ class Engine {
   }
 
   /**
-   * Un-mutes the engine.
+   * Un-mutes the engine or the passed sound.
    * @param {number} [id] The sound id.
    * @return {Engine}
    */
@@ -512,12 +569,25 @@ class Engine {
   }
 
   /**
-   * Gets/sets the volume for the audio engine that controls global volume for all sounds.
+   * Gets/sets the volume for the audio engine or the passed sound.
    * @param {number} [vol] Should be within 0.0 to 1.0.
    * @param {number} [id] The sound id.
    * @return {Engine|number}
    */
   volume(vol, id) {
+    if (typeof id !== 'undefined') {
+      const sound = this.sound(id);
+
+      if (sound) {
+        if (vol === undefined) {
+          return sound.volume();
+        }
+
+        sound.volume(vol);
+        return this;
+      }
+    }
+
     // If no parameter is passed then return the current volume.
     if (vol === undefined) {
       return this._volume;
@@ -714,6 +784,9 @@ class Engine {
       // Destroy all the buzzes.
       this._buzzesArray.forEach(buzz => buzz.destroy());
 
+      // Destroy all sounds.
+      this._soundsArray.forEach(sound => sound.destroy());
+
       // Clear the cache and remove the loader.
       if (this._bufferLoader) {
         this._bufferLoader.dispose();
@@ -758,6 +831,45 @@ class Engine {
     }
 
     return this;
+  }
+
+  /**
+   * Assigns a short-hand key for the audio source.
+   * @param {string|Array<string>|object} src The audio source.
+   * @param {string|Array<string>} src.url The audio source.
+   * @param {string|Array<string>} src.format The audio formats.
+   * @param {object} src.sprite The sprite definition.
+   * @param {string} key The shorthand key to access it.
+   * @return {Engine}
+   */
+  register(src, key) {
+    if (this._sourceRegistry.hasOwnProperty(key)) {
+      return this;
+    }
+
+    this._sourceRegistry[key] = src;
+
+    return this;
+  }
+
+  /**
+   * Removes the assigned key for the audio source.
+   * @param {string} src The audio source.
+   * @param {string} key The shorthand key to access it.
+   * @return {Engine}
+   */
+  unregister(src, key) {
+    delete this._sourceRegistry[key];
+    return this;
+  }
+
+  /**
+   * Returns the source assigned for the key.
+   * @param {string} key The shorthand key.
+   * @return {*}
+   */
+  getSource(key) {
+    return this._sourceRegistry[key];
   }
 
   /**
@@ -1007,6 +1119,49 @@ class Engine {
    */
   inactiveTime() {
     return this._inactiveTime;
+  }
+
+  /**
+   * Returns source, format and sprite from the assigned key.
+   * @param {string} key The source key.
+   * @return {object}
+   * @private
+   */
+  _getSourceInfo(key) {
+    const src = this.getSource(key.substring(1));
+    const sourceInfo = {
+      audioSrc: [],
+      audioFormat: [],
+      audioSprite: null
+    };
+
+    if (typeof src === 'string') {
+      sourceInfo.audioSrc = [src];
+    } else if (Array.isArray(src)) {
+      sourceInfo.audioSrc = src;
+    } else if (typeof src === 'object') {
+      const {
+        url,
+        format,
+        sprite
+      } = src;
+
+      if (typeof url === 'string') {
+        sourceInfo.audioSrc = [url];
+      } else if (Array.isArray(url)) {
+        sourceInfo.audioSrc = url;
+      }
+
+      if (Array.isArray(format)) {
+        sourceInfo.format = format;
+      } else if (typeof format === 'string' && format) {
+        sourceInfo.format = [format];
+      }
+
+      typeof sprite === 'object' && (sourceInfo.sprite = sprite);
+    }
+
+    return sourceInfo;
   }
 
   /**
