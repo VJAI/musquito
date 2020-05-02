@@ -373,7 +373,12 @@ class Engine {
 
     if (typeof idOrSoundArgs === 'string') {
       if (idOrSoundArgs.startsWith('#')) {
-        ({ audioSrc, audioFormat, audioSprite } = this._getSourceInfo(idOrSoundArgs));
+        const parts = idOrSoundArgs.split('.'),
+          key = parts[0].substring(1);
+
+        spriteSound = parts[1];
+
+        ({ audioSrc, audioFormat, audioSprite } = this._getSourceInfo(key));
       } else {
         audioSrc = [idOrSoundArgs];
       }
@@ -400,7 +405,10 @@ class Engine {
 
       if (typeof src === 'string') {
         if (src.startsWith('#')) {
-          ({ audioSrc, audioFormat, audioSprite } = this._getSourceInfo(src));
+          const parts = src.split('.'),
+            key = parts[0].substring(1);
+
+          ({ audioSrc, audioFormat, audioSprite } = this._getSourceInfo(key));
         } else {
           audioSrc = [src];
         }
@@ -1128,7 +1136,7 @@ class Engine {
    * @private
    */
   _getSourceInfo(key) {
-    const src = this.getSource(key.substring(1));
+    const src = this.getSource(key);
     const sourceInfo = {
       audioSrc: [],
       audioFormat: [],
@@ -1158,7 +1166,7 @@ class Engine {
         sourceInfo.format = [format];
       }
 
-      typeof sprite === 'object' && (sourceInfo.sprite = sprite);
+      typeof sprite === 'object' && (sourceInfo.audioSprite = sprite);
     }
 
     return sourceInfo;

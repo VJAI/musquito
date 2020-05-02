@@ -161,6 +161,13 @@ class Sound {
   _playEndCallback = null;
 
   /**
+   * The callback that will be invoked after the position changed.
+   * @type {function}
+   * @private
+   */
+  _seekCallback = null;
+
+  /**
    * The callback that will be invoked after the sound destroyed.
    * @type {function}
    * @private
@@ -259,6 +266,7 @@ class Sound {
    * @param {number} [args.endPos] The playback end position.
    * @param {function} [args.loadCallback] The callback that will be called when the underlying HTML5 audio node is loaded.
    * @param {function} [args.playEndCallback] The callback that will be invoked after the play ends.
+   * @param {function} [args.seekCallback] The callback that will be invoked after the position changed.
    * @param {function} [args.destroyCallback] The callback that will be invoked after destroyed.
    * @param {function} [args.fadeEndCallback] The callback that will be invoked the fade is completed.
    * @param {function} [args.audioErrorCallback] The callback that will be invoked when there is error in HTML5 audio node.
@@ -283,6 +291,7 @@ class Sound {
       endPos,
       loadCallback,
       playEndCallback,
+      seekCallback,
       destroyCallback,
       fadeEndCallback,
       audioErrorCallback
@@ -307,12 +316,13 @@ class Sound {
     endPos && (this._endPos = endPos);
     this._loadCallback = loadCallback;
     this._playEndCallback = playEndCallback;
+    this._seekCallback = seekCallback;
     this._destroyCallback = destroyCallback;
     this._fadeEndCallback = fadeEndCallback;
     this._audioErrorCallback = audioErrorCallback;
 
     this._duration = this._endPos - this._startPos;
-    this._isSprite = this._duration < this._endPos;
+    this._isSprite = typeof endPos !== 'undefined';
 
     // If stream is `true` then set the playback rate, looping and listen to `error` event.
     if (this._stream && this._audio) {
@@ -346,7 +356,7 @@ class Sound {
 
     if (this._stream) {
       this._audio = source;
-      this._endPos = this._audio.duration;
+      !this._isSprite && (this._endPos = this._audio.duration);
       this._audio.playbackRate = this._rate;
 
       this._setLoop(this._loop);
@@ -356,10 +366,11 @@ class Sound {
       this._mediaElementAudioSourceNode.connect(this._gainNode);
     } else {
       this._buffer = source;
-      this._endPos = this._buffer.duration;
+      !this._isSprite && (this._endPos = this._buffer.duration);
     }
 
     this._sourceExists = true;
+    this._duration = this._endPos - this._startPos;
     this._loaded = true;
   }
 
@@ -376,10 +387,7 @@ class Sound {
 
     this._audio.addEventListener('canplaythrough', this._onCanPlayThrough);
     this._audio.currentTime = 0;
-
-    if (this._audio.readyState >= 3) {
-      this._onCanPlayThrough();
-    }
+    this.canPlay() && this._onCanPlayThrough();
   }
 
   /**
@@ -776,6 +784,14 @@ class Sound {
    */
   isPersistent() {
     return this._persist;
+  }
+
+  /**
+   * Returns true if the audio can play without delay.
+   * @return {boolean}
+   */
+  canPlay() {
+    return this._audio ? this._audio.readyState >= 3 : false;
   }
 
   /**
