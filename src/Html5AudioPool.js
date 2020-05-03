@@ -14,6 +14,13 @@ class Html5AudioPool {
   _maxNodesPerSource = 100;
 
   /**
+   * Inactive time of sound/HTML5 audio.
+   * @type {number}
+   * @private
+   */
+  _inactiveTime = 2;
+
+  /**
    * The sounds store.
    * @type {function}
    * @private
@@ -37,10 +44,12 @@ class Html5AudioPool {
   /**
    * Constructor
    * @param {number} maxNodesPerSource Maximum number of audio nodes allowed for a resource.
+   * @param {number} inactiveTime The period after which HTML5 audio node is marked as inactive.
    * @param {function} soundCleanUpCallback The inactive sounds cleanup callback.
    */
-  constructor(maxNodesPerSource, soundCleanUpCallback) {
+  constructor(maxNodesPerSource, inactiveTime, soundCleanUpCallback) {
     this._maxNodesPerSource = maxNodesPerSource;
+    this._inactiveTime = inactiveTime;
     this._soundCleanUpCallback = soundCleanUpCallback;
   }
 
@@ -57,7 +66,7 @@ class Html5AudioPool {
       { unallocated } = nodes;
 
     const audio = new Audio();
-    unallocated.push(audio);
+    unallocated.push({ audio: audio, time: new Date() });
 
     return audio;
   }
@@ -74,9 +83,9 @@ class Html5AudioPool {
 
     const nodes = this._resourceNodesMap[src],
       { unallocated, allocated } = nodes,
-      audio = unallocated.length ? unallocated.shift() : new Audio();
+      audio = unallocated.length ? unallocated.shift().audio : new Audio();
 
-    allocated[groupId].push(audio);
+    allocated[groupId].push({ soundId: null, audio: audio, time: new Date() });
 
     return audio;
   }
@@ -85,21 +94,23 @@ class Html5AudioPool {
    * Allocates the pre-loaded HTML5 audio node to a sound.
    * @param {string} src The audio file url.
    * @param {number} groupId The group id.
+   * @param {number} soundId The sound id.
    * @return {Audio}
    */
-  allocateForSound(src, groupId) {
+  allocateForSound(src, groupId, soundId) {
     this._createGroup(src, groupId);
 
     const nodes = this._resourceNodesMap[src],
-      { allocated } = nodes;
+      { allocated } = nodes,
+      notAllocatedAudioObj = allocated[groupId].find(x => x.soundId === null);
 
-    const groupSounds = allocated[groupId];
-
-    if (!groupSounds.length) {
+    if (!notAllocatedAudioObj) {
       throw new Error(`No free audio nodes available in the group ${groupId}`);
     }
 
-    return groupSounds.shift();
+    notAllocatedAudioObj.soundId = soundId;
+
+    return notAllocatedAudioObj.audio;
   }
 
   /**
@@ -117,7 +128,7 @@ class Html5AudioPool {
     const nodes = this._resourceNodesMap[src],
       { unallocated, allocated } = nodes;
 
-    unallocated.forEach(x => this._destroyNode(x));
+    unallocated.forEach(x => this._destroyNode(x.audio));
 
     Object.keys(allocated).forEach(groupId => this.releaseForGroup(src, groupId));
 
@@ -133,26 +144,32 @@ class Html5AudioPool {
     const nodes = this._resourceNodesMap[src],
       { allocated } = nodes;
 
-    allocated[groupId].forEach(audio => this._destroyNode(audio));
+    allocated[groupId].map(x => x.audio).forEach(node => this._destroyNode(node));
     delete allocated[groupId];
   }
 
   /**
    * Destroys the audio node reserved for sound.
    * @param {string} src The audio file url.
-   * @param {Audio} audio The sound id.
+   * @param {number|Audio} soundIdOrAudio The sound id or audio.
    * @param {number} groupId The buzz id.
    */
-  releaseAudio(src, audio, groupId) {
+  releaseAudio(src, soundIdOrAudio, groupId) {
     const nodes = this._resourceNodesMap[src],
       { allocated, unallocated } = nodes;
 
-    this._destroyNode(audio);
+    if (soundIdOrAudio instanceof Audio) {
+      this._destroyNode(soundIdOrAudio);
 
-    if (groupId) {
-      allocated[groupId] = allocated[groupId].filter(x => x !== audio);
+      if (groupId) {
+        allocated[groupId] = allocated[groupId].filter(x => x.audio !== soundIdOrAudio);
+      } else {
+        nodes.unallocated = unallocated.filter(x => x.audio !== soundIdOrAudio);
+      }
     } else {
-      nodes.unallocated = unallocated.filter(x => x !== audio);
+      const allocatedAudioObj = allocated[groupId].find(x => x.soundId === soundIdOrAudio);
+      this._destroyNode(allocatedAudioObj.audio);
+      allocated[groupId] = allocated[groupId].filter(x => x.soundId !== soundIdOrAudio);
     }
 
     groupId && !allocated[groupId].length && delete allocated[groupId];
@@ -160,21 +177,28 @@ class Html5AudioPool {
   }
 
   /**
-   * Acquires the unallocated audio nodes and removes the excess ones.
+   * Removes inactive HTML5 audio nodes.
    */
   cleanUp() {
+    const now = new Date();
+
     Object.keys(this._resourceNodesMap).forEach(src => {
       const nodes = this._resourceNodesMap[src],
         { unallocated, allocated } = nodes;
 
-      let audioNodes = [];
-
       Object.keys(allocated).forEach(groupId => {
-        audioNodes = [...audioNodes, ...allocated[groupId]];
-        delete allocated[groupId];
+        const inactiveNodes = allocated[groupId]
+          .filter(x => x.soundId === null && ((now - x.time) / 1000 < this._inactiveTime * 60));
+
+        allocated[groupId] = allocated[groupId].filter(x => inactiveNodes.indexOf(x) === -1);
+
+        inactiveNodes.forEach(x => this._destroyNode(x.audio));
       });
 
-      nodes.unallocated = [...unallocated, ...audioNodes].slice(0, this._maxNodesPerSource);
+      const inactiveNodes = unallocated.filter(x => ((now - x.time) / 1000 < this._inactiveTime * 60));
+      nodes.unallocated = unallocated.filter(x => inactiveNodes.indexOf(x) === -1);
+
+      inactiveNodes.forEach(x => this._destroyNode(x.audio));
     });
   }
 
@@ -199,7 +223,7 @@ class Html5AudioPool {
     const nodes = this._resourceNodesMap[src],
       { unallocated, allocated } = nodes;
 
-    return !groupId ? unallocated.length > 0 : allocated[groupId].length > 0;
+    return !groupId ? unallocated.length > 0 : allocated[groupId].filter(x => x.soundId === null).length > 0;
   }
 
   /**
@@ -238,7 +262,7 @@ class Html5AudioPool {
   }
 
   /**
-   * Chekcks and throws error if max audio nodes reached for the passed resource.
+   * Checks and throws error if max audio nodes reached for the passed resource.
    * @param {string} src The source url.
    * @private
    */
@@ -261,6 +285,7 @@ class Html5AudioPool {
     }
 
     if (!this._cleanUpCalled) {
+      this.cleanUp();
       this._soundCleanUpCallback(src);
       this._cleanUpCalled = true;
       this._checkMaxNodesForSrc(src);

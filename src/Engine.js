@@ -105,7 +105,7 @@ class Engine {
   _cleanUpInterval = 5;
 
   /**
-   * Inactive time of sound.
+   * Inactive time of sound/HTML5 audio.
    * @type {number}
    * @private
    */
@@ -212,6 +212,7 @@ class Engine {
    * @param {boolean} [args.muted = false] Stay muted initially or not.
    * @param {number} [args.maxNodesPerSource = 10] Maximum number of HTML5 audio objects allowed for a url.
    * @param {number} [args.cleanUpInterval = 5] The sounds garbage collection interval period in minutes.
+   * @param {number} [args.inactiveTime = 2] The period after which sound/HTML5 audio node is marked as inactive.
    * @param {boolean} [args.autoEnable = true] Auto-enables audio in first user interaction.
    * @param {object} [args.src] The audio sources.
    * @param {boolean} [args.preload = true] True to preload audio sources.
@@ -249,6 +250,7 @@ class Engine {
       muted,
       maxNodesPerSource,
       cleanUpInterval,
+      inactiveTime,
       autoEnable,
       src,
       preload = true,
@@ -267,6 +269,7 @@ class Engine {
     typeof muted === 'boolean' && (this._muted = muted);
     typeof maxNodesPerSource === 'number' && (this._maxNodesPerSource = maxNodesPerSource);
     typeof cleanUpInterval === 'number' && (this._cleanUpInterval = cleanUpInterval);
+    typeof inactiveTime === 'number' && (this._inactiveTime = inactiveTime);
     typeof autoEnable === 'boolean' && (this._autoEnable = autoEnable);
     typeof onstop === 'function' && this.on(EngineEvents.Stop, onstop);
     typeof onmute === 'function' && this.on(EngineEvents.Mute, onmute);
@@ -280,7 +283,8 @@ class Engine {
     this._bufferLoader = new BufferLoader(this._context);
 
     // Create the media loader.
-    this._mediaLoader = new MediaLoader(this._maxNodesPerSource, (x) => {
+    this._mediaLoader = new MediaLoader(this._maxNodesPerSource, this._inactiveTime, (x) => {
+      this._freeSounds();
       this._buzzesArray.forEach(buzz => buzz.getCompatibleSource() === x && buzz.free());
     });
 
@@ -455,8 +459,11 @@ class Engine {
       return this;
     }
 
+    const compatibleSrc = this._getCompatibleSource(audioSrc, audioFormat);
+
     soundArgs.destroyCallback = (sound) => {
       this._removeSound(sound);
+      this.releaseForSound(compatibleSrc, this._id, sound.id());
       destroyCallback && destroyCallback(sound);
     };
 
@@ -470,7 +477,6 @@ class Engine {
     sound._gain().connect(this._gainNode);
     this._soundsArray.push(sound);
 
-    const compatibleSrc = this._getCompatibleSource(audioSrc, audioFormat);
     const load$ = stream ? this.allocateForGroup(compatibleSrc, this._id) : this.load(compatibleSrc);
 
     load$.then(downloadResult => {
@@ -808,6 +814,7 @@ class Engine {
       }
 
       this._buzzesArray = [];
+      this._soundsArray = [];
       this._context = null;
       this._queue.clear();
       this._queue = null;
@@ -989,6 +996,16 @@ class Engine {
   }
 
   /**
+   * Destroys the audio node reserved for sound.
+   * @param {string} src The audio file url.
+   * @param {number} groupId The buzz id.
+   * @param {number} soundId The sound id.
+   */
+  releaseForSound(src, groupId, soundId) {
+    this._mediaLoader.releaseForSound(src, groupId, soundId);
+  }
+
+  /**
    * Returns if there are free audio nodes available for a group.
    * @param {string} src The audio file url.
    * @param {number} groupId The group id.
@@ -1026,6 +1043,7 @@ class Engine {
    * @return {Engine}
    */
   free() {
+    this._freeSounds();
     this._buzzesArray.forEach(buzz => buzz.free());
     this._mediaLoader.cleanUp();
     return this;
@@ -1246,6 +1264,28 @@ class Engine {
     }
 
     sound.play();
+  }
+
+  /**
+   * Destroys inactive sounds.
+   * @private
+   */
+  _freeSounds() {
+    const now = new Date();
+
+    this._soundsArray = this._soundsArray.filter(sound => {
+      const inactiveDurationInSeconds = (now - sound.lastPlayed()) / 1000;
+
+      if (sound.isPersistent() ||
+        sound.isPlaying() ||
+        sound.isPaused() ||
+        inactiveDurationInSeconds < this.inactiveTime() * 60) {
+        return true;
+      }
+
+      sound.destroy();
+      return false;
+    });
   }
 }
 

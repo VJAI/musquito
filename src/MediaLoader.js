@@ -31,10 +31,11 @@ class MediaLoader {
   /**
    * Creates the audio pool.
    * @param {number} maxNodesPerSource Maximum number of audio nodes allowed for a url.
+   * @param {number} inactiveTime The period after which HTML5 audio node is marked as inactive.
    * @param {function} soundCleanUpCallback The inactive sounds cleanup callback.
    */
-  constructor(maxNodesPerSource, soundCleanUpCallback) {
-    this._audioPool = new Html5AudioPool(maxNodesPerSource, soundCleanUpCallback);
+  constructor(maxNodesPerSource, inactiveTime, soundCleanUpCallback) {
+    this._audioPool = new Html5AudioPool(maxNodesPerSource, inactiveTime, soundCleanUpCallback);
   }
 
   /**
@@ -106,6 +107,16 @@ class MediaLoader {
       .forEach(a => this._cleanUp(a));
 
     this._audioPool.releaseForGroup(url, groupId);
+  }
+
+  /**
+   * Destroys the audio node reserved for sound.
+   * @param {string} src The audio file url.
+   * @param {number} groupId The buzz id.
+   * @param {number} soundId The sound id.
+   */
+  releaseForSound(src, groupId, soundId) {
+    this._audioPool.releaseAudio(src, groupId, soundId);
   }
 
   /**
