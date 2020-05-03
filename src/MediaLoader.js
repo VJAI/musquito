@@ -179,7 +179,7 @@ class MediaLoader {
 
         const audioObj = this._bufferingAudios.find(obj => obj.audio === audio);
         audioObj && this._cleanUp(audioObj);
-        this._audioPool.releaseAudio(url, audio, groupId);
+        this._audioPool.releaseAudio(url, groupId, audio);
         resolve(new DownloadResult(url, null, err));
       };
 

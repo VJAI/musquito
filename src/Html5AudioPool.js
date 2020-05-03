@@ -151,10 +151,10 @@ class Html5AudioPool {
   /**
    * Destroys the audio node reserved for sound.
    * @param {string} src The audio file url.
-   * @param {number|Audio} soundIdOrAudio The sound id or audio.
    * @param {number} groupId The buzz id.
+   * @param {number|Audio} soundIdOrAudio The sound id or audio.
    */
-  releaseAudio(src, soundIdOrAudio, groupId) {
+  releaseAudio(src, groupId, soundIdOrAudio) {
     const nodes = this._resourceNodesMap[src],
       { allocated, unallocated } = nodes;
 
@@ -188,14 +188,14 @@ class Html5AudioPool {
 
       Object.keys(allocated).forEach(groupId => {
         const inactiveNodes = allocated[groupId]
-          .filter(x => x.soundId === null && ((now - x.time) / 1000 < this._inactiveTime * 60));
+          .filter(x => x.soundId === null && ((now - x.time) / 1000 > this._inactiveTime * 60));
 
         allocated[groupId] = allocated[groupId].filter(x => inactiveNodes.indexOf(x) === -1);
 
         inactiveNodes.forEach(x => this._destroyNode(x.audio));
       });
 
-      const inactiveNodes = unallocated.filter(x => ((now - x.time) / 1000 < this._inactiveTime * 60));
+      const inactiveNodes = unallocated.filter(x => ((now - x.time) / 1000 > this._inactiveTime * 60));
       nodes.unallocated = unallocated.filter(x => inactiveNodes.indexOf(x) === -1);
 
       inactiveNodes.forEach(x => this._destroyNode(x.audio));
