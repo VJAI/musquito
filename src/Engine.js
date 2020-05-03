@@ -216,6 +216,7 @@ class Engine {
    * @param {boolean} [args.autoEnable = true] Auto-enables audio in first user interaction.
    * @param {object} [args.src] The audio sources.
    * @param {boolean} [args.preload = true] True to preload audio sources.
+   * @param {function} [args.progress] The function that's called to notify the progress of resources loaded.
    * @param {function} [args.init] The function that's called after resources are loaded.
    * @param {function} [args.onstop] Event-handler for the "stop" event.
    * @param {function} [args.onmute] Event-handler for the "mute" event.
@@ -254,6 +255,7 @@ class Engine {
       autoEnable,
       src,
       preload = true,
+      progress,
       init,
       onstop,
       onmute,
@@ -334,7 +336,7 @@ class Engine {
         const bufferUrls = getCompatibleSrc(Object.values(src).filter(x => !x.stream));
         const mediaUrls = getCompatibleSrc(Object.values(src).filter(x => x.stream));
 
-        Promise.all([this.load(bufferUrls), this.loadMedia(mediaUrls)]).then(result => init && init(result));
+        Promise.all([this.load(bufferUrls, progress), this.loadMedia(mediaUrls)]).then(result => init && init(result));
       }
     }
 
