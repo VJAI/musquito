@@ -214,7 +214,7 @@ The parameters you can pass to the `setup` method are below.
 | Method | Returns | Description |
 |--------|:-------:|-------------|
 | setup(args?: object) | $buzz | Sets-up the audio engine. The different parameters you can pass in arguments object are `volume`, `muted`, `maxNodesPerSource`, `cleanUpInterval`, `autoEnable`, `src`, `preload`, `progress` and event handler functions like `oninit`, `onstop`, `onmute`, `onvolume`, `onsuspend`, `onresume`, `onerror` and `ondone`. |
-| play(idOrSoundArgs: number|string|Array<string>|object) | $buzz,number | Creates and plays a new sound or the existing sound for the passed id. Returns sound id if new one is created. |
+| play(idOrSoundArgs: number,string,Array<string>,object) | $buzz,number | Creates and plays a new sound or the existing sound for the passed id. Returns sound id if new one is created. |
 | pause(id: number) | $buzz | Pauses the sound for the passed id. |
 | stop(id?: number) | $buzz | Stops the sound for the passed id or all the playing sounds. Stopping engine fires the "stop" event. |
 | mute(id?: number) | $buzz | Mutes the sound if id is passed or the engine. Fires the "mute" event if engine is muted. |
