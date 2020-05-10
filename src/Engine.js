@@ -1,8 +1,10 @@
-import BufferLoader from './BufferLoader';
-import MediaLoader  from './MediaLoader';
-import emitter      from './Emitter';
-import Queue        from './Queue';
-import utility      from './Utility';
+import BufferLoader   from './BufferLoader';
+import MediaLoader    from './MediaLoader';
+import emitter        from './Emitter';
+import Queue          from './Queue';
+import utility        from './Utility';
+import Sound          from './Sound';
+import DownloadStatus from './DownloadStatus';
 
 /**
  * Enum that represents the different type of errors thrown by Engine and Buzzes.
@@ -35,6 +37,7 @@ const EngineState = {
  * @enum {string}
  */
 const EngineEvents = {
+  Init: 'init',
   Volume: 'volume',
   Mute: 'mute',
   Stop: 'stop',
@@ -103,7 +106,7 @@ class Engine {
   _cleanUpInterval = 5;
 
   /**
-   * Inactive time of sound.
+   * Inactive time of sound/HTML5 audio.
    * @type {number}
    * @private
    */
@@ -166,6 +169,13 @@ class Engine {
   _buzzesArray = [];
 
   /**
+   * Array of sounds created directly by engine.
+   * @type {Array<Sound>}
+   * @private
+   */
+  _soundsArray = [];
+
+  /**
    * Loader - the component that loads audio buffers with audio data.
    * @type {BufferLoader}
    * @private
@@ -178,6 +188,13 @@ class Engine {
    * @private
    */
   _mediaLoader = null;
+
+  /**
+   * Registry of audio sources, sprites with short-hand notations.
+   * @type {object}
+   * @private
+   */
+  _sourceRegistry = {};
 
   /**
    * Instantiates the action queue.
@@ -196,7 +213,12 @@ class Engine {
    * @param {boolean} [args.muted = false] Stay muted initially or not.
    * @param {number} [args.maxNodesPerSource = 10] Maximum number of HTML5 audio objects allowed for a url.
    * @param {number} [args.cleanUpInterval = 5] The sounds garbage collection interval period in minutes.
+   * @param {number} [args.inactiveTime = 2] The period after which sound/HTML5 audio node is marked as inactive.
    * @param {boolean} [args.autoEnable = true] Auto-enables audio in first user interaction.
+   * @param {object} [args.src] The audio sources.
+   * @param {boolean} [args.preload = true] True to preload audio sources.
+   * @param {function} [args.progress] The function that's called to notify the progress of resources loaded.
+   * @param {function} [args.oninit] Event-handler for the "init" event.
    * @param {function} [args.onstop] Event-handler for the "stop" event.
    * @param {function} [args.onmute] Event-handler for the "mute" event.
    * @param {function} [args.onvolume] Event-handler for the "volume" event.
@@ -230,7 +252,12 @@ class Engine {
       muted,
       maxNodesPerSource,
       cleanUpInterval,
+      inactiveTime,
       autoEnable,
+      src,
+      preload = true,
+      progress,
+      oninit,
       onstop,
       onmute,
       onvolume,
@@ -245,7 +272,9 @@ class Engine {
     typeof muted === 'boolean' && (this._muted = muted);
     typeof maxNodesPerSource === 'number' && (this._maxNodesPerSource = maxNodesPerSource);
     typeof cleanUpInterval === 'number' && (this._cleanUpInterval = cleanUpInterval);
+    typeof inactiveTime === 'number' && (this._inactiveTime = inactiveTime);
     typeof autoEnable === 'boolean' && (this._autoEnable = autoEnable);
+    typeof oninit === 'function' && this.on(EngineEvents.Init, oninit);
     typeof onstop === 'function' && this.on(EngineEvents.Stop, onstop);
     typeof onmute === 'function' && this.on(EngineEvents.Mute, onmute);
     typeof onvolume === 'function' && this.on(EngineEvents.Volume, onvolume);
@@ -258,8 +287,9 @@ class Engine {
     this._bufferLoader = new BufferLoader(this._context);
 
     // Create the media loader.
-    this._mediaLoader = new MediaLoader(this._maxNodesPerSource, (src) => {
-      this._buzzesArray.forEach(buzz => buzz.getCompatibleSource() === src && buzz.free());
+    this._mediaLoader = new MediaLoader(this._maxNodesPerSource, this._inactiveTime, (x) => {
+      this._freeSounds();
+      this._buzzesArray.forEach(buzz => buzz.getCompatibleSource() === x && buzz.free());
     });
 
     // Auto-enable audio in first user interaction.
@@ -277,7 +307,591 @@ class Engine {
 
     this._state = this._context.state !== 'suspended' ? EngineState.Ready : EngineState.Suspended;
 
+    if (typeof src === 'object') {
+      Object.keys(src).forEach(x => this.register(src[x], x));
+
+      if (preload) {
+        const getCompatibleSrc = (sources) => {
+          return sources.map(x => {
+            let s = [], f = [];
+
+            if (typeof x === 'string') {
+              s = [x];
+            } else if (Array.isArray(x)) {
+              s = x;
+            } else if (typeof x === 'object') {
+              const { url, format = [] } = x;
+
+              if (typeof url === 'string') {
+                s = [url];
+              } else if (Array.isArray(url)) {
+                s = url;
+              }
+
+              f = format;
+            }
+
+            return this._getCompatibleSource(s, f);
+          });
+        };
+
+        const bufferUrls = getCompatibleSrc(Object.values(src).filter(x => !x.stream));
+        const mediaUrls = getCompatibleSrc(Object.values(src).filter(x => x.stream));
+
+        Promise.all([this.load(bufferUrls, progress), this.loadMedia(mediaUrls)])
+          .then(result => this._fire(EngineEvents.Init, result));
+      } else {
+        this._fire(EngineEvents.Init);
+      }
+    }
+
     return this;
+  }
+
+  /**
+   * Plays the sound belongs to the passed id or creates a new sound and play it.
+   * @param {number|string|Array<string>|object} idOrSoundArgs The sound id or new sound arguments.
+   * @param {number} [idOrSoundArgs.id] The unique id of the sound.
+   * @param {string|Array<string>} [idOrSoundArgs.src] Single or array of audio urls/base64 strings.
+   * @param {string|string[]} [idOrSoundArgs.format] The file format(s) of the passed audio source(s).
+   * @param {object} [idOrSoundArgs.sprite] The sprite definition.
+   * @param {string} [idOrSoundArgs.sound] The sound defined in sprite to play.
+   * @param {boolean} [idOrSoundArgs.stream = false] True to use HTML5 audio node for playing sound.
+   * @param {number} [idOrSoundArgs.volume = 1.0] The initial volume of the sound. Should be from 0.0 to 1.0.
+   * @param {number} [idOrSoundArgs.rate = 1] The initial playback rate of the sound. Should be from 0.5 to 5.0.
+   * @param {boolean} [idOrSoundArgs.loop = false] True to play the sound repeatedly.
+   * @param {boolean} [idOrSoundArgs.muted = false] True to be muted initially.
+   * @param {function} [idOrSoundArgs.loadCallback] The callback that will be called when the underlying HTML5 audio node is loaded.
+   * @param {function} [idOrSoundArgs.playEndCallback] The callback that will be invoked after the play ends.
+   * @param {function} [idOrSoundArgs.destroyCallback] The callback that will be invoked after destroyed.
+   * @param {function} [idOrSoundArgs.fadeEndCallback] The callback that will be invoked the fade is completed.
+   * @param {function} [idOrSoundArgs.audioErrorCallback] The callback that will be invoked when there is error in HTML5 audio node.
+   * @return {Engine|number}
+   */
+  play(idOrSoundArgs) {
+    // If id is passed then get the sound from the engine and play it.
+    if (typeof idOrSoundArgs === 'number') {
+      const sound = this.sound(idOrSoundArgs);
+      sound && sound.play();
+      return this;
+    }
+
+    let audioSrc = [],
+      audioFormat = [],
+      audioSprite = null,
+      spriteSound = null,
+      soundArgs = {};
+
+    if (typeof idOrSoundArgs === 'string') {
+      if (idOrSoundArgs.startsWith('#')) {
+        const parts = idOrSoundArgs.split('.'),
+          key = parts[0].substring(1);
+
+        spriteSound = parts[1];
+
+        ({ audioSrc, audioFormat, audioSprite } = this._getSourceInfo(key));
+      } else {
+        audioSrc = [idOrSoundArgs];
+      }
+    } else if (Array.isArray(idOrSoundArgs)) {
+      audioSrc = idOrSoundArgs;
+    } else if (typeof idOrSoundArgs === 'object') {
+      const {
+        id,
+        src,
+        format,
+        sprite,
+        sound,
+        stream,
+        volume,
+        rate,
+        loop,
+        muted,
+        loadCallback,
+        playEndCallback,
+        destroyCallback,
+        fadeEndCallback,
+        audioErrorCallback
+      } = idOrSoundArgs;
+
+      if (typeof src === 'string') {
+        if (src.startsWith('#')) {
+          const parts = src.split('.'),
+            key = parts[0].substring(1);
+
+          ({ audioSrc, audioFormat, audioSprite } = this._getSourceInfo(key));
+        } else {
+          audioSrc = [src];
+        }
+      } else if (Array.isArray(src)) {
+        audioSrc = src;
+      }
+
+      if (Array.isArray(format)) {
+        audioFormat = format;
+      } else if (typeof format === 'string' && format) {
+        audioFormat = [format];
+      }
+
+      typeof id === 'number' && (soundArgs.id = id);
+      typeof sprite === 'object' && (audioSprite = sprite);
+      typeof sound === 'string' && (spriteSound = sound);
+      typeof stream === 'boolean' && (soundArgs.stream = stream);
+      typeof volume === 'number' && volume >= 0 && volume <= 1.0 && (soundArgs.volume = volume);
+      typeof rate === 'number' && rate >= 0.5 && rate <= 5 && (soundArgs.rate = rate);
+      typeof muted === 'boolean' && (soundArgs.muted = muted);
+      typeof loop === 'boolean' && (soundArgs.loop = loop);
+      typeof loadCallback === 'function' && (soundArgs.loadCallback = loadCallback);
+      typeof playEndCallback === 'function' && (soundArgs.playEndCallback = playEndCallback);
+      typeof destroyCallback === 'function' && (soundArgs.destroyCallback = destroyCallback);
+      typeof fadeEndCallback === 'function' && (soundArgs.fadeEndCallback = fadeEndCallback);
+      typeof audioErrorCallback === 'function' && (soundArgs.audioErrorCallback = audioErrorCallback);
+    }
+
+    if (!audioSrc.length) {
+      throw new Error('You should pass the source for the audio.');
+    }
+
+    this.setup();
+
+    const {
+      stream,
+      loadCallback,
+      audioErrorCallback,
+      destroyCallback
+    } = soundArgs;
+
+    if (!this.isAudioAvailable()) {
+      audioErrorCallback && audioErrorCallback({ type: ErrorType.NoAudio, error: 'Web Audio is un-available' });
+      return this;
+    }
+
+    const compatibleSrc = this._getCompatibleSource(audioSrc, audioFormat);
+
+    soundArgs.destroyCallback = (sound) => {
+      this._removeSound(sound);
+      this.releaseForSound(compatibleSrc, this._id, sound.id());
+      destroyCallback && destroyCallback(sound);
+    };
+
+    if (typeof spriteSound === 'string' && audioSprite && audioSprite.hasOwnProperty(spriteSound)) {
+      const positions = audioSprite[spriteSound];
+      soundArgs.startPos = positions[0];
+      soundArgs.endPos = positions[1];
+    }
+
+    const sound = new Sound(soundArgs);
+    sound._gain().connect(this._gainNode);
+    this._soundsArray.push(sound);
+
+    const load$ = stream ? this.allocateForGroup(compatibleSrc, this._id) : this.load(compatibleSrc);
+
+    load$.then(downloadResult => {
+      if (downloadResult.status === DownloadStatus.Success) {
+        sound.source(stream ? this.allocateForSound(compatibleSrc, this._id, sound.id()) : downloadResult.value);
+        this._play(sound);
+      }
+
+      loadCallback && loadCallback(downloadResult, sound);
+    });
+
+    return sound.id();
+  }
+
+  /**
+   * Pauses the sound.
+   * @param {number} id The sound id.
+   * @return {Engine}
+   */
+  pause(id) {
+    const sound = this.sound(id);
+    sound && sound.pause();
+    return this;
+  }
+
+  /**
+   * Stops all the currently playing sounds.
+   * @param {number} [id] The sound id.
+   * @return {Engine}
+   */
+  stop(id) {
+    if (typeof id !== 'undefined') {
+      const sound = this.sound(id);
+      sound && sound.stop();
+      return this;
+    }
+
+    // Stop all the sounds.
+    this.buzzes().forEach(buzz => buzz.stop());
+    this.sounds().forEach(sound => sound.stop());
+
+    // Fire the "stop" event.
+    this._fire(EngineEvents.Stop);
+
+    return this;
+  }
+
+  /**
+   * Mutes the engine or the passed sound.
+   * @param {number} [id] The sound id.
+   * @return {Engine}
+   */
+  mute(id) {
+    if (typeof id !== 'undefined') {
+      const sound = this.sound(id);
+      sound && sound.mute();
+      return this;
+    }
+
+    // If the engine is already muted return.
+    if (this._muted) {
+      return this;
+    }
+
+    // Set the value of gain node to 0.
+    this._gainNode.gain.setValueAtTime(0, this._context.currentTime);
+
+    // Set the muted property true.
+    this._muted = true;
+
+    // Fire the "mute" event.
+    this._fire(EngineEvents.Mute, this._muted);
+
+    return this;
+  }
+
+  /**
+   * Un-mutes the engine or the passed sound.
+   * @param {number} [id] The sound id.
+   * @return {Engine}
+   */
+  unmute(id) {
+    if (typeof id !== 'undefined') {
+      const sound = this.sound(id);
+      sound && sound.unmute();
+      return this;
+    }
+
+    // If the engine is not muted return.
+    if (!this._muted) {
+      return this;
+    }
+
+    // Reset the gain node's value back to volume.
+    this._gainNode.gain.setValueAtTime(this._volume, this._context.currentTime);
+
+    // Set the muted property to false.
+    this._muted = false;
+
+    // Fire the "mute" event.
+    this._fire(EngineEvents.Mute, this._muted);
+
+    return this;
+  }
+
+  /**
+   * Gets/sets the volume for the audio engine or the passed sound.
+   * @param {number} [vol] Should be within 0.0 to 1.0.
+   * @param {number} [id] The sound id.
+   * @return {Engine|number}
+   */
+  volume(vol, id) {
+    if (typeof id !== 'undefined') {
+      const sound = this.sound(id);
+
+      if (sound) {
+        if (vol === undefined) {
+          return sound.volume();
+        }
+
+        sound.volume(vol);
+        return this;
+      }
+    }
+
+    // If no parameter is passed then return the current volume.
+    if (vol === undefined) {
+      return this._volume;
+    }
+
+    // If passed volume is not an acceptable value return.
+    if (typeof vol !== 'number' || vol < 0 || vol > 1.0) {
+      return this;
+    }
+
+    // Set the gain's value to the passed volume.
+    this._gainNode.gain.setValueAtTime(this._muted ? 0 : vol, this._context.currentTime);
+
+    // Set the volume to the property.
+    this._volume = vol;
+
+    // Fire the "volume" event.
+    this._fire(EngineEvents.Volume, this._volume);
+
+    return this;
+  }
+
+  /**
+   * Fades the sound volume to the passed value in the passed duration.
+   * @param {number} id The sound id.
+   * @param {number} to The destination volume.
+   * @param {number} duration The period of fade.
+   * @param {string} [type = linear] The fade type (linear or exponential).
+   * @return {Engine}
+   */
+  fade(id, to, duration, type = 'linear') {
+    const sound = this.sound(id);
+    sound && sound.fade(to, duration, type);
+    return this;
+  }
+
+  /**
+   * Stops the current running fade.
+   * @param {number} id The sound id.
+   * @return {Engine}
+   */
+  fadeStop(id) {
+    const sound = this.sound(id);
+    sound && sound.fadeStop();
+    return this;
+  }
+
+  /**
+   * Gets/sets the playback rate.
+   * @param {number} id The sound id.
+   * @param {number} [rate] The playback rate. Should be from 0.5 to 5.
+   * @return {Engine|number}
+   */
+  rate(id, rate) {
+    const sound = this.sound(id);
+
+    if (sound) {
+      if (typeof rate === 'undefined') {
+        return sound.rate();
+      }
+
+      sound.rate(rate);
+    }
+
+    return this;
+  }
+
+  /**
+   * Gets/sets the seek position.
+   * @param {number} id The sound id.
+   * @param {number} [seek] The seek position.
+   * @return {Engine|number}
+   */
+  seek(id, seek) {
+    const sound = this.sound(id);
+
+    if (sound) {
+      if (typeof seek === 'undefined') {
+        return sound.seek();
+      }
+
+      sound.seek(seek);
+    }
+
+    return this;
+  }
+
+  /**
+   * Gets/sets the loop parameter of the sound.
+   * @param {number} id The sound id.
+   * @param {boolean} [loop] True to loop the sound.
+   * @return {Engine/boolean}
+   */
+  loop(id, loop) {
+    const sound = this.sound(id);
+
+    if (sound) {
+      if (typeof loop === 'undefined') {
+        return sound.loop();
+      }
+
+      sound.loop(loop);
+    }
+
+    return this;
+  }
+
+  /**
+   * Destroys the passed sound.
+   * @param {number} id The sound id.
+   * @return {Engine}
+   */
+  destroy(id) {
+    const sound = this.sound(id);
+    sound && sound.destroy();
+    return this;
+  }
+
+  /**
+   * Stops all the playing sounds and suspends the audio context immediately.
+   * @return {Engine}
+   */
+  suspend() {
+    // If the context is resuming then suspend after resumed.
+    if (this._state === EngineState.Resuming) {
+      this._queue.add('after-resume', 'suspend', () => this.suspend());
+      return this;
+    }
+
+    // If the state is not ready return.
+    if (this._state !== EngineState.Ready) {
+      return this;
+    }
+
+    // Stop all the playing sounds.
+    this.stop();
+
+    // Set the state to suspending.
+    this._state = EngineState.Suspending;
+
+    // Suspend the Audio Context.
+    this._context.suspend().then(() => {
+      this._state = EngineState.Suspended;
+      this._queue.run('after-suspend');
+      this._fire(EngineEvents.Suspend);
+    });
+
+    return this;
+  }
+
+  /**
+   * Resumes the audio context from the suspended mode.
+   * @return {Engine}
+   */
+  resume() {
+    // If the context is suspending then resume after suspended.
+    if (this._state === EngineState.Suspending) {
+      this._queue.add('after-suspend', 'resume', () => this.resume());
+      return this;
+    }
+
+    if (this._state !== EngineState.Suspended) {
+      return this;
+    }
+
+    this._state = EngineState.Resuming;
+
+    this._context.resume().then(() => {
+      this._state = EngineState.Ready;
+      this._queue.run('after-resume');
+      this._fire(EngineEvents.Resume);
+    });
+
+    return this;
+  }
+
+  /**
+   * Shuts down the engine.
+   * @return {Engine}
+   */
+  terminate() {
+    if (this._state === EngineState.Done || this._state === EngineState.Destroying) {
+      return this;
+    }
+
+    const cleanUp = () => {
+      // Un-listen from user input events.
+      userInputEventNames.forEach(eventName => document.addEventListener(eventName, this._resumeAndRemoveListeners));
+
+      // Stop the timer.
+      this._intervalId && window.clearInterval(this._intervalId);
+      this._intervalId = null;
+
+      // Destroy all the buzzes.
+      this._buzzesArray.forEach(buzz => buzz.destroy());
+
+      // Destroy all sounds.
+      this._soundsArray.forEach(sound => sound.destroy());
+
+      // Clear the cache and remove the loader.
+      if (this._bufferLoader) {
+        this._bufferLoader.dispose();
+        this._bufferLoader = null;
+      }
+
+      // Dispose the MediaLoader.
+      if (this._mediaLoader) {
+        this._mediaLoader.dispose();
+        this._mediaLoader = null;
+      }
+
+      this._buzzesArray = [];
+      this._soundsArray = [];
+      this._context = null;
+      this._queue.clear();
+      this._queue = null;
+      this._state = EngineState.Done;
+
+      // Fire the "done" event.
+      this._fire(EngineEvents.Done);
+
+      emitter.clear(this._id);
+    };
+
+    // Close the context.
+    if (this._context) {
+      if (this._state === EngineState.Suspending) {
+        this._queue.remove('after-suspend');
+        this._queue.add('after-suspend', 'destroy', () => this.terminate());
+        return this;
+      } else if (this._state === EngineState.Resuming) {
+        this._queue.remove('after-resume');
+        this._queue.add('after-resume', 'destroy', () => this.terminate());
+        return this;
+      }
+
+      this._state = EngineState.Destroying;
+      this._context && this._context.close().then(() => cleanUp());
+    } else {
+      this._state = EngineState.Destroying;
+      cleanUp();
+    }
+
+    return this;
+  }
+
+  /**
+   * Assigns a short-hand key for the audio source.
+   * @param {string|Array<string>|object} src The audio source.
+   * @param {string|Array<string>} src.url The audio source.
+   * @param {string|Array<string>} src.format The audio formats.
+   * @param {object} src.sprite The sprite definition.
+   * @param {string} key The shorthand key to access it.
+   * @return {Engine}
+   */
+  register(src, key) {
+    if (this._sourceRegistry.hasOwnProperty(key)) {
+      return this;
+    }
+
+    this._sourceRegistry[key] = src;
+
+    return this;
+  }
+
+  /**
+   * Removes the assigned key for the audio source.
+   * @param {string} src The audio source.
+   * @param {string} key The shorthand key to access it.
+   * @return {Engine}
+   */
+  unregister(src, key) {
+    delete this._sourceRegistry[key];
+    return this;
+  }
+
+  /**
+   * Returns the source assigned for the key.
+   * @param {string} key The shorthand key.
+   * @return {*}
+   */
+  getSource(key) {
+    return this._sourceRegistry[key];
   }
 
   /**
@@ -389,6 +1003,16 @@ class Engine {
   }
 
   /**
+   * Destroys the audio node reserved for sound.
+   * @param {string} src The audio file url.
+   * @param {number} groupId The buzz id.
+   * @param {number} soundId The sound id.
+   */
+  releaseForSound(src, groupId, soundId) {
+    this._mediaLoader.releaseForSound(src, groupId, soundId);
+  }
+
+  /**
    * Returns if there are free audio nodes available for a group.
    * @param {string} src The audio file url.
    * @param {number} groupId The group id.
@@ -396,216 +1020,6 @@ class Engine {
    */
   hasFreeNodes(src, groupId) {
     return this._mediaLoader.hasFreeNodes(src, groupId);
-  }
-
-  /**
-   * Mutes the engine.
-   * @return {Engine}
-   */
-  mute() {
-    // If the engine is already muted return.
-    if (this._muted) {
-      return this;
-    }
-
-    // Set the value of gain node to 0.
-    this._gainNode.gain.setValueAtTime(0, this._context.currentTime);
-
-    // Set the muted property true.
-    this._muted = true;
-
-    // Fire the "mute" event.
-    this._fire(EngineEvents.Mute, this._muted);
-
-    return this;
-  }
-
-  /**
-   * Un-mutes the engine.
-   * @return {Engine}
-   */
-  unmute() {
-    // If the engine is not muted return.
-    if (!this._muted) {
-      return this;
-    }
-
-    // Reset the gain node's value back to volume.
-    this._gainNode.gain.setValueAtTime(this._volume, this._context.currentTime);
-
-    // Set the muted property to false.
-    this._muted = false;
-
-    // Fire the "mute" event.
-    this._fire(EngineEvents.Mute, this._muted);
-
-    return this;
-  }
-
-  /**
-   * Gets/sets the volume for the audio engine that controls global volume for all sounds.
-   * @param {number} [vol] Should be within 0.0 to 1.0.
-   * @return {Engine|number}
-   */
-  volume(vol) {
-    // If no parameter is passed then return the current volume.
-    if (vol === undefined) {
-      return this._volume;
-    }
-
-    // If passed volume is not an acceptable value return.
-    if (typeof vol !== 'number' || vol < 0 || vol > 1.0) {
-      return this;
-    }
-
-    // Set the gain's value to the passed volume.
-    this._gainNode.gain.setValueAtTime(this._muted ? 0 : vol, this._context.currentTime);
-
-    // Set the volume to the property.
-    this._volume = vol;
-
-    // Fire the "volume" event.
-    this._fire(EngineEvents.Volume, this._volume);
-
-    return this;
-  }
-
-  /**
-   * Stops all the currently playing sounds.
-   * @return {Engine}
-   */
-  stop() {
-    // Stop all the sounds.
-    this.buzzes().forEach(buzz => buzz.stop());
-
-    // Fire the "stop" event.
-    this._fire(EngineEvents.Stop);
-
-    return this;
-  }
-
-  /**
-   * Stops all the playing sounds and suspends the audio context immediately.
-   * @return {Engine}
-   */
-  suspend() {
-    // If the context is resuming then suspend after resumed.
-    if (this._state === EngineState.Resuming) {
-      this._queue.add('after-resume', 'suspend', () => this.suspend());
-      return this;
-    }
-
-    // If the state is not ready return.
-    if (this._state !== EngineState.Ready) {
-      return this;
-    }
-
-    // Stop all the playing sounds.
-    this.stop();
-
-    // Set the state to suspending.
-    this._state = EngineState.Suspending;
-
-    // Suspend the Audio Context.
-    this._context.suspend().then(() => {
-      this._state = EngineState.Suspended;
-      this._queue.run('after-suspend');
-      this._fire(EngineEvents.Suspend);
-    });
-
-    return this;
-  }
-
-  /**
-   * Resumes the audio context from the suspended mode.
-   * @return {Engine}
-   */
-  resume() {
-    // If the context is suspending then resume after suspended.
-    if (this._state === EngineState.Suspending) {
-      this._queue.add('after-suspend', 'resume', () => this.resume());
-      return this;
-    }
-
-    if (this._state !== EngineState.Suspended) {
-      return this;
-    }
-
-    this._state = EngineState.Resuming;
-
-    this._context.resume().then(() => {
-      this._state = EngineState.Ready;
-      this._queue.run('after-resume');
-      this._fire(EngineEvents.Resume);
-    });
-
-    return this;
-  }
-
-  /**
-   * Shuts down the engine.
-   * @return {Engine}
-   */
-  terminate() {
-    if (this._state === EngineState.Done || this._state === EngineState.Destroying) {
-      return this;
-    }
-
-    const cleanUp = () => {
-      // Un-listen from user input events.
-      userInputEventNames.forEach(eventName => document.addEventListener(eventName, this._resumeAndRemoveListeners));
-
-      // Stop the timer.
-      this._intervalId && window.clearInterval(this._intervalId);
-      this._intervalId = null;
-
-      // Destroy all the buzzes.
-      this._buzzesArray.forEach(buzz => buzz.destroy());
-
-      // Clear the cache and remove the loader.
-      if (this._bufferLoader) {
-        this._bufferLoader.dispose();
-        this._bufferLoader = null;
-      }
-
-      // Dispose the MediaLoader.
-      if (this._mediaLoader) {
-        this._mediaLoader.dispose();
-        this._mediaLoader = null;
-      }
-
-      this._buzzesArray = [];
-      this._context = null;
-      this._queue.clear();
-      this._queue = null;
-      this._state = EngineState.Done;
-
-      // Fire the "done" event.
-      this._fire(EngineEvents.Done);
-
-      emitter.clear(this._id);
-    };
-
-    // Close the context.
-    if (this._context) {
-      if (this._state === EngineState.Suspending) {
-        this._queue.remove('after-suspend');
-        this._queue.add('after-suspend', 'destroy', () => this.terminate());
-        return this;
-      } else if (this._state === EngineState.Resuming) {
-        this._queue.remove('after-resume');
-        this._queue.add('after-resume', 'destroy', () => this.terminate());
-        return this;
-      }
-
-      this._state = EngineState.Destroying;
-      this._context && this._context.close().then(() => cleanUp());
-    } else {
-      this._state = EngineState.Destroying;
-      cleanUp();
-    }
-
-    return this;
   }
 
   /**
@@ -636,6 +1050,7 @@ class Engine {
    * @return {Engine}
    */
   free() {
+    this._freeSounds();
     this._buzzesArray.forEach(buzz => buzz.free());
     this._mediaLoader.cleanUp();
     return this;
@@ -699,7 +1114,7 @@ class Engine {
 
   /**
    * Returns the buzz for the passed id.
-   * @param {number} [id] The buzz id.
+   * @param {number} id The buzz id.
    * @return {Buzz}
    */
   buzz(id) {
@@ -715,11 +1130,71 @@ class Engine {
   }
 
   /**
+   * Returns the sound for the passed id.
+   * @param {number} id The sound id.
+   * @return {Sound}
+   */
+  sound(id) {
+    return this._soundsArray.find(x => x.id() === id);
+  }
+
+  /**
+   * Returns all the sounds.
+   * @return {Array<Sound>}
+   */
+  sounds() {
+    return this._soundsArray;
+  }
+
+  /**
    * Returns in active time.
    * @return {number}
    */
   inactiveTime() {
     return this._inactiveTime;
+  }
+
+  /**
+   * Returns source, format and sprite from the assigned key.
+   * @param {string} key The source key.
+   * @return {object}
+   * @private
+   */
+  _getSourceInfo(key) {
+    const src = this.getSource(key);
+    const sourceInfo = {
+      audioSrc: [],
+      audioFormat: [],
+      audioSprite: null
+    };
+
+    if (typeof src === 'string') {
+      sourceInfo.audioSrc = [src];
+    } else if (Array.isArray(src)) {
+      sourceInfo.audioSrc = src;
+    } else if (typeof src === 'object') {
+      const {
+        url,
+        format,
+        sprite
+      } = src;
+
+      if (typeof url === 'string') {
+        sourceInfo.audioSrc = [url];
+      } else if (Array.isArray(url)) {
+        sourceInfo.audioSrc = url;
+      }
+
+      if (Array.isArray(format)) {
+        sourceInfo.format = format;
+      } else if (typeof format === 'string' && format) {
+        sourceInfo.format = [format];
+      }
+
+      typeof sprite === 'object' && (sourceInfo.audioSprite = sprite);
+    }
+
+    return sourceInfo;
   }
 
   /**
@@ -741,6 +1216,83 @@ class Engine {
   _resumeAndRemoveListeners() {
     this.resume();
     userInputEventNames.forEach(eventName => document.addEventListener(eventName, this._resumeAndRemoveListeners));
+  }
+
+  /**
+   * Removes the passed sound from the array.
+   * @param {number|Sound} sound The sound.
+   * @private
+   */
+  _removeSound(sound) {
+    if (typeof sound === 'number') {
+      this._soundsArray = this._soundsArray.filter(x => x.id() !== sound);
+      return;
+    }
+
+    this._soundsArray.splice(this._soundsArray.indexOf(sound), 1);
+  }
+
+  /**
+   * Returns the first compatible source based on the passed sources and the format.
+   * @param {Array<string>} src The array of audio sources.
+   * @param {Array<string>} format The array of audio formats.
+   * @private
+   * @return {string}
+   */
+  _getCompatibleSource(src, format) {
+    // If the user has passed "format", check if it is supported or else retrieve the first supported source from the array.
+    return format.length ?
+      src[format.indexOf(utility.getSupportedFormat(format))] :
+      utility.getSupportedSource(src);
+  }
+
+  /**
+   * Checks the engine state and plays the passed sound.
+   * @param {Sound} sound The sound.
+   * @private
+   */
+  _play(sound) {
+    const { audioErrorCallback } = sound;
+
+    if (this._state === EngineState.Destroying || this._state === EngineState.Done) {
+      audioErrorCallback && audioErrorCallback({ type: ErrorType.PlayError, error: 'The engine is stopping/stopped' }, sound);
+      return;
+    }
+
+    if (this._state === EngineState.NoAudio) {
+      audioErrorCallback && audioErrorCallback({ type: ErrorType.NoAudio, error: 'Web Audio is un-available' }, sound);
+      return;
+    }
+
+    if ([EngineState.Suspending, EngineState.Suspended, EngineState.Resuming].indexOf(this._state) > -1) {
+      this._queue.add('after-resume', `sound-${sound.id()}`, () => sound.play());
+      this._state !== EngineState.Resuming && this.resume();
+      return;
+    }
+
+    sound.play();
+  }
+
+  /**
+   * Destroys inactive sounds.
+   * @private
+   */
+  _freeSounds() {
+    const now = new Date();
+
+    this._soundsArray = this._soundsArray.filter(sound => {
+      const inactiveDurationInSeconds = (now - sound.lastPlayed()) / 1000;
+
+      if (sound.isPersistent() ||
+        sound.isPlaying() ||
+        sound.isPaused() ||
+        inactiveDurationInSeconds < this.inactiveTime() * 60) {
+        return true;
+      }
+
+      sound.destroy();
+      return false;
+    });
   }
 }
 

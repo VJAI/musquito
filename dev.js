@@ -1,6 +1,7 @@
 /* eslint-disable */
 
 import $buzz from './src/Buzz';
+import engine from './src/Engine';
 
 class EngineTester {
 
@@ -12,6 +13,7 @@ class EngineTester {
 
   init() {
     window.$buzz = $buzz;
+    window.engine = engine;
 
     this.run = this.run.bind(this);
     this.clear = this.clear.bind(this);

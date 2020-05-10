@@ -11,6 +11,7 @@ Below are some of the core features supported by the library.
 
 - Built on the powerful Web Audio API
 - Simple API to create and play sounds
+- Supports sound groups
 - Supports variety of codecs
 - Supports audio sprites
 - Supports streaming using HTML5 audio nodes
@@ -38,7 +39,7 @@ npm install musquito --save
 You can also directly reference files available from the distribution folder.
 
 ```
-<script src="musquito/dist/musquito-1.0.0.min.js"></script>
+<script src="musquito/dist/musquito.min.js"></script>
 ```
 
 
@@ -46,74 +47,67 @@ You can also directly reference files available from the distribution folder.
 
 A simple example of how to create and play a gun fire sound.
 
-### ES6 and above
-
 ```js
 import $buzz from 'musquito';
 
-const buzz = $buzz('gunfire.mp3');
-
-buzz.play();
-```
-
-### Classic JavaScript
-
-```js
-var buzz = $buzz('gunfire.mp3');
-
-buzz.play();
+$buzz.play('gun.mp3');
 ```
 
 
-## Advanced example
+## Passing Additional Parameters
 
-The below example shows how you can pass additional parameters like volume, rate and event handlers.
+The below example shows how you can pass additional parameters like volume, rate and callback.
 
 ```js
-const buzz = $buzz({
-  src: ['gunfire.mp3', 'gunfire.wav'],
+$buzz.play({
+  src: ['greenade.mp3', 'greenade.wav'],
   volume: 0.5,
   rate: 2,
-  onplaystart: () => console.log('Playback started'),
-  onplayend: () => console.log('Playback ended')
+  playEndCallback: () => alert('Playback started')
 });
-
-buzz.play();
 ```
 
 
-## Using sprites
+## Using Sprites
 
-Audio Sprites are like image sprites concatenates multiple small sounds in a single file. You can create audio sprite using this [tool](https://github.com/tonistiigi/audiosprite). 
+Audio Sprites are like image sprites concatenates multiple small sounds in a single file. You can create audio sprite using this tool.
 
 Below is an example of how to use sprites.
 
 ```js
-const buzz = $buzz({
-  src: 'gamesprite.mp3',
-  sprite:{
-    'gun': [0, 0.48],
-    'bomb': [2, 2.42],
-    'greenade': [4, 4.67]
-  }
+$buzz.play({
+  src: 'sprite.mp3',
+  sprite: {
+    "beep": [
+      0,
+      0.48108843537414964
+    ],
+    "button": [
+      2,
+      2.4290249433106577
+    ],
+    "click": [
+      4,
+      4.672018140589569
+    ]
+  },
+  sound: 'beep'
 });
-
-buzz.play('gun');
-buzz.play('bomb');
 ```
 
 
-## Playing Long Audio Files
+## Pausing and Stopping Sounds
 
-To stream long audio files and play using HTML5 audio node you can pass the `stream` parameter as true.
+Calling the `play` method returns the sound id and you can use it to call other methods like pause, stop, change the volume and more properties of the sound.
 
 ```js
-const buzz = $buzz({
-  src: 'bg.mp3',
-  stream: true
-});
+const soundid = $buzz.play('bg.mp3');
 
-buzz.play();
+// Pausing sound
+$buzz.pause(soundid);
+
+// Stopping sound
+$buzz.stop(soundid);
 ```
 
 
@@ -122,14 +116,87 @@ buzz.play();
 You can fade the volume of a playing sound linearly or exponentially as shown below.
 
 ```js
+const soundid = $buzz.play('bg.mp3');
+
+setTimeout(() => {
+  $buzz.fade(soundid, 0, 3);
+}, 2000);
+```
+
+
+## Playing Long Audio Files
+
+To stream long audio files and play using HTML5 audio node you can pass the `stream` parameter as true.
+
+```js
+$buzz.play({
+  src: 'bg.mp3',
+  stream: true
+});
+```
+
+
+## Advanced Example
+
+The below example shows how we can setup audio engine by passing audio resources with shorthand identifiers initially before playing sounds. The `setup` method also takes lot of other arguments to configure the engine, please refer the API docs.
+
+```js
+$buzz.setup({
+  src: {
+    bg: 'bg.mp3',
+    sprite: {
+      url: 'sprite.mp3',
+      sprite: {
+        "beep": [
+          0,
+          0.48108843537414964
+        ],
+        "button": [
+          2,
+          2.4290249433106577
+        ],
+        "click": [
+          4,
+          4.672018140589569
+        ]
+      }
+    }
+  },
+  oninit: () => {
+    // Playing sounds with identifiers
+    $buzz.play('#bg');
+    $buzz.play('#sprite.button');
+  }
+});
+```
+
+
+## Creating Audio Groups
+
+Sometimes it's convenient to create a sound group which is called as "Buzz" that helps to create and manage multiple sounds for a single audio resource. Buzzes also supports events. The below example shows how we can create a sound group for a sprite and play multiple sounds easier.
+
+```js
 const buzz = $buzz({
-  src: 'bg.mp3'
+  src: 'sprite.mp3',
+  sprite:{
+    "beep": [
+      0,
+      0.48108843537414964
+    ],
+    "button": [
+      2,
+      2.4290249433106577
+    ],
+    "click": [
+      4,
+      4.672018140589569
+    ]
+  }
 });
 
-buzz.play();
-...
-
-buzz.fade(0, 3);
+buzz.play('beep');
+buzz.play('button');
+buzz.play('click');
 ```
 
 
@@ -137,6 +204,52 @@ For demos and detailed documentation please visit [here](http://musquitojs.com).
 
 
 ## API
+
+### `$buzz` static methods
+
+Sets-up the audio engine. When you call the `$buzz` function the setup method will be automatically called. Often you call this method manually during the application startup to pass the parameters to the audio engine and also when you like to pre-load all the audio resources upfront. Before calling any method in engine you should call this method first.
+
+The parameters you can pass to the `setup` method are below.
+
+| Method | Returns | Description |
+|--------|:-------:|-------------|
+| setup(args?: object) | $buzz | Sets-up the audio engine. The different parameters you can pass in arguments object are `volume`, `muted`, `maxNodesPerSource`, `cleanUpInterval`, `autoEnable`, `src`, `preload`, `progress` and event handler functions like `oninit`, `onstop`, `onmute`, `onvolume`, `onsuspend`, `onresume`, `onerror` and `ondone`. |
+| play(idOrSoundArgs: number|string|Array<string>|object) | $buzz,number | Creates and plays a new sound or the existing sound for the passed id. Returns sound id if new one is created. |
+| pause(id: number) | $buzz | Pauses the sound for the passed id. |
+| stop(id?: number) | $buzz | Stops the sound for the passed id or all the playing sounds. Stopping engine fires the "stop" event. |
+| mute(id?: number) | $buzz | Mutes the sound if id is passed or the engine. Fires the "mute" event if engine is muted. |
+| unmute(id?: number) | $buzz | Un-mutes the sound if id is passed or the engine. Fires the "mute" event if engine is un-muted. |
+| volume(vol?: number, id?: number) | $buzz,number | Gets/sets the volume for the audio engine that controls global volume for all sounds or the sound of the passed id. Fires the "volume" event in case of engine. The value of the passed volume should be from 0 to 1. |
+| fade(id: number, to: number, duration: number, type = 'linear','exponential') | $buzz | Fades the sound belongs to the passed id. |
+| fadeStop(id: number) | $buzz | Stops the running fade. |
+| rate(id: number, rate?: number) | $buzz,number | Gets/sets the rate of the passed sound. The value of the passed rate should be from 1 to 5. |
+| seek(id: number, seek?: number) | $buzz,number | Gets/sets the current position of the passed sound. |
+| loop(id: number, loop?: boolean) | $buzz,boolean | Gets/sets the loop parameter of the sound. |
+| destroy(id: number) | $buzz | Destroys the passed sound. |
+| load(urls: string, Array<string>, progressCallback: function) | Promise | Loads single or multiple audio resources into audio buffers and returns them. |
+| loadMedia(urls: string, Array<string>) | Promise | Pre-loads single or multiple HTML5 audio nodes with the passed resources and returns them. |
+| unload(urls: string, Array<string>) | $buzz | Unloads single or multiple loaded audio buffers from cache. |
+| unloadMedia(urls: string, Array<string>) | $buzz | Releases audio nodes allocated for the passed urls. |
+| register(src: string|Array<string>|object, key: string) | $buzz | Assigns a short-hand key for the audio source. In case of object the properties are `url`, `format` and `sprite`. |
+| unregister(src: string|Array<string>|object, key: string) | $buzz | Removes the assigned key for the audio source. |
+| getSource(key: string) | string,Array<string>,object | Returns the assigned audio source for the passed key. |
+| suspend() | $buzz | Stops all the playing sounds and suspends the engine immediately. |
+| resume() | $buzz | Resumes the engine from the suspended mode. |
+| terminate() | $buzz | Shuts down the engine. |
+| muted() | boolean | Returns whether the engine is currently muted or not. |
+| state() | EngineState | Returns the state of the engine. The different values are "notready", "ready", "suspending", "suspended", "resuming", "destroying", "done" and "no-audio". |
+| buzz(id: number) | Buzz | Returns the buzz for the passed id. |
+| buzzes() | Array<Buzz> | Returns all the buzzes. |
+| sound(id: number) | Sound | Returns the sound for the passed id. `Sound` is an internal object and you don't have to deal with it usually. |
+| sounds() | Array<Sound> | Returns all the sounds created directly by engine. Sounds created by sound groups are not included. | 
+| context() | AudioContext | Returns the created audio context. |
+| isAudioAvailable() | boolean | Returns true if Web Audio API is available. |
+| on(eventName: string, handler: function, once = false) | $buzz | Subscribes to an event. |
+| off(eventName: string, handler: function) | $buzz | Un-subscribes from an event. |
+| masterGain() | GainNode | Returns the master gain node. |
+| bufferLoader() | BufferLoader | Returns buffer loader. |
+| mediaLoader() | MediaLoader | Returns media loader. |
+
 
 ### `$buzz` function
 
@@ -177,6 +290,7 @@ If you need to pass additional information like initial volume, playback speed t
 | onerror | function | no | | The event handler for "error" event. |
 | ondestroy | function | no | | The event handler for "destroy" event. |
 
+
 ### `Buzz` object methods
 
 | Method | Returns | Description |
@@ -209,35 +323,6 @@ If you need to pass additional information like initial volume, playback speed t
 | alive(id: number) | boolean | Returns `true` if the passed sound exists. |
 | gain() | GainNode | Returns the gain node. |
 
-### `$buzz` static / global methods
-
-These are wrapper methods of engine that helps to control the audio globally. You can invoke this method by `$buzz.[methodname](args)`.
-
-| Method | Returns | Description |
-|--------|:-------:|-------------|
-| setup(args?: object) | $buzz | Sets-up the audio engine. The different parameters you can pass in arguments object are `volume`, `muted`, `maxNodesPerSource`, `cleanUpInterval`, `autoEnable` and event handler functions like `onstop`, `onmute`, `onvolume`, `onsuspend`, `onresume`, `onerror` and `ondone`. |
-| load(urls: string, Array<string>, progressCallback: function) | Promise | Loads single or multiple audio resources into audio buffers and returns them. |
-| loadMedia(urls: string, Array<string>) | Promise | Pre-loads single or multiple HTML5 audio nodes with the passed resources and returns them. |
-| unload(urls: string, Array<string>) | $buzz | Unloads single or multiple loaded audio buffers from cache. |
-| unloadMedia(urls: string, Array<string>) | $buzz | Releases audio nodes allocated for the passed urls. |
-| mute() | $buzz | Mutes the engine. |
-| unmute() | $buzz | Un-mutes the engine. |
-| volume(vol?: number) | $buzz, number | Gets/sets the volume for the audio engine that controls global volume for all sounds. |
-| stop() | $buzz | Stops all the currently playing sounds. |
-| suspend() | $buzz | Stops all the playing sounds and suspends the engine immediately. |
-| resume() | $buzz | Resumes the engine from the suspended mode. |
-| terminate() | $buzz | Shuts down the engine. |
-| muted() | boolean | Returns whether the engine is currently muted or not. |
-| state() | EngineState | Returns the state of the engine. The different values are "notready", "ready", "suspending", "suspended", "resuming", "destroying", "done" and "no-audio". |
-| buzz(id: number) | Buzz | Returns the buzz for the passed id. |
-| buzzes() | Array<Buzz> | Returns all the buzzes. |
-| context() | AudioContext | Returns the created audio context. |
-| isAudioAvailable() | boolean | Returns true if Web Audio API is available. |
-| on(eventName: string, handler: function, once = false) | $buzz | Subscribes to an event. |
-| off(eventName: string, handler: function) | $buzz | Un-subscribes from an event. |
-| masterGain() | GainNode | Returns the master gain node. |
-| bufferLoader() | BufferLoader | Returns buffer loader. |
-| mediaLoader() | MediaLoader | Returns media loader. |
 
 ## License
 

@@ -31,10 +31,11 @@ class MediaLoader {
   /**
    * Creates the audio pool.
    * @param {number} maxNodesPerSource Maximum number of audio nodes allowed for a url.
+   * @param {number} inactiveTime The period after which HTML5 audio node is marked as inactive.
    * @param {function} soundCleanUpCallback The inactive sounds cleanup callback.
    */
-  constructor(maxNodesPerSource, soundCleanUpCallback) {
-    this._audioPool = new Html5AudioPool(maxNodesPerSource, soundCleanUpCallback);
+  constructor(maxNodesPerSource, inactiveTime, soundCleanUpCallback) {
+    this._audioPool = new Html5AudioPool(maxNodesPerSource, inactiveTime, soundCleanUpCallback);
   }
 
   /**
@@ -43,7 +44,6 @@ class MediaLoader {
    * @return {Promise<DownloadResult|Array<DownloadResult>>}
    */
   load(urls) {
-    console.log(typeof urls);
     if (typeof urls === 'string') {
       return this._load(urls);
     }
@@ -110,6 +110,16 @@ class MediaLoader {
   }
 
   /**
+   * Destroys the audio node reserved for sound.
+   * @param {string} src The audio file url.
+   * @param {number} groupId The buzz id.
+   * @param {number} soundId The sound id.
+   */
+  releaseForSound(src, groupId, soundId) {
+    this._audioPool.releaseAudio(src, groupId, soundId);
+  }
+
+  /**
    * Returns if there are free audio nodes available for a group.
    * @param {string} src The audio file url.
    * @param {number} groupId The group id.
@@ -169,7 +179,7 @@ class MediaLoader {
 
         const audioObj = this._bufferingAudios.find(obj => obj.audio === audio);
         audioObj && this._cleanUp(audioObj);
-        this._audioPool.releaseAudio(url, audio, groupId);
+        this._audioPool.releaseAudio(url, groupId, audio);
         resolve(new DownloadResult(url, null, err));
       };
 

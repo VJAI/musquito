@@ -186,6 +186,18 @@ class Utility {
   isIE() {
     return Boolean(this._userAgent && (/MSIE |Trident\//).test(this._userAgent));
   }
+
+  /**
+   * Destroys the passed audio node.
+   * @param {Audio} audio The HTML5 audio element.
+   */
+  destroyHtml5Audio(audio) {
+    audio.pause();
+    this.isIE() && (audio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA');
+    audio.onerror = null;
+    audio.onend = null;
+    audio.canplaythrough = null;
+  }
 }
 
 export default new Utility();

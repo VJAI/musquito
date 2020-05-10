@@ -1,6 +1,6 @@
 {
   "name": "musquito",
-  "version": "2.1.2",
+  "version": "3.0.0",
   "description": "An audio engine for HTML5 games and interactive websites",
   "keywords": [
     "audio",

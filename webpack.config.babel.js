@@ -26,7 +26,7 @@ export default {
     new webpack.BannerPlugin({
       banner:
 `/*!
-*  musquito v2.1.2
+*  musquito v3.0.0
 *  http://musquitojs.com
 *
 *  (c) 2020 Vijaya Anand
