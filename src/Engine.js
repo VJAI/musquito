@@ -37,6 +37,7 @@ const EngineState = {
  * @enum {string}
  */
 const EngineEvents = {
+  Init: 'init',
   Volume: 'volume',
   Mute: 'mute',
   Stop: 'stop',
@@ -217,7 +218,7 @@ class Engine {
    * @param {object} [args.src] The audio sources.
    * @param {boolean} [args.preload = true] True to preload audio sources.
    * @param {function} [args.progress] The function that's called to notify the progress of resources loaded.
-   * @param {function} [args.init] The function that's called after resources are loaded.
+   * @param {function} [args.oninit] Event-handler for the "init" event.
    * @param {function} [args.onstop] Event-handler for the "stop" event.
    * @param {function} [args.onmute] Event-handler for the "mute" event.
    * @param {function} [args.onvolume] Event-handler for the "volume" event.
@@ -256,7 +257,7 @@ class Engine {
       src,
       preload = true,
       progress,
-      init,
+      oninit,
       onstop,
       onmute,
       onvolume,
@@ -273,6 +274,7 @@ class Engine {
     typeof cleanUpInterval === 'number' && (this._cleanUpInterval = cleanUpInterval);
     typeof inactiveTime === 'number' && (this._inactiveTime = inactiveTime);
     typeof autoEnable === 'boolean' && (this._autoEnable = autoEnable);
+    typeof oninit === 'function' && this.on(EngineEvents.Init, oninit);
     typeof onstop === 'function' && this.on(EngineEvents.Stop, onstop);
     typeof onmute === 'function' && this.on(EngineEvents.Mute, onmute);
     typeof onvolume === 'function' && this.on(EngineEvents.Volume, onvolume);
@@ -336,7 +338,10 @@ class Engine {
         const bufferUrls = getCompatibleSrc(Object.values(src).filter(x => !x.stream));
         const mediaUrls = getCompatibleSrc(Object.values(src).filter(x => x.stream));
 
-        Promise.all([this.load(bufferUrls, progress), this.loadMedia(mediaUrls)]).then(result => init && init(result));
+        Promise.all([this.load(bufferUrls, progress), this.loadMedia(mediaUrls)])
+          .then(result => this._fire(EngineEvents.Init, result));
+      } else {
+        this._fire(EngineEvents.Init);
       }
     }
 
