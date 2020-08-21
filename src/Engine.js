@@ -470,7 +470,7 @@ class Engine {
 
     soundArgs.destroyCallback = (sound) => {
       this._removeSound(sound);
-      this.releaseForSound(compatibleSrc, this._id, sound.id());
+      stream && this.releaseForSound(compatibleSrc, this._id, sound.id());
       destroyCallback && destroyCallback(sound);
     };
 

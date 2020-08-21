@@ -475,7 +475,7 @@ class Buzz {
       loadCallback: () => this._fire(BuzzEvents.Load, newSoundId),
       destroyCallback: () => {
         this._removeSound(newSoundId);
-        this._engine.releaseForSound(this._compatibleSrc, this._id, newSoundId);
+        this._stream && this._engine.releaseForSound(this._compatibleSrc, this._id, newSoundId);
         this._fire(BuzzEvents.Destroy, newSoundId);
         emitter.clear(newSoundId);
       }
