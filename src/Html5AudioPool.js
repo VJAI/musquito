@@ -66,6 +66,7 @@ class Html5AudioPool {
       { unallocated } = nodes;
 
     const audio = new Audio();
+    audio.crossOrigin = 'anonymous';
     unallocated.push({ audio: audio, time: new Date() });
 
     return audio;
@@ -84,6 +85,8 @@ class Html5AudioPool {
     const nodes = this._resourceNodesMap[src],
       { unallocated, allocated } = nodes,
       audio = unallocated.length ? unallocated.shift().audio : new Audio();
+
+    audio.crossOrigin = 'anonymous';
 
     allocated[groupId].push({ soundId: null, audio: audio, time: new Date() });
 
